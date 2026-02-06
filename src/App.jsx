@@ -101,6 +101,9 @@ export default function App() {
   }, [startDate, endDate]);
 
   const processAndSetData = (packets, start, end) => {
+    let tripCount = 0;
+    let isStopped = true;
+
     const filtered = packets
       .filter(p => {
         if (p.messageIdHex !== "0200") return false;
@@ -126,7 +129,27 @@ export default function App() {
           rawMileage: parseFloat(mileage)
         };
       })
-      .reverse();
+      .reverse() // Sort chronologically
+      .map((p, index, arr) => {
+        // Detect trip changes (Start moving after being stopped)
+        if (p.speed > 0 && isStopped) {
+          tripCount++;
+          isStopped = false;
+        } else if (p.speed === 0) {
+          isStopped = true;
+        }
+
+        // Apply a small offset based on trip number to separate overlapping lines
+        // 0.00008 is approx 8-10 meters. We alternate offset directions.
+        const offset = (tripCount - 1) * 0.00008;
+
+        return {
+          ...p,
+          tripId: tripCount,
+          lat: p.lat + offset,
+          lng: p.lng + offset
+        };
+      });
 
     setTrackingData(filtered);
     if (filtered.length > 0) {
@@ -147,14 +170,16 @@ export default function App() {
     const colorSegments = [];
     let currentSegment = {
       path: [{ lat: trackingData[0].lat, lng: trackingData[0].lng }],
-      color: getSpeedColor(trackingData[0].speed)
+      color: getSpeedColor(trackingData[0].speed),
+      tripId: trackingData[0].tripId
     };
 
     for (let i = 1; i < trackingData.length; i++) {
       const point = trackingData[i];
       const color = getSpeedColor(point.speed);
 
-      if (color === currentSegment.color) {
+      // Breakdown segment if color OR trip changes
+      if (color === currentSegment.color && point.tripId === currentSegment.tripId) {
         currentSegment.path.push({ lat: point.lat, lng: point.lng });
       } else {
         colorSegments.push(currentSegment);
@@ -163,7 +188,8 @@ export default function App() {
             { lat: trackingData[i - 1].lat, lng: trackingData[i - 1].lng }, // Add previous point to close gap
             { lat: point.lat, lng: point.lng }
           ],
-          color: color
+          color: color,
+          tripId: point.tripId
         };
       }
     }
