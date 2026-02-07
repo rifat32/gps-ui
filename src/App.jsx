@@ -6,7 +6,8 @@ import {
   Polyline,
   OverlayView,
 } from "@react-google-maps/api";
-import { Loader2, Pause, Play, RotateCcw, Search } from "lucide-react";
+import { Loader2, Pause, Play, RotateCcw, Search, Menu, X } from "lucide-react";
+import "./App.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // =========================================================================
@@ -23,13 +24,6 @@ const SPEED_COLORS = {
   normal: "#22c55e", // Green: 20-80 km/h
   over: "#ef4444", // Red: 80-120 km/h
   critical: "#7f1d1d", // Dark Red: > 120 km/h
-};
-
-const getSpeedColor = (speed) => {
-  if (speed < 20) return SPEED_COLORS.low;
-  if (speed < 80) return SPEED_COLORS.normal;
-  if (speed < 120) return SPEED_COLORS.over;
-  return SPEED_COLORS.critical;
 };
 
 // Custom icons
@@ -72,13 +66,14 @@ export default function App() {
     new Date().toISOString().split("T")[0],
   );
   const [center, setCenter] = useState({ lat: 51.5278, lng: 0.0694 });
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [playbackInterval, setPlaybackInterval] = useState(1000);
   const [thresholds, setThresholds] = useState({
     low: 20,
     normal: 80,
     over: 120,
   });
   const [showPlayTooltip, setShowPlayTooltip] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const playInterval = useRef(null);
   const mapRef = useRef(null);
 
@@ -295,12 +290,12 @@ export default function App() {
           }
           return prev + 1;
         });
-      }, 1000 / playbackSpeed);
+      }, playbackInterval);
     } else {
       clearInterval(playInterval.current);
     }
     return () => clearInterval(playInterval.current);
-  }, [isPlaying, trackingData, playbackSpeed]);
+  }, [isPlaying, trackingData, playbackInterval]);
 
   // Quick Date Helpers
   const setQuickDate = (type) => {
@@ -384,7 +379,7 @@ export default function App() {
 
   if (loading)
     return (
-      <div style={styles.loaderContainer}>
+      <div className="loader-container">
         <Loader2 size={48} className="animate-spin" color="#3b82f6" />
         <p>Loading GPS Data...</p>
       </div>
@@ -392,45 +387,51 @@ export default function App() {
 
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-      <div style={styles.appContainer}>
+      <div className="app-container">
         {/* --- SIDEBAR --- */}
-        <aside style={styles.sidebar}>
-          <div style={styles.sidebarHeader}>
-            <h1 style={styles.sidebarTitle}>Playback</h1>
+        <aside className={`sidebar ${isSidebarOpen ? "open" : ""}`}>
+          <div className="sidebar-header">
+            <h1 className="sidebar-title">Playback</h1>
+            <button
+              className="close-sidebar-btn"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <X size={24} />
+            </button>
           </div>
 
-          <div style={styles.sidebarContent}>
+          <div className="sidebar-content">
             {/* Device Info */}
-            <div style={styles.section}>
-              <div style={styles.inputGroup}>
+            <div className="section">
+              <div className="input-group">
                 <Search size={16} color="#94a3b8" />
                 <input
-                  style={styles.textInput}
+                  className="text-input"
                   placeholder="Input Name or IMEI No."
                   defaultValue="JT8088985963"
                 />
               </div>
-              <div style={styles.locateTypeTags}>
-                <span style={styles.tagActive}>GPS+BDS/LBS/WIFI</span>
-                <span style={styles.tag}>GPS+BDS</span>
+              <div className="locate-type-tags">
+                <span className="tag-active">GPS+BDS/LBS/WIFI</span>
+                <span className="tag">GPS+BDS</span>
               </div>
             </div>
 
             {/* Date Selection */}
-            <div style={styles.section}>
-              <div style={styles.dateLabel}>February 2026</div>
-              <div style={styles.calendarMini}>
+            <div className="section">
+              <div className="date-label">February 2026</div>
+              <div className="calendar-mini">
                 {/* Mock calendar for visual alignment */}
                 {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                  <span key={d} style={styles.calDay}>
+                  <span key={d} className="cal-day">
                     {d}
                   </span>
                 ))}
                 {[...Array(31)].map((_, i) => (
                   <span
                     key={i}
+                    className="cal-date"
                     style={{
-                      ...styles.calDate,
                       color: i + 1 === 7 ? "#3b82f6" : "#334155",
                       fontWeight: i + 1 === 7 ? "bold" : "normal",
                     }}
@@ -439,45 +440,50 @@ export default function App() {
                   </span>
                 ))}
               </div>
-              <div style={styles.dateTimeField}>
-                <label style={styles.fieldLabel}>*Time for start:</label>
+              <div className="date-time-field">
+                <label className="field-label">*Time for start:</label>
                 <input
                   type="datetime-local"
                   value={`${startDate}T00:00`}
                   onChange={(e) => setStartDate(e.target.value.split("T")[0])}
-                  style={styles.dateTimeInput}
+                  className="date-time-input"
                 />
               </div>
-              <div style={styles.dateTimeField}>
-                <label style={styles.fieldLabel}>*Time for end:</label>
+              <div className="date-time-field">
+                <label className="field-label">*Time for end:</label>
                 <input
                   type="datetime-local"
                   value={`${endDate}T23:59`}
                   onChange={(e) => setEndDate(e.target.value.split("T")[0])}
-                  style={styles.dateTimeInput}
+                  className="date-time-input"
                 />
               </div>
             </div>
 
             {/* Playback Controls */}
-            <div style={styles.section}>
-              <div style={styles.controlRow}>
-                <span style={styles.label}>Speed:</span>
-                <div style={styles.speedSliderContainer}>
-                  <span style={styles.speedText}>Slow</span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={playbackSpeed}
-                    onChange={(e) => setPlaybackSpeed(parseInt(e.target.value))}
-                    style={styles.slider}
-                  />
-                  <span style={styles.speedText}>Fast</span>
-                </div>
+            <div className="section">
+              <div className="control-row">
+                <span className="label">Speed:</span>
+                <select
+                  value={playbackInterval}
+                  onChange={(e) =>
+                    setPlaybackInterval(parseInt(e.target.value, 10))
+                  }
+                  className="select-input"
+                >
+                  <option value={100}>10x Fast (0.1s)</option>
+                  <option value={200}>5x Fast (0.2s)</option>
+                  <option value={500}>2x Fast (0.5s)</option>
+                  <option value={1000}>Normal (1s)</option>
+                  <option value={2000}>Slow (2s)</option>
+                  <option value={5000}>Slower (5s)</option>
+                  <option value={10000}>Very Slow (10s)</option>
+                  <option value={20000}>Extra Slow (20s)</option>
+                  <option value={30000}>Super Slow (30s)</option>
+                </select>
               </div>
-              <div style={styles.controlRow}>
-                <span style={styles.label}>Play Tooltip:</span>
+              <div className="control-row">
+                <span className="label">Play Tooltip:</span>
                 <label className="switch">
                   <input
                     type="checkbox"
@@ -489,9 +495,9 @@ export default function App() {
               </div>
 
               {/* Legends */}
-              <div style={styles.legendWrapper}>
-                <div style={styles.thresholdBadges}>
-                  <div style={styles.inputBadgeWrapper}>
+              <div className="legend-wrapper">
+                <div className="threshold-badges">
+                  <div className="input-badge-wrapper">
                     <input
                       type="number"
                       value={thresholds.low}
@@ -501,14 +507,14 @@ export default function App() {
                           low: parseInt(e.target.value) || 0,
                         })
                       }
+                      className="speed-input"
                       style={{
-                        ...styles.speedInput,
                         backgroundColor: SPEED_COLORS.low,
                       }}
                     />
-                    <span style={styles.unit}>km/h</span>
+                    <span className="unit">km/h</span>
                   </div>
-                  <div style={styles.inputBadgeWrapper}>
+                  <div className="input-badge-wrapper">
                     <input
                       type="number"
                       value={thresholds.normal}
@@ -518,14 +524,14 @@ export default function App() {
                           normal: parseInt(e.target.value) || 0,
                         })
                       }
+                      className="speed-input"
                       style={{
-                        ...styles.speedInput,
                         backgroundColor: SPEED_COLORS.normal,
                       }}
                     />
-                    <span style={styles.unit}>km/h</span>
+                    <span className="unit">km/h</span>
                   </div>
-                  <div style={styles.inputBadgeWrapper}>
+                  <div className="input-badge-wrapper">
                     <input
                       type="number"
                       value={thresholds.over}
@@ -535,92 +541,93 @@ export default function App() {
                           over: parseInt(e.target.value) || 0,
                         })
                       }
+                      className="speed-input"
                       style={{
-                        ...styles.speedInput,
                         backgroundColor: SPEED_COLORS.over,
                       }}
                     />
-                    <span style={styles.unit}>km/h</span>
+                    <span className="unit">km/h</span>
                   </div>
                 </div>
-                <div style={styles.legendContainer}>
-                  <div style={styles.legendItem}>
+                <div className="legend-container">
+                  <div className="legend-item">
                     <span
+                      className="dot"
                       style={{
-                        ...styles.dot,
                         backgroundColor: SPEED_COLORS.low,
                       }}
                     ></span>
-                    <span style={styles.legendText}>lowSpeed</span>
+                    <span className="legend-text">lowSpeed</span>
                   </div>
-                  <div style={styles.legendItem}>
+                  <div className="legend-item">
                     <span
+                      className="dot"
                       style={{
-                        ...styles.dot,
                         backgroundColor: SPEED_COLORS.normal,
                       }}
                     ></span>
-                    <span style={styles.legendText}>normal</span>
+                    <span className="legend-text">normal</span>
                   </div>
-                  <div style={styles.legendItem}>
+                  <div className="legend-item">
                     <span
+                      className="dot"
                       style={{
-                        ...styles.dot,
                         backgroundColor: SPEED_COLORS.over,
                       }}
                     ></span>
-                    <span style={styles.legendText}>OverSpeed</span>
+                    <span className="legend-text">OverSpeed</span>
                   </div>
-                  <div style={styles.legendItem}>
+                  <div className="legend-item">
                     <span
+                      className="dot"
                       style={{
-                        ...styles.dot,
                         backgroundColor: SPEED_COLORS.critical,
                       }}
                     ></span>
-                    <span style={styles.legendText}>OverSpeed (1.5)</span>
+                    <span className="legend-text">OverSpeed (1.5)</span>
                   </div>
-                  <div style={styles.legendItem}>
+                  <div className="legend-item">
                     <span
-                      style={{ ...styles.dot, backgroundColor: "#f97316" }}
+                      className="dot"
+                      style={{ backgroundColor: "#f97316" }}
                     ></span>
-                    <span style={styles.legendText}>Revisit</span>
+                    <span className="legend-text">Revisit</span>
                   </div>
                 </div>
               </div>
 
               {/* Quick Date Selectors */}
-              <div style={styles.quickDates}>
+              <div className="quick-dates">
                 <button
                   onClick={() => setQuickDate("LastWeek")}
-                  style={styles.quickBtn}
+                  className="quick-btn"
                 >
                   Last...
                 </button>
                 <button
                   onClick={() => setQuickDate("ThisWeek")}
-                  style={styles.quickBtn}
+                  className="quick-btn"
                 >
                   This...
                 </button>
-                <button style={styles.quickBtn}>Before...</button>
+                <button className="quick-btn">Before...</button>
                 <button
                   onClick={() => setQuickDate("Yesterday")}
-                  style={styles.quickBtn}
+                  className="quick-btn"
                 >
                   Yester...
                 </button>
                 <button
                   onClick={() => setQuickDate("Today")}
-                  style={styles.quickBtn}
+                  className="quick-btn"
                 >
                   Today
                 </button>
               </div>
 
               <button
+                className="start-btn"
                 style={{
-                  ...styles.startBtn,
                   backgroundColor: isPlaying ? "#ef4444" : "#3b82f6",
                 }}
                 onClick={() => setIsPlaying(!isPlaying)}
@@ -631,34 +638,35 @@ export default function App() {
             </div>
 
             {/* Event List */}
-            <div style={styles.tabs}>
-              <span style={styles.tabActive}>Remain(2)</span>
-              <span style={styles.tab}>event(0)</span>
+            {/* Event List */}
+            <div className="tabs">
+              <span className="tab-active">Remain(2)</span>
+              <span className="tab">event(0)</span>
             </div>
-            <div style={styles.eventList}>
+            <div className="event-list">
               {stops.map((stop, ix) => (
                 <div
                   key={ix}
+                  className="event-item"
                   style={{
-                    ...styles.eventItem,
                     borderLeft: stop.isRevisit ? "4px solid #f97316" : "none",
                   }}
                 >
                   <div
+                    className="event-pin"
                     style={{
-                      ...styles.eventPin,
                       backgroundColor: stop.isRevisit ? "#f97316" : "#3b82f6",
                     }}
                   >
                     P{ix + 1}
                   </div>
-                  <div style={styles.eventDetail}>
-                    <p style={styles.eventAddr}>
+                  <div className="event-detail">
+                    <p className="event-addr">
                       {stop.isRevisit
                         ? "🔄 REVISITED LOCATION"
                         : "London Borough of Barking and Dagenham..."}
                     </p>
-                    <p style={styles.eventTime}>
+                    <p className="event-time">
                       {stop.startTime} - {stop.endTime || "Ongoing"}
                     </p>
                   </div>
@@ -669,19 +677,27 @@ export default function App() {
         </aside>
 
         {/* --- MAP AREA --- */}
-        <main style={styles.mapArea}>
+        <main className="map-area">
+          {!isSidebarOpen && (
+            <button
+              className="menu-toggle"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu size={24} color="#334155" />
+            </button>
+          )}
           {/* Map Header Overlay */}
-          <div style={styles.mapHeader}>
-            <div style={styles.mapActions}>
-              <button style={styles.mapBtnActive}>Map</button>
-              <button style={styles.mapBtn}>Satellite</button>
-              <button style={styles.mapBtn}>Bing</button>
+          <div className="map-header">
+            <div className="map-actions">
+              <button className="map-btn-active">Map</button>
+              <button className="map-btn">Satellite</button>
+              <button className="map-btn">Bing</button>
             </div>
-            <div style={styles.mapRightActions}>
-              <button style={styles.topBtn}>AllView location</button>
-              <button style={styles.topBtn}>View Speed Graph</button>
-              <button style={styles.topBtnActive}>Detail</button>
-              <button style={styles.topBtn}>Print</button>
+            <div className="map-right-actions">
+              <button className="top-btn">AllView location</button>
+              <button className="top-btn">View Speed Graph</button>
+              <button className="top-btn-active">Detail</button>
+              <button className="top-btn">Print</button>
             </div>
           </div>
 
@@ -777,21 +793,21 @@ export default function App() {
                     pixelOffset: new window.google.maps.Size(0, -20),
                   }}
                 >
-                  <div style={styles.tooltipPlay}>
-                    <p style={styles.tooltipLine}>
+                  <div className="tooltip-play">
+                    <p className="tooltip-line">
                       <strong>Device name:</strong> JT8088985963
                     </p>
-                    <p style={styles.tooltipLine}>
+                    <p className="tooltip-line">
                       <strong>Speed:</strong> {currentPos.speed}Km/h
                     </p>
-                    <p style={styles.tooltipLine}>
+                    <p className="tooltip-line">
                       <strong>Mileage:</strong>{" "}
                       {currentPos.rawMileage.toFixed(3)}Kilometer
                     </p>
-                    <p style={styles.tooltipLine}>
+                    <p className="tooltip-line">
                       <strong>Locate:</strong> {currentPos.timestamp}
                     </p>
-                    <p style={styles.tooltipLine}>
+                    <p className="tooltip-line">
                       <strong>Duration:</strong>{" "}
                       {getDurationString(currentIndex)}
                     </p>
@@ -805,7 +821,7 @@ export default function App() {
                 position={{ lat: selectedPoint.lat, lng: selectedPoint.lng }}
                 onCloseClick={() => setSelectedPoint(null)}
               >
-                <div style={styles.tooltip}>
+                <div className="tooltip-custom">
                   <p>
                     <strong>No. :</strong> P1
                   </p>
@@ -836,23 +852,20 @@ export default function App() {
           </GoogleMap>
 
           {/* Bottom Progress Overlay */}
-          <div style={styles.bottomStats}>
-            <div style={styles.progressTrack}>
+          <div className="bottom-stats">
+            <div className="progress-track">
               <div
+                className="progress-fill"
                 style={{
-                  ...styles.progressFill,
                   width: `${trackingData.length > 0 ? (currentIndex / (trackingData.length - 1)) * 100 : 0}%`,
                 }}
               />
             </div>
-            <div style={styles.statsBar}>
+            <div className="stats-bar">
               <span>Time: {currentPos.timestamp}</span>
               <span>Speed: {currentPos.speed} km/h</span>
               <span>Mileage: {currentPos.mileage}</span>
-              <button
-                onClick={() => setCurrentIndex(0)}
-                style={styles.resetBtn}
-              >
+              <button onClick={() => setCurrentIndex(0)} className="reset-btn">
                 <RotateCcw size={14} /> Reset
               </button>
             </div>
@@ -862,452 +875,3 @@ export default function App() {
     </LoadScript>
   );
 }
-
-const styles = {
-  appContainer: {
-    display: "flex",
-    height: "100vh",
-    width: "100vw",
-    fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-    overflow: "hidden",
-  },
-  sidebar: {
-    width: "320px",
-    height: "100%",
-    backgroundColor: "#ffffff",
-    borderRight: "1px solid #e2e8f0",
-    display: "flex",
-    flexDirection: "column",
-    zIndex: 20,
-  },
-  sidebarHeader: {
-    padding: "16px",
-    backgroundColor: "#3b82f6",
-    color: "white",
-  },
-  sidebarTitle: {
-    fontSize: "20px",
-    fontWeight: "600",
-    margin: 0,
-  },
-  sidebarContent: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-  },
-  section: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-    paddingBottom: "16px",
-    borderBottom: "1px solid #f1f5f9",
-  },
-  inputGroup: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    backgroundColor: "#f8fafc",
-    padding: "8px 12px",
-    borderRadius: "6px",
-    border: "1px solid #e2e8f0",
-  },
-  textInput: {
-    border: "none",
-    backgroundColor: "transparent",
-    fontSize: "13px",
-    outline: "none",
-    width: "100%",
-    color: "#00cc00",
-    fontWeight: "bold",
-  },
-  locateTypeTags: {
-    display: "flex",
-    gap: "4px",
-  },
-  tagActive: {
-    backgroundColor: "#3b82f6",
-    color: "white",
-    fontSize: "11px",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  tag: {
-    backgroundColor: "#f1f5f9",
-    color: "#64748b",
-    fontSize: "11px",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  dateLabel: {
-    textAlign: "center",
-    fontSize: "14px",
-    fontWeight: "bold",
-    color: "#1e293b",
-    padding: "4px 0",
-  },
-  calendarMini: {
-    display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
-    gap: "4px",
-    fontSize: "11px",
-    textAlign: "center",
-  },
-  calDay: { color: "#00cc00", fontWeight: "bold" },
-  calDate: { padding: "2px" },
-  dateTimeField: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  fieldLabel: {
-    fontSize: "11px",
-    color: "#ef4444",
-  },
-  dateTimeInput: {
-    fontSize: "12px",
-    padding: "4px",
-    borderRadius: "4px",
-    border: "1px solid #e2e8f0",
-  },
-  controlRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "12px",
-  },
-  label: { minWidth: "80px", color: "#64748b" },
-  speedSliderContainer: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-  },
-  speedText: { fontSize: "10px", color: "#94a3b8" },
-  slider: { flex: 1 },
-  select: {
-    flex: 1,
-    padding: "4px",
-    fontSize: "12px",
-    borderRadius: "4px",
-    border: "1px solid #e2e8f0",
-  },
-  legendWrapper: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-    marginTop: "8px",
-  },
-  thresholdBadges: {
-    display: "flex",
-    gap: "4px",
-  },
-  inputBadgeWrapper: {
-    display: "flex",
-    alignItems: "center",
-    gap: "2px",
-    backgroundColor: "#f1f5f9",
-    paddingRight: "4px",
-    borderRadius: "4px",
-    overflow: "hidden",
-  },
-  speedInput: {
-    width: "40px",
-    fontSize: "10px",
-    color: "white",
-    padding: "2px 4px",
-    border: "none",
-    fontWeight: "bold",
-    outline: "none",
-    textAlign: "center",
-  },
-  unit: {
-    fontSize: "8px",
-    color: "#64748b",
-    fontWeight: "bold",
-  },
-  legendContainer: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px",
-  },
-  legendItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-  },
-  dot: {
-    width: "24px",
-    height: "10px",
-    borderRadius: "2px",
-  },
-  legendText: { fontSize: "10px", color: "#64748b" },
-  quickDates: {
-    display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
-    gap: "4px",
-  },
-  quickBtn: {
-    fontSize: "10px",
-    padding: "4px 2px",
-    backgroundColor: "white",
-    border: "1px solid #e2e8f0",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  startBtn: {
-    width: "100%",
-    padding: "10px",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    fontWeight: "bold",
-    marginTop: "8px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    cursor: "pointer",
-  },
-  tabs: {
-    display: "flex",
-    borderBottom: "1px solid #e2e8f0",
-  },
-  tabActive: {
-    flex: 1,
-    padding: "8px",
-    textAlign: "center",
-    fontSize: "12px",
-    color: "#3b82f6",
-    borderBottom: "2px solid #3b82f6",
-    fontWeight: "bold",
-  },
-  tab: {
-    flex: 1,
-    padding: "8px",
-    textAlign: "center",
-    fontSize: "12px",
-    color: "#64748b",
-  },
-  eventList: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-    marginTop: "12px",
-  },
-  eventItem: {
-    display: "flex",
-    gap: "8px",
-    padding: "8px",
-    backgroundColor: "#f9fafb",
-    borderRadius: "6px",
-  },
-  eventPin: {
-    backgroundColor: "#3b82f6",
-    color: "white",
-    fontSize: "10px",
-    width: "24px",
-    height: "24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "4px",
-    fontWeight: "bold",
-  },
-  eventDetail: {
-    flex: 1,
-  },
-  eventAddr: {
-    fontSize: "11px",
-    margin: 0,
-    color: "#334155",
-  },
-  eventTime: {
-    fontSize: "10px",
-    margin: "2px 0 0 0",
-    color: "#94a3b8",
-  },
-  mapArea: {
-    flex: 1,
-    position: "relative",
-    height: "100%",
-  },
-  mapHeader: {
-    position: "absolute",
-    top: "12px",
-    left: "12px",
-    right: "12px",
-    display: "flex",
-    justifyContent: "space-between",
-    zIndex: 10,
-  },
-  mapActions: {
-    display: "flex",
-    backgroundColor: "white",
-    padding: "4px",
-    borderRadius: "6px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-  },
-  mapBtnActive: {
-    padding: "4px 12px",
-    fontSize: "13px",
-    border: "none",
-    backgroundColor: "white",
-    color: "#334155",
-    cursor: "pointer",
-  },
-  mapBtn: {
-    padding: "4px 12px",
-    fontSize: "13px",
-    border: "none",
-    backgroundColor: "white",
-    color: "#94a3b8",
-    cursor: "pointer",
-  },
-  mapRightActions: {
-    display: "flex",
-    gap: "8px",
-    zIndex: 10,
-  },
-  topBtn: {
-    padding: "4px 12px",
-    fontSize: "12px",
-    backgroundColor: "white",
-    border: "1px solid #e2e8f0",
-    borderRadius: "4px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    cursor: "pointer",
-  },
-  topBtnActive: {
-    padding: "4px 12px",
-    fontSize: "12px",
-    backgroundColor: "#3b82f6",
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    cursor: "pointer",
-  },
-  bottomStats: {
-    position: "absolute",
-    bottom: "24px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "500px",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: "12px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-    padding: "16px",
-    zIndex: 15,
-  },
-  progressTrack: {
-    width: "100%",
-    height: "6px",
-    backgroundColor: "#e2e8f0",
-    borderRadius: "3px",
-    marginBottom: "12px",
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#3b82f6",
-    transition: "width 0.1s linear",
-  },
-  statsBar: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: "13px",
-    color: "#334155",
-    fontWeight: "500",
-    alignItems: "center",
-  },
-  resetBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-    padding: "4px 8px",
-    backgroundColor: "#f1f5f9",
-    border: "none",
-    borderRadius: "4px",
-    fontSize: "11px",
-    cursor: "pointer",
-  },
-  tooltip: {
-    padding: "8px",
-    fontSize: "12px",
-    lineHeight: "1.6",
-    minWidth: "220px",
-  },
-  tooltipPlay: {
-    padding: "12px",
-    fontSize: "12px",
-    minWidth: "200px",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    backdropFilter: "blur(10px)",
-    borderRadius: "12px",
-    boxShadow:
-      "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
-    animation: "fadeInUp 0.3s ease-out",
-  },
-  tooltipHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "10px",
-    paddingBottom: "8px",
-    borderBottom: "1px solid #f1f5f9",
-  },
-  tooltipTitle: {
-    fontWeight: "700",
-    color: "#1e293b",
-    fontSize: "13px",
-    letterSpacing: "-0.01em",
-  },
-  tooltipGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "10px",
-  },
-  tooltipItem: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-  },
-  tooltipLabel: {
-    fontSize: "10px",
-    color: "#64748b",
-    fontWeight: "500",
-    textTransform: "uppercase",
-    letterSpacing: "0.02em",
-  },
-  tooltipValue: {
-    fontSize: "12px",
-    color: "#334155",
-    fontWeight: "600",
-  },
-  tooltipFooter: {
-    marginTop: "10px",
-    paddingTop: "6px",
-    borderTop: "1px solid #f8fafc",
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "10px",
-    color: "#94a3b8",
-  },
-  loaderContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100vh",
-    width: "100vw",
-    gap: "16px",
-  },
-};
