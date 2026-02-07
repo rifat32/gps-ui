@@ -57,14 +57,18 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedPoint, setSelectedPoint] = useState(null);
-  const [startDate, setStartDate] = useState(() => {
+  const [startDateTime, setStartDateTime] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 7); // Default to last 7 days for a better initial view
-    return d.toISOString().split("T")[0];
+    d.setDate(d.getDate() - 7); // Default to last 7 days
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
   });
-  const [endDate, setEndDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [endDateTime, setEndDateTime] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1); // Default to tomorrow
+    d.setHours(23, 59, 0, 0);
+    return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+  });
   const [center, setCenter] = useState({ lat: 51.5278, lng: 0.0694 });
   const [playbackInterval, setPlaybackInterval] = useState(1000);
   const [thresholds, setThresholds] = useState({
@@ -99,15 +103,31 @@ export default function App() {
   }, [currentIndex, isPlaying, trackingData]);
 
   // Fetch Data
+  // Fetch Data
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      setAllData([]); // Clear previous data
+      setTrackingData([]); // Clear map
+      setCurrentIndex(0); // Reset playback
       try {
-        const response = await fetch(API_URL);
+        // Convert datetime-local format to API format
+        const startFormatted = startDateTime.replace('T', ' ') + ':00';
+        const endFormatted = endDateTime.replace('T', ' ') + ':59';
+
+        const queryParams = new URLSearchParams({
+          startTime: startFormatted,
+          endTime: endFormatted,
+          nopaging: "true" // Ensure we get all points for the track
+        });
+
+        const response = await fetch(`${API_URL}?${queryParams}`);
         if (!response.ok) throw new Error("Failed to fetch tracking data");
         const json = await response.json();
         const rawPackets = json.packets || [];
         setAllData(rawPackets);
-        processAndSetData(rawPackets, startDate, endDate);
+        // Process data immediately after fetching
+        processAndSetData(rawPackets);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -115,25 +135,26 @@ export default function App() {
       }
     };
     fetchData();
-  }, []);
+  }, [startDateTime, endDateTime]);
 
-  useEffect(() => {
-    if (allData.length > 0) {
-      processAndSetData(allData, startDate, endDate);
-      setCurrentIndex(0);
-      setIsPlaying(false);
-    }
-  }, [startDate, endDate]);
+  // Removed the client-side re-processing effect since we now fetch on date change
+  // useEffect(() => {
+  //   if (allData.length > 0) {
+  //     processAndSetData(allData, startDate, endDate);
+  //     setCurrentIndex(0);
+  //     setIsPlaying(false);
+  //   }
+  // }, [startDate, endDate]);
 
-  const processAndSetData = (packets, start, end) => {
+  const processAndSetData = (packets) => {
     let tripCount = 0;
     let isStopped = true;
 
     const filtered = packets
       .filter((p) => {
         if (p.messageIdHex !== "0200") return false;
-        const packetDate = p.timestamp.split(" ")[0];
-        return packetDate >= start && packetDate <= end;
+        // Date filtering is now done on server side
+        return true;
       })
       .map((p, index) => {
         const lat =
@@ -185,6 +206,9 @@ export default function App() {
     setTrackingData(filtered);
     if (filtered.length > 0) {
       setCenter({ lat: filtered[0].lat, lng: filtered[0].lng });
+    } else {
+      // Optional: Reset center or keep last known?
+      // For now, we just ensure trackingData is empty (which clears the map)
     }
   };
 
@@ -303,19 +327,26 @@ export default function App() {
     const start = new Date();
 
     if (type === "Today") {
-      // Already set
+      start.setHours(0, 0, 0, 0);
+      today.setHours(23, 59, 0, 0);
     } else if (type === "Yesterday") {
       start.setDate(today.getDate() - 1);
       today.setDate(today.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      today.setHours(23, 59, 0, 0);
     } else if (type === "ThisWeek") {
       start.setDate(today.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      today.setHours(23, 59, 0, 0);
     } else if (type === "LastWeek") {
       start.setDate(today.getDate() - 14);
       today.setDate(today.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      today.setHours(23, 59, 0, 0);
     }
 
-    setStartDate(start.toISOString().split("T")[0]);
-    setEndDate(today.toISOString().split("T")[0]);
+    setStartDateTime(start.toISOString().slice(0, 16));
+    setEndDateTime(today.toISOString().slice(0, 16));
   };
 
   // Calculate duration helper for tooltip
@@ -377,14 +408,6 @@ export default function App() {
     return 0;
   };
 
-  if (loading)
-    return (
-      <div className="loader-container">
-        <Loader2 size={48} className="animate-spin" color="#3b82f6" />
-        <p>Loading GPS Data...</p>
-      </div>
-    );
-
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
       <div className="app-container">
@@ -444,8 +467,8 @@ export default function App() {
                 <label className="field-label">*Time for start:</label>
                 <input
                   type="datetime-local"
-                  value={`${startDate}T00:00`}
-                  onChange={(e) => setStartDate(e.target.value.split("T")[0])}
+                  value={startDateTime}
+                  onChange={(e) => setStartDateTime(e.target.value)}
                   className="date-time-input"
                 />
               </div>
@@ -453,8 +476,8 @@ export default function App() {
                 <label className="field-label">*Time for end:</label>
                 <input
                   type="datetime-local"
-                  value={`${endDate}T23:59`}
-                  onChange={(e) => setEndDate(e.target.value.split("T")[0])}
+                  value={endDateTime}
+                  onChange={(e) => setEndDateTime(e.target.value)}
                   className="date-time-input"
                 />
               </div>
@@ -678,6 +701,12 @@ export default function App() {
 
         {/* --- MAP AREA --- */}
         <main className="map-area">
+          {loading && (
+            <div className="map-loader-overlay">
+              <Loader2 size={48} className="animate-spin" color="#3b82f6" />
+              <p>Loading GPS Data...</p>
+            </div>
+          )}
           {!isSidebarOpen && (
             <button
               className="menu-toggle"
@@ -702,6 +731,7 @@ export default function App() {
           </div>
 
           <GoogleMap
+            key={`map-${trackingData.length}`}
             mapContainerStyle={mapContainerStyle}
             center={center}
             zoom={17}
