@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // 1. CONFIGURATION
 // =========================================================================
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const API_URL = "https://gps.quickreview.app/api-proxy/api/parse";
+const API_URL = "http://127.0.0.1:3001/api/packets/parsed";
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 
@@ -104,6 +104,7 @@ export default function App() {
 
   // Fetch Data
   // Fetch Data
+  // Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -112,19 +113,21 @@ export default function App() {
       setCurrentIndex(0); // Reset playback
       try {
         // Convert datetime-local format to API format
-        const startFormatted = startDateTime.replace('T', ' ') + ':00';
-        const endFormatted = endDateTime.replace('T', ' ') + ':59';
+        const startFormatted = startDateTime.replace("T", " ") + ":00";
+        const endFormatted = endDateTime.replace("T", " ") + ":59";
 
         const queryParams = new URLSearchParams({
           startTime: startFormatted,
           endTime: endFormatted,
-          nopaging: "true" // Ensure we get all points for the track
+          nopaging: "true", // Ensure we get all points for the track
         });
 
         const response = await fetch(`${API_URL}?${queryParams}`);
         if (!response.ok) throw new Error("Failed to fetch tracking data");
         const json = await response.json();
-        const rawPackets = json.packets || [];
+        // Handle if response is array or object with packets key
+        const rawPackets = Array.isArray(json) ? json : json.data || [];
+        console.log({ rawPackets });
         setAllData(rawPackets);
         // Process data immediately after fetching
         processAndSetData(rawPackets);
@@ -152,33 +155,32 @@ export default function App() {
 
     const filtered = packets
       .filter((p) => {
-        if (p.messageIdHex !== "0200") return false;
+        // Handle both messageIdHex and messageId
+        const msgId = p.messageIdHex || p.messageId;
+        if (msgId !== "0200") return false;
         // Date filtering is now done on server side
         return true;
       })
       .map((p, index) => {
-        const lat =
-          p.detailed?.body?.latitude?.degrees ||
-          p.detailed?.body?.latitude?.decimal / 1000000;
-        const lon =
-          p.detailed?.body?.longitude?.degrees ||
-          p.detailed?.body?.longitude?.decimal / 1000000;
-        const speed = p.detailed?.body?.speed?.decimal || 0;
-        const mileage = p.detailed?.body?.mileage?.decimal
-          ? (p.detailed.body.mileage.decimal / 10).toFixed(1)
-          : 0;
+        // Extract data from top-level or detailed.body.parsed
+        const parsed = p.detailed?.body?.parsed || {};
+
+        const lat = p.latitude ?? parsed.latitude ?? 0;
+        const lon = p.longitude ?? parsed.longitude ?? 0;
+        const speed = p.speed ?? parsed.speed ?? 0;
+        const mileageVal = p.mileage ?? parsed.mileage ?? 0;
 
         return {
           id: index + 1,
           timestamp: p.timestamp,
           time: p.timestamp.split(" ")[1],
           date: p.timestamp.split(" ")[0],
-          lat,
-          lng: lon,
-          speed,
-          status: speed > 0 ? "Moving" : "Stopped",
-          mileage: `${mileage}km`,
-          rawMileage: parseFloat(mileage),
+          lat: Number(lat),
+          lng: Number(lon),
+          speed: Number(speed),
+          status: Number(speed) > 0 ? "Moving" : "Stopped",
+          mileage: `${Number(mileageVal).toFixed(1)}km`,
+          rawMileage: Number(mileageVal),
         };
       })
       .reverse() // Sort chronologically
