@@ -1,27 +1,28 @@
-import React, { useState, useEffect } from "react";
 import {
-  Camera,
   ArrowLeft,
-  LayoutGrid,
+  Camera,
+  ChevronRight,
+  Clock,
   Grid2X2,
   Grid3X3,
+  LayoutGrid,
   Maximize,
-  Search,
-  ShieldAlert,
-  Activity,
-  Signal,
-  Wifi,
-  MapPin,
-  Clock,
-  ChevronRight,
   Monitor,
-  Video,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
+  Signal,
+  Sun,
+  Video,
+  Wifi,
   Zap,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sun, Moon } from "lucide-react";
+import DeviceCard from "../components/DeviceCard";
+import DashcamAlert from "./DashcamAlert";
+import VideoPlayer from "./VideoPlayer";
 
 // Mock Data
 const MOCK_DEVICES = [
@@ -130,143 +131,7 @@ export default function Dashcam({ theme, toggleTheme }) {
         }}
       >
         {cells.map((_, i) => (
-          <div
-            key={i}
-            className="video-cell"
-            style={{
-              position: "relative",
-              background: "#1e293b",
-              borderRadius: "12px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border:
-                i === 0
-                  ? "2px solid var(--accent-color)"
-                  : "1px solid var(--surface-border)",
-              boxShadow: i === 0 ? "0 0 20px rgba(59, 130, 246, 0.15)" : "none",
-              overflow: "hidden",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              cursor: "pointer",
-            }}
-          >
-            {/* Mock Video Placeholder */}
-            <div
-              style={{
-                position: "absolute",
-                top: 12,
-                left: 12,
-                background: "rgba(15, 23, 42, 0.85)",
-                padding: "4px 10px",
-                borderRadius: "6px",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "11px",
-                fontWeight: "700",
-                color: i === 0 ? "#3b82f6" : "#f8fafc",
-                zIndex: 10,
-                backdropFilter: "blur(8px)",
-                border: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  background: i === 0 ? "#3b82f6" : "#ef4444",
-                  borderRadius: "50%",
-                  animation: "pulse 1.5s infinite",
-                }}
-              ></div>
-              LIVE • CH 0{i + 1}
-            </div>
-
-            <div
-              style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                fontSize: "10px",
-                color: "#94a3b8",
-                textAlign: "right",
-                zIndex: 10,
-                background: "rgba(15, 23, 42, 0.6)",
-                padding: "4px 8px",
-                borderRadius: "6px",
-                border: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              <div
-                style={{
-                  color: "#22c55e",
-                  fontWeight: "bold",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <Zap size={10} /> {2500 + Math.floor(Math.random() * 1000)} kbps
-              </div>
-              <div style={{ opacity: 0.8 }}>
-                {(0.1 + Math.random() * 0.2).toFixed(2)}s latency
-              </div>
-            </div>
-
-            <Video
-              size={100}
-              color={i === 0 ? "#3b82f611" : "#47556911"}
-              style={{ transition: "transform 0.5s ease" }}
-            />
-
-            {/* Overlay Info */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background:
-                  "linear-gradient(transparent, rgba(2, 6, 23, 0.95))",
-                padding: "15px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                fontSize: "12px",
-                borderTop: "1px solid rgba(255,255,255,0.03)",
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "10px" }}
-              >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    background: "#3b82f615",
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Monitor size={16} color="#3b82f6" />
-                </div>
-                <div>
-                  <div style={{ fontWeight: "700", fontSize: "13px" }}>
-                    {MOCK_DEVICES[i % MOCK_DEVICES.length].name}
-                  </div>
-                  <div style={{ fontSize: "10px", color: "#64748b" }}>
-                    {MOCK_DEVICES[i % MOCK_DEVICES.length].id}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: "12px", color: "#94a3b8" }}>
-                <Signal size={16} />
-                <Wifi size={16} />
-              </div>
-            </div>
-          </div>
+          <VideoPlayer i={i} MOCK_DEVICES={MOCK_DEVICES} />
         ))}
       </div>
     );
@@ -526,84 +391,12 @@ export default function Dashcam({ theme, toggleTheme }) {
               Fleet Devices
             </div>
             {MOCK_DEVICES.map((dev) => (
-              <div
+              <DeviceCard
                 key={dev.id}
-                onClick={() => setSelectedDevice(dev)}
-                style={{
-                  margin: "4px 0",
-                  padding: "12px 14px",
-                  cursor: "pointer",
-                  background:
-                    selectedDevice.id === dev.id ? "#3b82f615" : "transparent",
-                  borderRadius: "10px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "14px",
-                  transition: "all 0.2s",
-                  border:
-                    selectedDevice.id === dev.id
-                      ? "1px solid #3b82f633"
-                      : "1px solid transparent",
-                }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    width: 40,
-                    height: 40,
-                    background:
-                      dev.status === "online" ? "#22c55e10" : "#47556910",
-                    borderRadius: "10px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Monitor
-                    size={20}
-                    color={dev.status === "online" ? "#22c55e" : "#475569"}
-                  />
-                  {dev.status === "online" && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: -2,
-                        right: -2,
-                        width: 10,
-                        height: 10,
-                        background: "#22c55e",
-                        borderRadius: "50%",
-                        border: "2px solid #0f172a",
-                      }}
-                    ></div>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "14px", fontWeight: "700" }}>
-                    {dev.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#475569",
-                      fontWeight: "500",
-                    }}
-                  >
-                    {dev.id}
-                  </div>
-                </div>
-                {dev.alert !== "none" && (
-                  <div
-                    style={{
-                      width: 8,
-                      height: 8,
-                      background: "#ef4444",
-                      borderRadius: "50%",
-                      boxShadow: "0 0 8px #ef4444",
-                    }}
-                  ></div>
-                )}
-              </div>
+                dev={dev}
+                selectedDevice={selectedDevice}
+                setSelectedDevice={setSelectedDevice}
+              />
             ))}
           </div>
         </aside>
@@ -679,101 +472,11 @@ export default function Dashcam({ theme, toggleTheme }) {
             className="custom-scrollbar"
           >
             {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="alert-card"
-                style={{
-                  background: "var(--surface-color)",
-                  borderRadius: "12px",
-                  padding: "16px",
-                  marginBottom: "12px",
-                  border: "1px solid var(--surface-border)",
-                  transition: "all 0.2s",
-                  cursor: "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: "12px",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: "800",
-                      padding: "4px 8px",
-                      borderRadius: "6px",
-                      background:
-                        alert.type === "DSM" ? "#f59e0b15" : "#ef444415",
-                      color: alert.type === "DSM" ? "#f59e0b" : "#ef4444",
-                      border: `1px solid ${alert.type === "DSM" ? "#f59e0b33" : "#ef444433"}`,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {alert.type}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      color: "#475569",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "5px",
-                      fontWeight: "600",
-                    }}
-                  >
-                    <Clock size={12} /> {alert.time}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    marginBottom: "8px",
-                    lineHeight: "1.4",
-                  }}
-                >
-                  {alert.message}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#64748b",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 16,
-                        height: 16,
-                        background: "#3b82f610",
-                        borderRadius: "4px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Monitor size={10} color="#3b82f6" />
-                    </div>
-                    {alert.deviceId}
-                  </div>
-                  <ChevronRight size={14} color="#334155" />
-                </div>
-              </div>
+              <DashcamAlert key={alert.id} alert={alert} />
             ))}
           </div>
 
+          {/* BOTTOM BUTTON  */}
           <div
             style={{
               padding: "20px",
