@@ -1,28 +1,21 @@
 import {
   ArrowLeft,
   Camera,
-  ChevronRight,
-  Clock,
   Grid2X2,
   Grid3X3,
   LayoutGrid,
   Maximize,
-  Monitor,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Signal,
   Sun,
-  Video,
-  Wifi,
-  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import DeviceCard from "../components/DeviceCard";
-import DashcamAlert from "./DashcamAlert";
-import VideoPlayer from "./VideoPlayer";
+import DashcamAlert from "../components/DashcamAlert";
+import VideoPlayer from "../components/VideoPlayer";
 
 // Mock Data
 const MOCK_DEVICES = [

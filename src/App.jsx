@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Playback from "./pages/Playback";
-import Dashcam from "./pages/Dashcam";
+import { lazy, useEffect, useState, Suspense } from "react";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import "./App.css";
+import Dashcam from "./pages/Dashcam";
+import Playback from "./pages/Playback";
+
+const RealTimeMap = lazy(() => import("./pages/RealTimeMap"));
 
 function App() {
   const [theme, setTheme] = useState(() => {
@@ -32,6 +34,14 @@ function App() {
         <Route
           path="/dashcam"
           element={<Dashcam theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/realtime"
+          element={
+            <Suspense fallback={<div className="p-4">Loading Map...</div>}>
+              <RealTimeMap />
+            </Suspense>
+          }
         />
       </Routes>
     </Router>

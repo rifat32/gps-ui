@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   Video as VideoIcon,
+  ChevronDown,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -25,7 +26,9 @@ import { Link } from "react-router-dom";
 // 1. CONFIGURATION
 // =========================================================================
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const API_URL = import.meta.env.VITE_PLAYBACK_API;
+const API_URL_FOR_DEVICE_LIST = `${import.meta.env.VITE_API_BASE_URL}/api/devices/logs`;
+const API_URL_FOR_ALL_PACKETS = `${import.meta.env.VITE_API_BASE_URL}/api/packets/gps/all`;
+const API_URL_FOR_PARSED_PACKETS = `${import.meta.env.VITE_API_BASE_URL}/api/packets/parsed`;
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 
@@ -96,6 +99,24 @@ export default function Playback({ theme, toggleTheme }) {
     mapRef.current = map;
   }, []);
 
+  const [deviceList, setDeviceList] = useState([]);
+  // GET ALL DEVICES
+  useEffect(() => {
+    const fetchDeviceList = async () => {
+      try {
+        const response = await fetch(`${API_URL_FOR_DEVICE_LIST}`);
+        if (!response.ok) throw new Error("Failed to fetch device list");
+        const json = await response.json();
+        const list = Array.isArray(json) ? json : json.data || [];
+        setDeviceList(list);
+        console.log({ deviceList: list });
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+    fetchDeviceList();
+  }, []);
+
   // Auto-pan map when playing
   useEffect(() => {
     if (isPlaying && trackingData[currentIndex] && mapRef.current) {
@@ -113,6 +134,18 @@ export default function Playback({ theme, toggleTheme }) {
     }
   }, [currentIndex, isPlaying, trackingData]);
 
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
+  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+
+  const toggleDeviceSelection = (deviceId) => {
+    setSelectedDeviceIds((prev) =>
+      prev.includes(deviceId)
+        ? prev.filter((id) => id !== deviceId)
+        : [...prev, deviceId],
+    );
+  };
+
+  const [filterType, setFilterType] = useState("all");
   // Fetch Data
   useEffect(() => {
     const fetchData = async () => {
@@ -125,21 +158,52 @@ export default function Playback({ theme, toggleTheme }) {
         const startFormatted = startDateTime.replace("T", " ") + ":00";
         const endFormatted = endDateTime.replace("T", " ") + ":59";
 
-        const queryParams = new URLSearchParams({
-          startTime: startFormatted,
-          endTime: endFormatted,
-          nopaging: "true", // Ensure we get all points for the track
-        });
+        if (filterType === "all") {
+          const queryParams = new URLSearchParams({
+            startTime: startFormatted,
+            endTime: endFormatted,
+            nopaging: "true",
+          });
 
-        const response = await fetch(`${API_URL}?${queryParams}`);
-        if (!response.ok) throw new Error("Failed to fetch tracking data");
-        const json = await response.json();
-        // Handle if response is array or object with packets key
-        const rawPackets = Array.isArray(json) ? json : json.data || [];
-        console.log({ rawPackets });
-        setAllData(rawPackets);
-        // Process data immediately after fetching
-        processAndSetData(rawPackets);
+          if (selectedDeviceIds.length > 0) {
+            queryParams.append("device_ids", selectedDeviceIds.join(","));
+          }
+
+          const response = await fetch(
+            `${API_URL_FOR_ALL_PACKETS}?${queryParams}`,
+          );
+          if (!response.ok) throw new Error("Failed to fetch tracking data");
+          const json = await response.json();
+
+          // Flatten data: API returns { data: [ { deviceId, logs: [] }, ... ] }
+          const rawPackets = Array.isArray(json)
+            ? json
+            : json.data && Array.isArray(json.data) && json.data[0]?.logs
+              ? json.data.flatMap((d) => d.logs || [])
+              : json.data || [];
+
+          setAllData(rawPackets);
+          // Process data immediately after fetching
+          processAndSetData(rawPackets);
+        } else {
+          const queryParams = new URLSearchParams({
+            startTime: startFormatted,
+            endTime: endFormatted,
+            nopaging: "true", // Ensure we get all points for the track
+          });
+
+          const response = await fetch(
+            `${API_URL_FOR_PARSED_PACKETS}?${queryParams}`,
+          );
+          if (!response.ok) throw new Error("Failed to fetch tracking data");
+          const json = await response.json();
+          // Handle if response is array or object with packets key
+          const rawPackets = Array.isArray(json) ? json : json.data || [];
+          console.log({ rawPackets });
+          setAllData(rawPackets);
+          // Process data immediately after fetching
+          processAndSetData(rawPackets);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -147,7 +211,7 @@ export default function Playback({ theme, toggleTheme }) {
       }
     };
     fetchData();
-  }, [startDateTime, endDateTime]);
+  }, [startDateTime, endDateTime, filterType, selectedDeviceIds]);
 
   const processAndSetData = (packets) => {
     let tripCount = 0;
@@ -426,13 +490,88 @@ export default function Playback({ theme, toggleTheme }) {
           <div className="sidebar-content">
             {/* Device Info */}
             <div className="section">
-              <div className="input-group">
-                <Search size={16} color="#94a3b8" />
-                <input
+              <div className="input-group" style={{ position: "relative" }}>
+                <div
                   className="text-input"
-                  placeholder="Input Name or IMEI No."
-                  defaultValue="JT8088985963"
-                />
+                  style={{
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                  onClick={() => setIsDeviceDropdownOpen(!isDeviceDropdownOpen)}
+                >
+                  <span
+                    style={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      marginRight: "8px",
+                      color:
+                        selectedDeviceIds.length > 0 ? "#334155" : "#94a3b8",
+                    }}
+                  >
+                    {selectedDeviceIds.length > 0
+                      ? `${selectedDeviceIds.length} Selected`
+                      : "Select Devices"}
+                  </span>
+                  <ChevronDown size={16} color="#94a3b8" />
+                </div>
+
+                {isDeviceDropdownOpen && (
+                  <div
+                    className="device-dropdown"
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      right: 0,
+                      backgroundColor: "white",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "0.5rem",
+                      zIndex: 50,
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      marginTop: "4px",
+                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                    }}
+                  >
+                    {deviceList.length === 0 && (
+                      <div style={{ padding: "8px 12px", color: "#94a3b8" }}>
+                        No devices found
+                      </div>
+                    )}
+                    {deviceList.map((device) => (
+                      <div
+                        key={device}
+                        onClick={() => toggleDeviceSelection(device)}
+                        style={{
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          backgroundColor: selectedDeviceIds.includes(device)
+                            ? "#eff6ff"
+                            : "transparent",
+                          color: selectedDeviceIds.includes(device)
+                            ? "#3b82f6"
+                            : "#334155",
+                          fontSize: "14px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          borderBottom: "1px solid #f1f5f9",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedDeviceIds.includes(device)}
+                          readOnly
+                          style={{ cursor: "pointer" }}
+                        />
+                        {device}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="locate-type-tags">
                 <span className="tag-active">GPS+BDS/LBS/WIFI</span>
