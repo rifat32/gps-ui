@@ -1,9 +1,55 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Monitor, Signal, Wifi, Zap, Video } from "lucide-react";
+import Hls from "hls.js";
 
-export default function VideoPlayer({ i, MOCK_DEVICES }) {
+export default function VideoPlayer({ i, MOCK_DEVICES, streamUrl }) {
   const [kbps] = useState(() => 2500 + Math.floor(Math.random() * 1000));
   const [latency] = useState(() => (0.1 + Math.random() * 0.2).toFixed(2));
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (!streamUrl) return;
+
+    let hls;
+    if (Hls.isSupported()) {
+      hls = new Hls();
+      hls.loadSource(streamUrl);
+      hls.attachMedia(videoRef.current);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        videoRef.current.play().catch((e) => console.error("Play error:", e));
+      });
+      hls.on(Hls.Events.ERROR, function (event, data) {
+        console.error("HLS Error:", data);
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log("fatal network error encountered, try to recover");
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log("fatal media error encountered, try to recover");
+              hls.recoverMediaError();
+              break;
+            default:
+              console.log("cannot recover");
+              hls.destroy();
+              break;
+          }
+        }
+      });
+    } else if (videoRef.current.canPlayType("application/vnd.apple.mpegurl")) {
+      videoRef.current.src = streamUrl;
+      videoRef.current.addEventListener("error", (e) =>
+        console.error("Native Video Error:", e),
+      );
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [streamUrl]);
 
   return (
     <div
@@ -86,11 +132,23 @@ export default function VideoPlayer({ i, MOCK_DEVICES }) {
         <div style={{ opacity: 0.8 }}>{latency}s latency</div>
       </div>
 
-      <Video
-        size={100}
-        color={i === 0 ? "#3b82f611" : "#47556911"}
-        style={{ transition: "transform 0.5s ease" }}
-      />
+      {streamUrl ? (
+        <video
+          ref={videoRef}
+          width="100%"
+          height="100%"
+          controls
+          autoPlay
+          muted
+          style={{ objectFit: "cover" }}
+        />
+      ) : (
+        <Video
+          size={100}
+          color={i === 0 ? "#3b82f611" : "#47556911"}
+          style={{ transition: "transform 0.5s ease" }}
+        />
+      )}
 
       {/* Overlay Info */}
       <div

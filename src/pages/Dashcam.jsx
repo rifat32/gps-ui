@@ -80,11 +80,43 @@ const MOCK_ALERTS = [
   },
 ];
 
+// Mock Recordings Data
+const MOCK_RECORDINGS = [
+  {
+    id: 101,
+    thumbnail:
+      "https://images.unsplash.com/photo-1566008885218-90abf9200ddb?w=800&q=80",
+    duration: "05:23",
+    time: "10:45 AM",
+    location: "Downtown Ave",
+    deviceId: "Truck-01",
+  },
+  {
+    id: 102,
+    thumbnail:
+      "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800&q=80",
+    duration: "12:15",
+    time: "09:30 AM",
+    location: "Highway 55",
+    deviceId: "Van-02",
+  },
+  {
+    id: 103,
+    thumbnail:
+      "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&q=80",
+    duration: "08:42",
+    time: "08:15 AM",
+    location: "Industrial Park",
+    deviceId: "Truck-04",
+  },
+];
+
 export default function Dashcam({ theme, toggleTheme }) {
   const [gridSize, setGridSize] = useState(4); // Default 2x2
   const [selectedDevice, setSelectedDevice] = useState(MOCK_DEVICES[0]);
   const [alerts, setAlerts] = useState(MOCK_ALERTS);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState("alerts"); // "alerts" | "recordings"
 
   // Simulate real-time alerts
   useEffect(() => {
@@ -124,7 +156,14 @@ export default function Dashcam({ theme, toggleTheme }) {
         }}
       >
         {cells.map((_, i) => (
-          <VideoPlayer i={i} MOCK_DEVICES={MOCK_DEVICES} />
+          <VideoPlayer
+            key={i}
+            i={i}
+            MOCK_DEVICES={MOCK_DEVICES}
+            streamUrl={
+              i === 0 ? "http://54.37.225.65:4020/live/stream_ch1.m3u8" : null
+            }
+          />
         ))}
       </div>
     );
@@ -407,7 +446,7 @@ export default function Dashcam({ theme, toggleTheme }) {
           {renderVideoGrid()}
         </main>
 
-        {/* Right Panel - Alerts */}
+        {/* Right Panel - Alerts & Recordings */}
         <aside
           style={{
             width: "340px",
@@ -417,56 +456,192 @@ export default function Dashcam({ theme, toggleTheme }) {
             flexDirection: "column",
           }}
         >
+          {/* Tabs */}
           <div
             style={{
-              padding: "24px 20px",
+              padding: "16px 20px",
               borderBottom: "1px solid #1e293b",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              gap: "8px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  background: "#ef4444",
-                  borderRadius: "50%",
-                  animation: "pulse 1s infinite",
-                }}
-              ></div>
-              <h2
-                style={{
-                  fontSize: "15px",
-                  fontWeight: "800",
-                  margin: 0,
-                  letterSpacing: "0.5px",
-                }}
-              >
-                LIVE ALERTS
-              </h2>
-            </div>
-            <span
+            <button
+              onClick={() => setActiveTab("alerts")}
               style={{
-                fontSize: "11px",
-                background: "#1e293b",
-                padding: "4px 8px",
-                borderRadius: "6px",
-                color: "#94a3b8",
+                flex: 1,
+                padding: "8px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "700",
+                cursor: "pointer",
+                background:
+                  activeTab === "alerts" ? "#3b82f6" : "rgba(30, 41, 59, 0.5)",
+                color: activeTab === "alerts" ? "white" : "#94a3b8",
+                border: "none",
+                transition: "all 0.2s",
               }}
             >
-              Real-time
-            </span>
+              Live Alerts
+            </button>
+            <button
+              onClick={() => setActiveTab("recordings")}
+              style={{
+                flex: 1,
+                padding: "8px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "700",
+                cursor: "pointer",
+                background:
+                  activeTab === "recordings"
+                    ? "#3b82f6"
+                    : "rgba(30, 41, 59, 0.5)",
+                color: activeTab === "recordings" ? "white" : "#94a3b8",
+                border: "none",
+                transition: "all 0.2s",
+              }}
+            >
+              Recorded
+            </button>
           </div>
 
           <div
             style={{ flex: 1, overflowY: "auto", padding: "16px" }}
             className="custom-scrollbar"
           >
-            {alerts.map((alert) => (
-              <DashcamAlert key={alert.id} alert={alert} />
-            ))}
+            {activeTab === "alerts" ? (
+              alerts.map((alert) => (
+                <DashcamAlert key={alert.id} alert={alert} />
+              ))
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
+                {MOCK_RECORDINGS.map((rec) => (
+                  <div
+                    key={rec.id}
+                    className="recording-card"
+                    style={{
+                      background: "var(--surface-color)", // Use component logic or css class
+                      borderRadius: "12px",
+                      overflow: "hidden",
+                      border: "1px solid var(--surface-border)",
+                      cursor: "pointer",
+                      transition: "transform 0.2s",
+                    }}
+                  >
+                    <div style={{ position: "relative", height: "120px" }}>
+                      <img
+                        src={rec.thumbnail}
+                        alt="Thumbnail"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "8px",
+                          right: "8px",
+                          background: "rgba(0,0,0,0.7)",
+                          color: "white",
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {rec.duration}
+                      </div>
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "50%",
+                          left: "50%",
+                          transform: "translate(-50%, -50%)",
+                          background: "rgba(59, 130, 246, 0.8)",
+                          borderRadius: "50%",
+                          width: "32px",
+                          height: "32px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 0,
+                            height: 0,
+                            borderTop: "5px solid transparent",
+                            borderBottom: "5px solid transparent",
+                            borderLeft: "8px solid white",
+                            marginLeft: "3px",
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div style={{ padding: "12px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            color: "#f8fafc",
+                          }}
+                        >
+                          {rec.location}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          {rec.time}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#64748b",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 14,
+                            height: 14,
+                            background: "#3b82f610",
+                            borderRadius: "3px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Camera size={10} color="#3b82f6" />
+                        </div>
+                        {rec.deviceId}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* BOTTOM BUTTON  */}
