@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react";
 import {
   GoogleMap,
   LoadScript,
   Marker,
   InfoWindow,
+  Polyline,
 } from "@react-google-maps/api";
 import { Loader2 } from "lucide-react";
+import { io } from "socket.io-client";
 
 // Configuration
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/packets/gps/all`;
-const POLL_INTERVAL = 10000; // 10 seconds
+const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
+const WS_URL = import.meta.env.VITE_WS_URL;
 
 const mapContainerStyle = { width: "100%", height: "100vh" };
 const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
@@ -32,51 +34,40 @@ export default function RealTimeMap() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const mapRef = useRef(null);
+  const socketRef = useRef(null);
 
-  const fetchVehicles = async () => {
+  const fetchInitialPositions = async () => {
     try {
       const response = await fetch(API_URL);
-      if (!response.ok) throw new Error("Failed to fetch data");
+      if (!response.ok) throw new Error("Failed to fetch initial data");
       const json = await response.json();
 
-      // Parse data: The API returns nested structure. We need the LATEST log for each device.
-      // Structure: [ { deviceId, logs: [...] }, ... ] or { data: [...] }
-      const deviceGroups = Array.isArray(json) ? json : json.data || [];
+      const grouped = (json.data || []).reduce((acc, v) => {
+        const deviceId = v.device_id;
+        const lat = Number(v.latitude || 0);
+        const lng = Number(v.longitude || 0);
 
-      const latestPositions = deviceGroups
-        .map((device) => {
-          const logs = device.logs || [];
-          if (logs.length === 0) return null;
+        if (lat === 0 && lng === 0) return acc;
 
-          // Assuming logs are sorted or we take the last one?
-          // Usually logs are historical, so last one is latest?
-          // Or we should sort by timestamp. Let's assume standard order for now or sort.
-          // Actually Playback.jsx reverse()s them, so they might be newest first or last?
-          // Let's sort to be safe.
-          const sortedLogs = [...logs].sort(
-            (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
-          );
-          const latest = sortedLogs[0];
-
-          const parsed = latest.detailed?.body?.parsed || {};
-
-          return {
-            id: device.deviceId || device.id,
-            name: device.deviceName || device.deviceId || "Unknown",
-            lat: Number(latest.latitude ?? parsed.latitude ?? 0),
-            lng: Number(latest.longitude ?? parsed.longitude ?? 0),
-            speed: Number(latest.speed ?? parsed.speed ?? 0),
-            heading: Number(latest.azimuth ?? parsed.azimuth ?? 0), // Assuming heading/azimuth field
-            timestamp: latest.timestamp,
-            status:
-              Number(latest.speed ?? parsed.speed ?? 0) > 0
-                ? "Moving"
-                : "Stopped",
+        if (!acc[deviceId]) {
+          acc[deviceId] = {
+            id: deviceId,
+            name: deviceId,
+            lat: lat,
+            lng: lng,
+            speed: Number(v.speed || 0),
+            heading: Number(v.direction || 0),
+            timestamp: v.gps_time,
+            status: Number(v.speed || 0) > 0 ? "Moving" : "Stopped",
+            path: [],
           };
-        })
-        .filter((v) => v !== null && v.lat !== 0 && v.lng !== 0); // Filter out invalid positions
+        }
+        // Push to path (SQL returns DESC, we want chronological order for Polyline)
+        acc[deviceId].path.unshift({ lat, lng });
+        return acc;
+      }, {});
 
-      setVehicles(latestPositions);
+      setVehicles(Object.values(grouped));
     } catch (err) {
       console.error("Error fetching vehicles:", err);
     } finally {
@@ -85,9 +76,52 @@ export default function RealTimeMap() {
   };
 
   useEffect(() => {
-    fetchVehicles();
-    const interval = setInterval(fetchVehicles, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    fetchInitialPositions();
+
+    // Initialize Socket.io
+    socketRef.current = io(WS_URL);
+
+    socketRef.current.on("connect", () => {
+      console.log("Connected to Socket.io server");
+    });
+
+    socketRef.current.on("gps_update", (update) => {
+      console.log("Received GPS update:", update);
+      setVehicles((prev) => {
+        const index = prev.findIndex((v) => v.id === update.deviceId);
+        const newCoords = {
+          lat: Number(update.latitude),
+          lng: Number(update.longitude),
+        };
+
+        const updatedVehicle = {
+          id: update.deviceId,
+          name: update.name || update.deviceId || "Unknown",
+          ...newCoords,
+          speed: Number(update.speed),
+          heading: Number(update.heading || 0),
+          status: (Number(update.speed) || 0) > 0 ? "Moving" : "Stopped",
+          timestamp: update.gpsTime,
+          path: index !== -1
+            ? [...prev[index].path, newCoords].slice(-100)
+            : [newCoords],
+        };
+
+        if (index !== -1) {
+          const newVehicles = [...prev];
+          newVehicles[index] = updatedVehicle;
+          return newVehicles;
+        } else {
+          return [...prev, updatedVehicle];
+        }
+      });
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, []);
 
   return (
@@ -116,16 +150,26 @@ export default function RealTimeMap() {
           onLoad={(map) => (mapRef.current = map)}
         >
           {vehicles.map((vehicle) => (
-            <Marker
-              key={vehicle.id}
-              position={{ lat: vehicle.lat, lng: vehicle.lng }}
-              icon={{
-                ...carSvg,
-                rotation: vehicle.heading,
-                fillColor: vehicle.status === "Moving" ? "#22c55e" : "#ef4444",
-              }}
-              onClick={() => setSelectedVehicle(vehicle)}
-            />
+            <Fragment key={vehicle.id}>
+              <Polyline
+                path={vehicle.path}
+                options={{
+                  strokeColor: vehicle.status === "Moving" ? "#22c55e" : "#ef4444",
+                  strokeOpacity: 0.8,
+                  strokeWeight: 4,
+                  geodesic: true,
+                }}
+              />
+              <Marker
+                position={{ lat: vehicle.lat, lng: vehicle.lng }}
+                icon={{
+                  ...carSvg,
+                  rotation: vehicle.heading,
+                  fillColor: vehicle.status === "Moving" ? "#22c55e" : "#ef4444",
+                }}
+                onClick={() => setSelectedVehicle(vehicle)}
+              />
+            </Fragment>
           ))}
 
           {selectedVehicle && (

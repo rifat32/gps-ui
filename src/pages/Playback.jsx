@@ -221,8 +221,9 @@ export default function Playback({ theme, toggleTheme }) {
       .filter((p) => {
         // Handle both messageIdHex and messageId
         const msgId = p.messageIdHex || p.messageId;
-        if (msgId !== "0200") return false;
-        // Date filtering is now done on server side
+        // If data comes from database, it's already filtered to GPS records, 
+        // so we don't strictly require msgId to be 0200 if it's missing.
+        if (msgId && msgId !== "0200") return false;
         return true;
       })
       .map((p, index) => {
@@ -236,9 +237,9 @@ export default function Playback({ theme, toggleTheme }) {
 
         return {
           id: index + 1,
-          timestamp: p.timestamp,
-          time: p.timestamp.split(" ")[1],
-          date: p.timestamp.split(" ")[0],
+          timestamp: p.gps_time || p.timestamp,
+          time: (p.gps_time || p.timestamp).split(" ")[1],
+          date: (p.gps_time || p.timestamp).split(" ")[0],
           lat: Number(lat),
           lng: Number(lon),
           speed: Number(speed),
