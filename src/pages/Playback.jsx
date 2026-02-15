@@ -19,6 +19,7 @@ import {
   Video as VideoIcon,
   ChevronDown,
 } from "lucide-react";
+import { io } from "socket.io-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -29,6 +30,7 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
 const API_URL_FOR_DEVICE_LIST = `${import.meta.env.VITE_API_BASE_URL}/api/devices/logs`;
 const API_URL_FOR_ALL_PACKETS = `${import.meta.env.VITE_API_BASE_URL}/api/packets/gps/all`;
 const API_URL_FOR_PARSED_PACKETS = `${import.meta.env.VITE_API_BASE_URL}/api/packets/parsed`;
+const WS_URL = import.meta.env.VITE_WS_URL;
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 
@@ -70,18 +72,32 @@ export default function Playback({ theme, toggleTheme }) {
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const currentIndexRef = useRef(0);
+
+  // Keep ref in sync for use in socket listeners (avoiding stale closures)
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [startDateTime, setStartDateTime] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 7); // Default to last 7 days
     d.setHours(0, 0, 0, 0);
-    return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
   const [endDateTime, setEndDateTime] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 1); // Default to tomorrow
     d.setHours(23, 59, 0, 0);
-    return d.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
   const [center, setCenter] = useState({ lat: 51.5278, lng: 0.0694 });
   const [playbackInterval, setPlaybackInterval] = useState(1000);
@@ -94,6 +110,27 @@ export default function Playback({ theme, toggleTheme }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const playInterval = useRef(null);
   const mapRef = useRef(null);
+  const socketRef = useRef(null);
+
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
+  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+  const [filterType, setFilterType] = useState("all");
+
+  const toggleDeviceSelection = (deviceId) => {
+    setSelectedDeviceIds((prev) =>
+      prev.includes(deviceId)
+        ? prev.filter((id) => id !== deviceId)
+        : [...prev, deviceId],
+    );
+  };
+
+  const isLive = useMemo(() => {
+    const now = new Date();
+    // Convert current start/end to comparable Dates
+    const start = new Date(startDateTime.replace("T", " "));
+    const end = new Date(endDateTime.replace("T", " "));
+    return start <= now && end >= now;
+  }, [startDateTime, endDateTime]);
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
@@ -117,6 +154,85 @@ export default function Playback({ theme, toggleTheme }) {
     fetchDeviceList();
   }, []);
 
+  // Socket.io for Live Updates
+  useEffect(() => {
+    if (!isLive) {
+      if (socketRef.current) {
+        console.log("Range is historical - disconnecting socket");
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    console.log("Range includes 'now' - connecting socket for live updates");
+    socketRef.current = io(WS_URL);
+
+    socketRef.current.on("connect", () => {
+      console.log("Playback connected to Socket.io for live updates");
+    });
+
+    socketRef.current.on("gps_update", (update) => {
+      // Only care about updates for currently selected devices
+      if (selectedDeviceIds.length > 0 && !selectedDeviceIds.includes(update.deviceId)) {
+        return;
+      }
+
+      console.log("Playback received live GPS update:", update);
+
+      const newPoint = {
+        timestamp: update.gpsTime,
+        time: update.gpsTime.split(" ")[1],
+        date: update.gpsTime.split(" ")[0],
+        lat: Number(update.latitude),
+        lng: Number(update.longitude),
+        speed: Number(update.speed),
+        status: Number(update.speed) > 0 ? "Moving" : "Stopped",
+        mileage: "0.0km", // We don't have mileage in basic update yet
+        rawMileage: 0,
+      };
+
+      setTrackingData((prev) => {
+        // Automatically follow live updates if we are at the end of the current trail
+        // Use the Ref to avoid stale closure issues
+        const isAtEnd = currentIndexRef.current >= prev.length - 1 || prev.length === 0;
+
+        // Detect trip changes for the new point
+        let newTripId = prev.length > 0 ? prev[prev.length - 1].tripId : 1;
+        const lastPoint = prev[prev.length - 1];
+
+        if (lastPoint && lastPoint.status === "Stopped" && newPoint.status === "Moving") {
+          newTripId++;
+        }
+
+        const offset = (newTripId - 1) * 0.00008;
+        const adjustedPoint = {
+          ...newPoint,
+          id: prev.length + 1,
+          tripId: newTripId,
+          lat: newPoint.lat + offset,
+          lng: newPoint.lng + offset,
+        };
+
+        const newData = [...prev, adjustedPoint];
+        if (isAtEnd) {
+          setCurrentIndex(newData.length - 1);
+        }
+        return newData;
+      });
+
+      // Update allData too to keep them in sync
+      setAllData((prev) => [update, ...prev]);
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [isLive, selectedDeviceIds]);
+
   // Auto-pan map when playing
   useEffect(() => {
     if (isPlaying && trackingData[currentIndex] && mapRef.current) {
@@ -134,18 +250,6 @@ export default function Playback({ theme, toggleTheme }) {
     }
   }, [currentIndex, isPlaying, trackingData]);
 
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
-  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
-
-  const toggleDeviceSelection = (deviceId) => {
-    setSelectedDeviceIds((prev) =>
-      prev.includes(deviceId)
-        ? prev.filter((id) => id !== deviceId)
-        : [...prev, deviceId],
-    );
-  };
-
-  const [filterType, setFilterType] = useState("all");
   // Fetch Data
   useEffect(() => {
     const fetchData = async () => {
@@ -374,7 +478,11 @@ export default function Playback({ theme, toggleTheme }) {
       playInterval.current = setInterval(() => {
         setCurrentIndex((prev) => {
           if (prev >= trackingData.length - 1) {
-            setIsPlaying(false);
+            // Only stop if this is a historical range. 
+            // In live mode, we stay active waiting for new points.
+            if (!isLive) {
+              setIsPlaying(false);
+            }
             return prev;
           }
           return prev + 1;
@@ -384,7 +492,7 @@ export default function Playback({ theme, toggleTheme }) {
       clearInterval(playInterval.current);
     }
     return () => clearInterval(playInterval.current);
-  }, [isPlaying, trackingData, playbackInterval]);
+  }, [isPlaying, trackingData, playbackInterval, isLive]);
 
   // Quick Date Helpers
   const setQuickDate = (type) => {
@@ -885,7 +993,7 @@ export default function Playback({ theme, toggleTheme }) {
           </div>
 
           <GoogleMap
-            key={`map-${trackingData.length}`}
+            key="map-static-playback"
             mapContainerStyle={mapContainerStyle}
             center={center}
             zoom={17}
