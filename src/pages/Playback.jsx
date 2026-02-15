@@ -215,9 +215,10 @@ export default function Playback({ theme, toggleTheme }) {
         };
 
         const newData = [...prev, adjustedPoint];
-        if (isAtEnd) {
-          setCurrentIndex(newData.length - 1);
-        }
+        // User Request: Always jump to the latest point when new data arrives, 
+        // regardless of whether we were playing history or not.
+        setCurrentIndex(newData.length - 1);
+
         return newData;
       });
 

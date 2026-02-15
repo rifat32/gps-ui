@@ -42,8 +42,8 @@ export default function RealTimeMap() {
       if (!response.ok) throw new Error("Failed to fetch initial data");
       const json = await response.json();
 
-      const grouped = (json.data || []).reduce((acc, v) => {
-        const deviceId = v.device_id;
+      const apiVehiclesMap = (json.data || []).reduce((acc, v) => {
+        const deviceId = String(v.device_id); // Force String ID
         const lat = Number(v.latitude || 0);
         const lng = Number(v.longitude || 0);
 
@@ -52,7 +52,7 @@ export default function RealTimeMap() {
         if (!acc[deviceId]) {
           acc[deviceId] = {
             id: deviceId,
-            name: deviceId,
+            name: v.deviceName || deviceId,
             lat: lat,
             lng: lng,
             speed: Number(v.speed || 0),
@@ -67,7 +67,58 @@ export default function RealTimeMap() {
         return acc;
       }, {});
 
-      setVehicles(Object.values(grouped));
+      setVehicles((prev) => {
+        // Merge API data with any updates received via socket while fetching
+        const mergedMap = { ...apiVehiclesMap };
+
+        prev.forEach((socketVehicle) => {
+          const id = String(socketVehicle.id);
+          const apiVehicle = mergedMap[id];
+
+          if (apiVehicle) {
+            // We have both API history and Socket updates.
+            // Socket data is likely newer (or same).
+            // Append socket path to API path (avoiding duplicates if possible, but simple append is safer than missing data)
+            // Filter out path points that might be duplicates based on weak comparison if needed, 
+            // but for now, just append socket updates to the end of API history.
+
+            // However, 'socketVehicle.path' might contain the *first* point which is exactly the *last* point of API if overlap?
+            // Usually API fetch is a snapshot. Socket is "live".
+            // If socket update happened *after* DB write but *before* API read... 
+            // actually API read includes it.
+            // If socket update happened *after* API read... API misses it.
+            // So if socketVehicle.timestamp > apiVehicle.timestamp, it's new.
+
+            const socketTime = new Date(socketVehicle.timestamp).getTime();
+            const apiTime = new Date(apiVehicle.timestamp).getTime();
+
+            if (socketTime > apiTime) {
+              // Socket is newer. Adopt socket position/status, append path.
+              mergedMap[id] = {
+                ...apiVehicle,
+                ...socketVehicle, // Takes latest lat/lng/speed/status
+                path: [...apiVehicle.path, ...socketVehicle.path].slice(-100) // Combine paths
+              };
+            } else {
+              // API is newer or same. Ignore this specific socket "initial" state if it was just a raw update.
+              // But wait, 'prev' in this context is whatever 'setVehicles' has.
+              // If this is the FIRST fetch, 'prev' is empty or contains only socket updates.
+              // If prev was created by socket, its path is [point].
+              // So we append that point if it's newer.
+              if (socketVehicle.path.length > 0) {
+                // Check if last API point is same as first socket point?
+                // Let's just assume socket update is authoritative if timestamp is newer.
+              }
+            }
+          } else {
+            // Vehicle only exists in socket updates (very new), keep it.
+            mergedMap[id] = socketVehicle;
+          }
+        });
+
+        return Object.values(mergedMap);
+      });
+
     } catch (err) {
       console.error("Error fetching vehicles:", err);
     } finally {
@@ -88,15 +139,17 @@ export default function RealTimeMap() {
     socketRef.current.on("gps_update", (update) => {
       console.log("Received GPS update:", update);
       setVehicles((prev) => {
-        const index = prev.findIndex((v) => v.id === update.deviceId);
+        const deviceId = String(update.deviceId); // Force String ID
+        const index = prev.findIndex((v) => String(v.id) === deviceId);
+
         const newCoords = {
           lat: Number(update.latitude),
           lng: Number(update.longitude),
         };
 
         const updatedVehicle = {
-          id: update.deviceId,
-          name: update.name || update.deviceId || "Unknown",
+          id: deviceId,
+          name: update.name || deviceId || "Unknown",
           ...newCoords,
           speed: Number(update.speed),
           heading: Number(update.heading || 0),
