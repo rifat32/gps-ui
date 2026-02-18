@@ -28,7 +28,7 @@ function App() {
     <Router>
       <Routes>
         <Route
-          path="/"
+          path="/playback"
           element={<Playback theme={theme} toggleTheme={toggleTheme} />}
         />
         <Route
@@ -36,7 +36,7 @@ function App() {
           element={<Dashcam theme={theme} toggleTheme={toggleTheme} />}
         />
         <Route
-          path="/realtime"
+          path="/"
           element={
             <Suspense fallback={<div className="p-4">Loading Map...</div>}>
               <RealTimeMap />
