@@ -148,7 +148,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   // Start live stream for a device
   const startLiveStream = async (device, channel = 2) => {
     const key = `${device.id}_ch${channel}`;
-
+    console.log({ key });
     // Skip if already loading or live
     if (
       activeStreamsRef.current[key] === "loading" ||
