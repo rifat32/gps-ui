@@ -11,16 +11,17 @@ import {
   Search,
   Sun,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DeviceCard from "../components/DeviceCard";
 import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
+import deviceApi from "../services/deviceApi";
 
 // Mock Data
 const MOCK_DEVICES = [
   {
-    id: "JT8088985963",
+    id: "291078985963",
     name: "Truck-01",
     status: "online",
     speed: 45,
@@ -118,6 +119,10 @@ export default function Dashcam({ theme, toggleTheme }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("alerts"); // "alerts" | "recordings"
 
+  // Live stream state: { [deviceId]: { url, channel, status: 'idle'|'loading'|'live'|'error', error } }
+  const [liveStreams, setLiveStreams] = useState({});
+  const activeStreamsRef = useRef({});
+
   // Simulate real-time alerts
   useEffect(() => {
     const interval = setInterval(() => {
@@ -140,6 +145,89 @@ export default function Dashcam({ theme, toggleTheme }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Start live stream for a device
+  const startLiveStream = async (device, channel = 2) => {
+    const key = `${device.id}_ch${channel}`;
+
+    // Skip if already loading or live
+    if (
+      activeStreamsRef.current[key] === "loading" ||
+      activeStreamsRef.current[key] === "live"
+    )
+      return;
+
+    if (device.status !== "online") return;
+
+    activeStreamsRef.current[key] = "loading";
+    setLiveStreams((prev) => ({
+      ...prev,
+      [key]: { url: null, channel, status: "loading", error: null },
+    }));
+
+    try {
+      await deviceApi.startLive(device.id, channel);
+      const url = deviceApi.getLiveUrl(device.id, channel);
+
+      activeStreamsRef.current[key] = "live";
+      setLiveStreams((prev) => ({
+        ...prev,
+        [key]: { url, channel, status: "live", error: null },
+      }));
+    } catch (err) {
+      console.error(`Failed to start live stream for ${device.id}:`, err);
+      activeStreamsRef.current[key] = "error";
+      setLiveStreams((prev) => ({
+        ...prev,
+        [key]: {
+          url: null,
+          channel,
+          status: "error",
+          error: err.message || "Failed to start stream",
+        },
+      }));
+    }
+  };
+
+  // When selected device changes, start its live stream
+  useEffect(() => {
+    if (selectedDevice) {
+      startLiveStream(selectedDevice, 1);
+    }
+  }, [selectedDevice]);
+
+  // On mount, start the default device stream
+  useEffect(() => {
+    startLiveStream(MOCK_DEVICES[0], 1);
+  }, []);
+
+  const handleDeviceSelect = (device) => {
+    setSelectedDevice(device);
+  };
+
+  const getStreamForCell = (cellIndex) => {
+    // Cell 0 always shows the selected device's channel 1
+    if (cellIndex === 0) {
+      const key = `${selectedDevice.id}_ch1`;
+      return liveStreams[key] || null;
+    }
+    // Other cells show other online devices
+    const onlineDevices = MOCK_DEVICES.filter(
+      (d) => d.status === "online" && d.id !== selectedDevice.id,
+    );
+    const device = onlineDevices[cellIndex - 1];
+    if (!device) return null;
+    const key = `${device.id}_ch1`;
+    return liveStreams[key] || null;
+  };
+
+  const getDeviceForCell = (cellIndex) => {
+    if (cellIndex === 0) return selectedDevice;
+    const onlineDevices = MOCK_DEVICES.filter(
+      (d) => d.status === "online" && d.id !== selectedDevice.id,
+    );
+    return onlineDevices[cellIndex - 1] || null;
+  };
+
   const renderVideoGrid = () => {
     const cells = Array.from({ length: gridSize });
     const gridCols = Math.sqrt(gridSize);
@@ -155,16 +243,20 @@ export default function Dashcam({ theme, toggleTheme }) {
           background: "var(--bg-color)",
         }}
       >
-        {cells.map((_, i) => (
-          <VideoPlayer
-            key={i}
-            i={i}
-            MOCK_DEVICES={MOCK_DEVICES}
-            streamUrl={
-              i === 0 ? "http://54.37.225.65:4020/live/stream_ch1.m3u8" : null
-            }
-          />
-        ))}
+        {cells.map((_, i) => {
+          const stream = getStreamForCell(i);
+          const device = getDeviceForCell(i);
+          return (
+            <VideoPlayer
+              key={i}
+              i={i}
+              device={device}
+              streamState={stream}
+              MOCK_DEVICES={MOCK_DEVICES}
+              onRetry={() => device && startLiveStream(device, 1)}
+            />
+          );
+        })}
       </div>
     );
   };
@@ -427,7 +519,8 @@ export default function Dashcam({ theme, toggleTheme }) {
                 key={dev.id}
                 dev={dev}
                 selectedDevice={selectedDevice}
-                setSelectedDevice={setSelectedDevice}
+                setSelectedDevice={handleDeviceSelect}
+                streamStatus={liveStreams[`${dev.id}_ch1`]?.status || "idle"}
               />
             ))}
           </div>
@@ -526,7 +619,7 @@ export default function Dashcam({ theme, toggleTheme }) {
                     key={rec.id}
                     className="recording-card"
                     style={{
-                      background: "var(--surface-color)", // Use component logic or css class
+                      background: "var(--surface-color)",
                       borderRadius: "12px",
                       overflow: "hidden",
                       border: "1px solid var(--surface-border)",
@@ -683,6 +776,10 @@ export default function Dashcam({ theme, toggleTheme }) {
             0% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.4; transform: scale(1.1); }
             100% { opacity: 1; transform: scale(1); }
+          }
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
           }
           .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
