@@ -9,82 +9,83 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import Hls from "hls.js";
+import videojs from "video.js";
+import "video.js/dist/video-js.css";
 
 export default function VideoPlayer({ i, device, streamState, onRetry }) {
   const [kbps] = useState(() => 2500 + Math.floor(Math.random() * 1000));
   const [latency] = useState(() => (0.1 + Math.random() * 0.2).toFixed(2));
   const videoRef = useRef(null);
-  const hlsRef = useRef(null);
+  const playerRef = useRef(null);
 
   const streamUrl = streamState?.url;
   const status = streamState?.status || "idle";
   const error = streamState?.error;
 
   useEffect(() => {
-    if (!streamUrl || status !== "live") {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      return;
+    // Make sure Video.js player is only initialized once
+    if (
+      !playerRef.current &&
+      status === "live" &&
+      streamUrl &&
+      videoRef.current
+    ) {
+      const videoElement = videoRef.current;
+      if (!videoElement) return;
+
+      const player = (playerRef.current = videojs(
+        videoElement,
+        {
+          autoplay: true,
+          controls: true,
+          responsive: true,
+          fluid: true,
+          liveui: true,
+          html5: {
+            vhs: {
+              overrideNative: true,
+              fastQualityChange: true,
+              enableLowInitialPlaylist: true,
+              smoothQualityChange: true,
+              handlePartialData: true,
+            },
+          },
+        },
+        () => {
+          console.log("Player is ready");
+        },
+      ));
+
+      player.src({
+        src: streamUrl,
+        type: "application/x-mpegURL",
+      });
+    } else if (playerRef.current && status === "live" && streamUrl) {
+      // Update source if player already exists
+      playerRef.current.src({
+        src: streamUrl,
+        type: "application/x-mpegURL",
+      });
     }
 
-    let hls;
-    if (Hls.isSupported()) {
-      hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 60,
-        maxBufferLength: 20,
-        maxMaxBufferLength: 40,
-        appendErrorMaxRetry: 10,
-        manifestLoadingMaxRetry: 10,
-        levelLoadingMaxRetry: 10,
-        liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 10,
+    // Error handling
+    if (playerRef.current) {
+      playerRef.current.on("error", () => {
+        const playerError = playerRef.current.error();
+        console.error("Video.js Error:", playerError);
       });
-      hls.loadSource(streamUrl);
-      hls.attachMedia(videoRef.current);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        videoRef.current.play().catch((e) => {
-          if (e.name !== "AbortError") console.error("Play error:", e);
-        });
-      });
-      hls.on(Hls.Events.ERROR, function (event, data) {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log("fatal network error encountered, try to recover");
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log("fatal media error encountered, try to recover");
-              hls.recoverMediaError();
-              break;
-            default:
-              console.log("cannot recover", data);
-              hls.destroy();
-              if (onRetry) onRetry();
-              break;
-          }
-        }
-      });
-      hlsRef.current = hls;
-    } else if (videoRef.current.canPlayType("application/vnd.apple.mpegurl")) {
-      videoRef.current.src = streamUrl;
-      videoRef.current.addEventListener("error", (e) =>
-        console.error("Native Video Error:", e),
-      );
     }
+  }, [status, streamUrl]);
 
+  // Dispose the player on unmount
+  useEffect(() => {
     return () => {
-      if (hls) {
-        hls.destroy();
-        hlsRef.current = null;
+      if (playerRef.current) {
+        playerRef.current.dispose();
+        playerRef.current = null;
       }
     };
-  }, [streamUrl, status]);
+  }, []);
 
   return (
     <div
@@ -134,7 +135,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
             animation: status === "live" ? "pulse 1.5s infinite" : "none",
           }}
         ></div>
-        {status === "live" ? "LIVE" : "STANDBY"} • CH 01
+        {status === "live" ? "LIVE" : "STANDBY"} • CH 02
       </div>
 
       {/* Stats Overlay */}
@@ -170,16 +171,20 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
       )}
 
       {/* Main Content Area */}
-      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div
+        style={{ width: "100%", height: "100%", position: "relative" }}
+        data-vjs-player
+      >
         {status === "live" && streamUrl ? (
           <video
             ref={videoRef}
-            width="100%"
-            height="100%"
-            controls
-            autoPlay
-            muted
-            style={{ objectFit: "cover", width: "100%", height: "100%" }}
+            className="video-js vjs-big-play-centered"
+            style={{
+              objectFit: "cover",
+              width: "100%",
+              height: "100%",
+              borderRadius: "12px",
+            }}
           />
         ) : (
           <div

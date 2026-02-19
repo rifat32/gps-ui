@@ -146,7 +146,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   }, []);
 
   // Start live stream for a device
-  const startLiveStream = async (device, channel = 2) => {
+  const startLiveStream = async (device, channel) => {
     const key = `${device.id}_ch${channel}`;
     console.log({ key });
     // Skip if already loading or live
@@ -191,13 +191,13 @@ export default function Dashcam({ theme, toggleTheme }) {
   // When selected device changes, start its live stream
   useEffect(() => {
     if (selectedDevice) {
-      startLiveStream(selectedDevice, 1);
+      startLiveStream(selectedDevice, 2);
     }
   }, [selectedDevice]);
 
   // On mount, start the default device stream
   useEffect(() => {
-    startLiveStream(MOCK_DEVICES[0], 1);
+    startLiveStream(MOCK_DEVICES[0], 2);
   }, []);
 
   const handleDeviceSelect = (device) => {
@@ -253,7 +253,7 @@ export default function Dashcam({ theme, toggleTheme }) {
               device={device}
               streamState={stream}
               MOCK_DEVICES={MOCK_DEVICES}
-              onRetry={() => device && startLiveStream(device, 1)}
+              onRetry={() => device && startLiveStream(device, 2)}
             />
           );
         })}
