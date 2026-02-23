@@ -118,6 +118,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   const [alerts, setAlerts] = useState(MOCK_ALERTS);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("alerts"); // "alerts" | "recordings"
+  const [activeChannel, setActiveChannel] = useState(2);
 
   // Live stream state: { [deviceId]: { url, channel, status: 'idle'|'loading'|'live'|'error', error } }
   const [liveStreams, setLiveStreams] = useState({});
@@ -167,7 +168,7 @@ export default function Dashcam({ theme, toggleTheme }) {
     try {
       await deviceApi.startLive(device.id, channel);
       const url = deviceApi.getLiveUrl(device.id, channel);
-
+      console.log({ url });
       activeStreamsRef.current[key] = "live";
       setLiveStreams((prev) => ({
         ...prev,
@@ -188,26 +189,21 @@ export default function Dashcam({ theme, toggleTheme }) {
     }
   };
 
-  // When selected device changes, start its live stream
+  // When selected device or active channel changes, start its live stream
   useEffect(() => {
     if (selectedDevice) {
-      startLiveStream(selectedDevice, 2);
+      startLiveStream(selectedDevice, activeChannel);
     }
-  }, [selectedDevice]);
-
-  // On mount, start the default device stream
-  useEffect(() => {
-    startLiveStream(MOCK_DEVICES[0], 2);
-  }, []);
+  }, [selectedDevice, activeChannel]);
 
   const handleDeviceSelect = (device) => {
     setSelectedDevice(device);
   };
 
   const getStreamForCell = (cellIndex) => {
-    // Cell 0 always shows the selected device's channel 1
+    // Cell 0 always shows the selected device's current channel
     if (cellIndex === 0) {
-      const key = `${selectedDevice.id}_ch1`;
+      const key = `${selectedDevice.id}_ch${activeChannel}`;
       return liveStreams[key] || null;
     }
     // Other cells show other online devices
@@ -216,7 +212,7 @@ export default function Dashcam({ theme, toggleTheme }) {
     );
     const device = onlineDevices[cellIndex - 1];
     if (!device) return null;
-    const key = `${device.id}_ch1`;
+    const key = `${device.id}_ch${activeChannel}`;
     return liveStreams[key] || null;
   };
 
@@ -253,7 +249,7 @@ export default function Dashcam({ theme, toggleTheme }) {
               device={device}
               streamState={stream}
               MOCK_DEVICES={MOCK_DEVICES}
-              onRetry={() => device && startLiveStream(device, 2)}
+              onRetry={() => device && startLiveStream(device, activeChannel)}
             />
           );
         })}
@@ -413,6 +409,49 @@ export default function Dashcam({ theme, toggleTheme }) {
               <Grid3X3 size={18} />
             </button>
           </div>
+
+          <div
+            style={{
+              display: "flex",
+              background: "#1e293b",
+              borderRadius: "10px",
+              padding: "4px",
+            }}
+          >
+            <button
+              onClick={() => setActiveChannel(1)}
+              style={{
+                background: activeChannel === 1 ? "#3b82f6" : "transparent",
+                border: "none",
+                color: activeChannel === 1 ? "white" : "#64748b",
+                padding: "6px 14px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              CH 1
+            </button>
+            <button
+              onClick={() => setActiveChannel(2)}
+              style={{
+                background: activeChannel === 2 ? "#3b82f6" : "transparent",
+                border: "none",
+                color: activeChannel === 2 ? "white" : "#64748b",
+                padding: "6px 14px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              CH 2
+            </button>
+          </div>
+
           <button
             style={{
               background: "#3b82f6",
@@ -431,6 +470,25 @@ export default function Dashcam({ theme, toggleTheme }) {
           >
             <Maximize size={16} /> Fullscreen
           </button>
+          <Link
+            to="/saved-videos"
+            style={{
+              background: "#1e293b",
+              border: "1px solid #334155",
+              color: "white",
+              padding: "10px 18px",
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              cursor: "pointer",
+              fontWeight: "700",
+              fontSize: "13px",
+              textDecoration: "none",
+            }}
+          >
+            <Server size={16} /> Saved Videos
+          </Link>
         </div>
       </header>
 
@@ -540,7 +598,7 @@ export default function Dashcam({ theme, toggleTheme }) {
         </main>
 
         {/* Right Panel - Alerts & Recordings */}
-        <aside
+        {/* <aside
           style={{
             width: "340px",
             background: "var(--sidebar-bg)",
@@ -549,7 +607,6 @@ export default function Dashcam({ theme, toggleTheme }) {
             flexDirection: "column",
           }}
         >
-          {/* Tabs */}
           <div
             style={{
               padding: "16px 20px",
@@ -737,7 +794,6 @@ export default function Dashcam({ theme, toggleTheme }) {
             )}
           </div>
 
-          {/* BOTTOM BUTTON  */}
           <div
             style={{
               padding: "20px",
@@ -766,7 +822,7 @@ export default function Dashcam({ theme, toggleTheme }) {
               View Activity Log
             </button>
           </div>
-        </aside>
+        </aside> */}
       </div>
 
       {/* GLOBAL STYLES */}

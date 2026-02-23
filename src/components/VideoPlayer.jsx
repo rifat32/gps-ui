@@ -37,6 +37,8 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
         videoElement,
         {
           autoplay: true,
+          muted: true,
+          playsInline: true,
           controls: true,
           responsive: true,
           fluid: true,
@@ -48,6 +50,8 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
               enableLowInitialPlaylist: true,
               smoothQualityChange: true,
               handlePartialData: true,
+              useDevicePixelRatio: true,
+              experimentalBufferBasedABR: true,
             },
           },
         },
@@ -73,9 +77,20 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
       playerRef.current.on("error", () => {
         const playerError = playerRef.current.error();
         console.error("Video.js Error:", playerError);
+
+        // Auto-recovery for Decode Error (Code 3)
+        if (playerError && playerError.code === 3) {
+          console.log("Decoding error detected, attempting recovery...");
+          playerRef.current.dispose();
+          playerRef.current = null;
+          // Trigger a re-init via status/url change logic or by calling onRetry
+          setTimeout(() => {
+            if (onRetry) onRetry();
+          }, 1000);
+        }
       });
     }
-  }, [status, streamUrl]);
+  }, [status, streamUrl, onRetry]);
 
   // Dispose the player on unmount
   useEffect(() => {
@@ -135,7 +150,8 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
             animation: status === "live" ? "pulse 1.5s infinite" : "none",
           }}
         ></div>
-        {status === "live" ? "LIVE" : "STANDBY"} • CH 02
+        {status === "live" ? "LIVE" : "STANDBY"} • CH{" "}
+        {String(streamState?.channel || 1).padStart(2, "0")}
       </div>
 
       {/* Stats Overlay */}
@@ -179,6 +195,9 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
           <video
             ref={videoRef}
             className="video-js vjs-big-play-centered"
+            muted
+            playsInline
+            preload="auto"
             style={{
               objectFit: "cover",
               width: "100%",
