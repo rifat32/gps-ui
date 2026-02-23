@@ -14,6 +14,40 @@ import deviceApi from "../services/deviceApi";
 
 const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
 
+// Helpers for data formatting
+const formatTimestamp = (ts) => {
+  if (!ts || ts.length < 12) return ts;
+  // Format: 260223210000 -> YYMMDDHHMMSS
+  const year = "20" + ts.substring(0, 2);
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const month = monthNames[parseInt(ts.substring(2, 4)) - 1] || "???";
+  const day = ts.substring(4, 6);
+  const hour = ts.substring(6, 8);
+  const minute = ts.substring(8, 10);
+  return `${month} ${day}, ${year} ${hour}:${minute}`;
+};
+
+const formatBytes = (bytes) => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
 export default function SavedVideos() {
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
@@ -64,36 +98,19 @@ export default function SavedVideos() {
         parameters: { channel, startTime, endTime },
       });
 
-      // 2. Download Video (Simulated instant call to trigger VPS sync)
-      await deviceApi.sendCommand({
-        deviceId: selectedDevice.id,
-        commandType: "DOWNLOAD_VIDEO",
-        parameters: {
-          channel,
-          startTime: "260213150641",
-          endTime: "260213150949",
-          storageType: 1,
-        },
-      });
+      // 2. Fetch VPS files to get the resource list
+      const response = await deviceApi.getFiles(selectedDevice.id);
 
-      // Fetch VPS files to show initial state
-      fetchVpsFiles();
+      // Map the response based on the resourceList structure
+      // Format: response.resourceList.resources[]
+      const allResources = response?.resourceList?.resources || [];
 
-      // Since QUERY_FILES is often async, we show a message or wait
-      setFiles([
-        {
-          id: 1,
-          name: "video_260213150641.mp4",
-          date: "2026-02-13 15:06",
-          size: "45MB",
-        },
-        {
-          id: 2,
-          name: "video_260213151000.mp4",
-          date: "2026-02-13 15:10",
-          size: "38MB",
-        },
-      ]);
+      // Filter for the selected channel
+      const filteredFiles = allResources.filter(
+        (item) => item.channel === channel,
+      );
+      setFiles(filteredFiles);
+      setVpsFiles(allResources);
     } catch (err) {
       console.error("Error querying files:", err);
     } finally {
@@ -105,20 +122,40 @@ export default function SavedVideos() {
     if (!selectedDevice) return;
     try {
       const response = await deviceApi.getFiles(selectedDevice.id);
-      setVpsFiles(response.files || []);
+      const allResources = response?.resourceList?.resources || [];
+      if (selectedChannel) {
+        setFiles(
+          allResources.filter((item) => item.channel === selectedChannel),
+        );
+      }
+      setVpsFiles(allResources);
     } catch (err) {
       console.error("Error fetching VPS files:", err);
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (file) => {
     try {
-      // 3. GET /api/files to start VPS sync/download
-      await deviceApi.getFiles(selectedDevice.id);
-      alert("Download triggered on VPS for " + selectedDevice.id);
-      fetchVpsFiles();
+      // 3. DOWNLOAD_VIDEO command with parameters from the file resource
+      const payload = {
+        deviceId: selectedDevice.id,
+        commandType: "DOWNLOAD_VIDEO",
+        parameters: {
+          channel: file.channel,
+          startTime: file.startTime,
+          endTime: file.endTime,
+          storageType: file.storageType || 1,
+        },
+      };
+
+      await deviceApi.sendCommand(payload);
+      alert(
+        "Download command sent successfully for video starting at " +
+          formatTimestamp(file.startTime),
+      );
     } catch (err) {
-      console.error("Download trigger failed:", err);
+      console.error("Download command failed:", err);
+      alert("Failed to send download command");
     }
   };
 
@@ -379,9 +416,9 @@ export default function SavedVideos() {
                     </div>
                   ) : (
                     <div style={{ padding: "10px" }}>
-                      {files.map((file) => (
+                      {files.map((file, idx) => (
                         <div
-                          key={file.id}
+                          key={idx}
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -417,17 +454,18 @@ export default function SavedVideos() {
                               <div
                                 style={{ fontWeight: "600", fontSize: "14px" }}
                               >
-                                {file.name}
+                                Video Segment {idx + 1}
                               </div>
                               <div
                                 style={{ fontSize: "12px", color: "#64748b" }}
                               >
-                                {file.date} • {file.size}
+                                {formatTimestamp(file.startTime)} •{" "}
+                                {formatBytes(file.fileSize)}
                               </div>
                             </div>
                           </div>
                           <button
-                            onClick={handleDownload}
+                            onClick={() => handleDownload(file)}
                             style={{
                               background: "#3b82f6",
                               color: "white",
@@ -471,7 +509,7 @@ export default function SavedVideos() {
                     >
                       <Server size={14} />
                       <span>
-                        {vpsFiles.length} files currently stored on VPS{" "}
+                        {vpsFiles.length} total files available on server{" "}
                       </span>
                     </div>
                     <button
