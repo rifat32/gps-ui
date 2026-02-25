@@ -56,6 +56,20 @@ export default function SavedVideos() {
   const [files, setFiles] = useState([]);
   const [vpsFiles, setVpsFiles] = useState([]);
 
+  // Date Filter State (default to Feb 2026 based on records)
+  const [startDate, setStartDate] = useState("2026-02-01");
+  const [endDate, setEndDate] = useState("2026-02-28");
+
+  // Helper to convert YYYY-MM-DD to YYMMDDHHmmss
+  const apiDateFormat = (dateStr, isEnd = false) => {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    const yy = parts[0].substring(2);
+    const mm = parts[1];
+    const dd = parts[2];
+    return `${yy}${mm}${dd}${isEnd ? "235959" : "000000"}`;
+  };
+
   // Fetch devices on mount
   useEffect(() => {
     const fetchDevices = async () => {
@@ -86,9 +100,9 @@ export default function SavedVideos() {
     setSelectedChannel(channel);
     setLoading(true);
 
-    // Example time range: Feb 2026
-    const startTime = "260201000000";
-    const endTime = "260229235959";
+    // Use selected date range
+    const startTime = apiDateFormat(startDate);
+    const endTime = apiDateFormat(endDate, true);
 
     try {
       // 1. Query Files
@@ -151,7 +165,7 @@ export default function SavedVideos() {
       await deviceApi.sendCommand(payload);
       alert(
         "Download command sent successfully for video starting at " +
-          formatTimestamp(file.startTime),
+        formatTimestamp(file.startTime),
       );
     } catch (err) {
       console.error("Download command failed:", err);
@@ -317,6 +331,60 @@ export default function SavedVideos() {
                   >
                     Manage recorded footage from this device
                   </p>
+                </div>
+
+                {/* Filters Row */}
+                <div style={{ display: "flex", gap: "20px", alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", textTransform: "uppercase" }}>Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      style={{
+                        background: "#0f172a",
+                        border: "1px solid #1e293b",
+                        borderRadius: "10px",
+                        color: "white",
+                        padding: "8px 12px",
+                        fontSize: "13px",
+                        outline: "none"
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "11px", color: "#64748b", fontWeight: "700", textTransform: "uppercase" }}>End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      style={{
+                        background: "#0f172a",
+                        border: "1px solid #1e293b",
+                        borderRadius: "10px",
+                        color: "white",
+                        padding: "8px 12px",
+                        fontSize: "13px",
+                        outline: "none"
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => selectedChannel && handleChannelSelect(selectedChannel)}
+                    style={{
+                      background: "#3b82f6",
+                      color: "white",
+                      border: "none",
+                      padding: "8px 16px",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      fontWeight: "700",
+                      fontSize: "13px",
+                      height: "38px"
+                    }}
+                  >
+                    Apply
+                  </button>
                 </div>
 
                 {/* Cam Select */}
