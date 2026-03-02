@@ -4,6 +4,7 @@ import "./App.css";
 import Dashcam from "./pages/Dashcam";
 import Playback from "./pages/Playback";
 import SavedVideos from "./pages/SavedVideos";
+import VideoSettings from "./pages/VideoSettings";
 
 const RealTimeMap = lazy(() => import("./pages/RealTimeMap"));
 
@@ -39,6 +40,10 @@ function App() {
         <Route
           path="/saved-videos"
           element={<SavedVideos theme={theme} toggleTheme={toggleTheme} />}
+        />
+        <Route
+          path="/video-settings"
+          element={<VideoSettings theme={theme} toggleTheme={toggleTheme} />}
         />
         <Route
           path="/"

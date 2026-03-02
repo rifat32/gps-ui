@@ -45,6 +45,36 @@ const deviceApi = {
     });
   },
 
+  // Get available parameter definitions
+  getParameterList: async (category = "") => {
+    const url = category ? `${BASE_URL}/api/parameters/list?category=${category}` : `${BASE_URL}/api/parameters/list`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to get parameter list");
+    return response.json();
+  },
+
+  // Query live parameter values from device
+  queryParams: async (deviceId, paramIds) => {
+    const response = await fetch(`${BASE_URL}/api/device/query-params`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, parameters: { paramIds } }),
+    });
+    if (!response.ok) throw new Error("Failed to query parameters");
+    return response.json();
+  },
+
+  // Update parameters on the device
+  setParams: async (deviceId, category, settings) => {
+    const response = await fetch(`${BASE_URL}/api/device/set-params`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, category, settings }),
+    });
+    if (!response.ok) throw new Error("Failed to set parameters");
+    return response.json();
+  },
+
   // Get live stream URL
   getLiveUrl: (deviceId, channel = 1) => {
     return `${BASE_URL}/live/live_${deviceId}_ch${channel}.m3u8`;

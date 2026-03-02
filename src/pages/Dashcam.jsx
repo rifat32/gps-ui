@@ -9,6 +9,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
+  Settings,
+  Server,
   Sun,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -470,6 +472,25 @@ export default function Dashcam({ theme, toggleTheme }) {
           >
             <Maximize size={16} /> Fullscreen
           </button>
+          <Link
+            to="/video-settings"
+            style={{
+              background: "#1e293b",
+              border: "1px solid #334155",
+              color: "white",
+              padding: "10px 18px",
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              cursor: "pointer",
+              fontWeight: "700",
+              fontSize: "13px",
+              textDecoration: "none",
+            }}
+          >
+            <Settings size={16} /> Video Settings
+          </Link>
           <Link
             to="/saved-videos"
             style={{
