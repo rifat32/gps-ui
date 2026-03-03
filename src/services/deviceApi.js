@@ -75,6 +75,13 @@ const deviceApi = {
     return response.json();
   },
 
+  // Get cached settings from server
+  getSettings: async (deviceId) => {
+    const response = await fetch(`${BASE_URL}/api/recording-settings?deviceId=${deviceId}`);
+    if (!response.ok) throw new Error("Failed to get recording settings");
+    return response.json();
+  },
+
   // Get live stream URL
   getLiveUrl: (deviceId, channel = 1) => {
     return `${BASE_URL}/live/live_${deviceId}_ch${channel}.m3u8`;

@@ -1,546 +1,377 @@
 import { useState, useEffect } from 'react';
-import {
-    ArrowLeft, Settings, Video, Sliders, Save, RefreshCw,
-    Monitor, Database, Camera, CheckCircle2, AlertCircle, Info
-} from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import deviceApi from '../services/deviceApi';
 
 export default function VideoSettings({ theme, toggleTheme }) {
-    const [selectedDevice, setSelectedDevice] = useState("291078985963"); // Default for now
+    const [selectedDevice, setSelectedDevice] = useState('');
+    const [devices, setDevices] = useState({ active: [], historical: [] });
     const [loading, setLoading] = useState(false);
     const [notification, setNotification] = useState(null);
 
-    // Data from API
-    const [videoDefinitions, setVideoDefinitions] = useState([]);
-    const [mainRecordingIds, setMainRecordingIds] = useState([]);
-    const [tuningIds, setTuningIds] = useState([]);
+    // null = not loaded yet; only shown after a successful device fetch
+    const [adasForm, setAdasForm] = useState(null);
 
-    // Form States
-    const [recordingForm, setRecordingForm] = useState({
-        audioVideo: {
-            liveResolution: 6,
-            liveTargetBitrate: 2048,
-            liveTargetFrameRate: 25,
-            storageEncodingMode: 0,
-            storageResolution: 6,
-            storageTargetBitrate: 4096,
-            storageTargetFrameRate: 25,
-            osdSettings: 0x003F,
-            audioOutputEnable: 1
-        }
-    });
-
-    const [tuningForm, setTuningForm] = useState({
-        "0x0070": 7, // Quality
-        "0x0071": 128, // Brightness
-        "0x0072": 64, // Contrast
-        "0x0073": 64, // Saturation
-        "0x0074": 64  // Chroma
-    });
-
-    const RESOLUTIONS = [
-        { value: 0, label: 'QCIF' },
-        { value: 1, label: 'CIF' },
-        { value: 2, label: 'WCIF' },
-        { value: 3, label: 'D1' },
-        { value: 4, label: 'WD1' },
-        { value: 5, label: '720P' },
-        { value: 6, label: '1080P' }
-    ];
-
-    const SHOW_NOTIFICATION = (message, type = 'success') => {
+    const showNotification = (message, type = 'success') => {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), 5000);
     };
 
-    // Step 1: Load Definitions on Mount
-    useEffect(() => {
-        const loadDefinitions = async () => {
-            try {
-                const res = await deviceApi.getParameterList('Video');
-                if (res.success) {
-                    const params = res.data;
-                    setVideoDefinitions(params);
+    // Fetch & populate all form fields from the server's cached device settings
+    const fetchCurrentValues = async (deviceId) => {
+        if (!deviceId) return;
+        setLoading(true);
+        setAdasForm(null); // clear previous device values while loading
+        try {
+            const res = await deviceApi.getSettings(deviceId);
+            if (res.success && res.settings) {
+                // backend stores parsed 0xF364 under this key
+                const raw = res.settings['0x0000f364'] || res.settings['0xf364'] || null;
 
-                    const main = params.filter(p => ['0x0075', '0x0076', '0x0077'].includes(p.id)).map(p => p.idInt);
-                    const tuning = params.filter(p => ['0x0070', '0x0071', '0x0072', '0x0073', '0x0074'].includes(p.id)).map(p => p.idInt);
-
-                    setMainRecordingIds(main);
-                    setTuningIds(tuning);
+                if (raw) {
+                    setAdasForm({
+                        enable: raw.pedestrian?.enable === 1,
+                        gnssSpeed: raw.pedestrian?.speedThreshold ?? '',
+                        classification: raw.classification ?? raw.pedestrian?.classification ?? '',
+                        interval: raw.interval ?? raw.pedestrian?.interval ?? '',
+                        audioFrequency: (raw.volume ?? 0) > 0,
+                        sense: raw.pedestrian?.sensitivity ?? '',
+                        record: raw.videoEnable === 1,
+                        recordLockChn: [
+                            !!(raw.flags & 0x01),
+                            !!(raw.flags & 0x02),
+                        ],
+                        recordUploadChn: [
+                            !!(raw.flags & 0x04),
+                            !!(raw.flags & 0x08),
+                        ],
+                        alarmOutput: [!!(raw.flags & 0x10)],
+                        snapChn: [
+                            !!(raw.photoEnable & 0x01),
+                            !!(raw.photoEnable & 0x02),
+                        ],
+                    });
+                    showNotification(`Loaded settings for ${deviceId}`);
+                } else {
+                    // device exists in server but 0xF364 not yet queried – show empty form
+                    setAdasForm({
+                        enable: false, gnssSpeed: '', classification: '', interval: '',
+                        audioFrequency: false, sense: '', record: false,
+                        recordLockChn: [false, false], recordUploadChn: [false, false],
+                        alarmOutput: [false], snapChn: [false, false],
+                    });
+                    showNotification('No cached ADAS data yet. Tap ↻ to query the device.', 'info');
                 }
-            } catch (err) {
-                console.error("Failed to load definitions", err);
             }
-        };
-        loadDefinitions();
-    }, []);
+        } catch (err) {
+            console.error('Fetch failed', err);
+            showNotification('Failed to load settings from server', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    // Step 2: Fetch Current Values
-    const fetchCurrentValues = async () => {
+    // Send a live query to the device then re-fetch after 3 s
+    const handleSync = async () => {
         if (!selectedDevice) return;
         setLoading(true);
         try {
-            const allIds = [...mainRecordingIds, ...tuningIds];
-            if (allIds.length === 0) return;
+            await deviceApi.queryParams(selectedDevice, [0xF364]);
+            showNotification('Query sent – fetching updated values in 3 s…', 'info');
+            setTimeout(() => fetchCurrentValues(selectedDevice), 3000);
+        } catch (err) {
+            showNotification(err.message, 'error');
+            setLoading(false);
+        }
+    };
 
-            const res = await deviceApi.queryParams(selectedDevice, allIds);
-            if (res.success && res.parameters) {
-                // Update Recording Form
-                if (res.parameters["0x00000075"]) {
-                    setRecordingForm({ audioVideo: res.parameters["0x00000075"] });
+    // Load device list on mount
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await deviceApi.checkStatus();
+                if (res.success) {
+                    const active = Object.keys(res.activeConnections || {});
+                    const historical = Object.keys(res.lastSeenDevices || {}).filter(id => !active.includes(id));
+                    setDevices({ active, historical });
                 }
-
-                // Update Tuning Form
-                const newTuning = { ...tuningForm };
-                tuningIds.forEach(id => {
-                    const hex = `0x${id.toString(16).padStart(8, '0')}`;
-                    if (res.parameters[hex] !== undefined) {
-                        newTuning[`0x${id.toString(16).padStart(4, '0')}`] = res.parameters[hex];
-                    }
-                });
-                setTuningForm(newTuning);
-                SHOW_NOTIFICATION("Successfully synchronized with device");
+            } catch (err) {
+                console.error('Status check failed', err);
             }
-        } catch (err) {
-            SHOW_NOTIFICATION(err.message, 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
+        })();
+    }, []);
 
-    // Step 4: Update Settings
-    const handleSaveRecording = async () => {
+    // Auto-fetch when device changes
+    useEffect(() => {
+        if (selectedDevice) {
+            fetchCurrentValues(selectedDevice);
+        } else {
+            setAdasForm(null);
+        }
+    }, [selectedDevice]);
+
+    const handleSave = async () => {
+        if (!selectedDevice || !adasForm) return;
         setLoading(true);
         try {
-            await deviceApi.setParams(selectedDevice, 'recording', recordingForm);
-            SHOW_NOTIFICATION("Main Recording settings updated. Verification query triggered.");
+            await deviceApi.setParams(selectedDevice, 'ai', {
+                adas: {
+                    pedestrian: {
+                        enable: adasForm.enable ? 1 : 0,
+                        sensitivity: Number(adasForm.sense),
+                        speedThreshold: Number(adasForm.gnssSpeed),
+                    },
+                    videoEnable: adasForm.record ? 1 : 0,
+                    classification: Number(adasForm.classification),
+                    interval: Number(adasForm.interval),
+                    audioFrequency: adasForm.audioFrequency ? 1 : 0,
+                }
+            });
+            showNotification('Settings saved to device.');
         } catch (err) {
-            SHOW_NOTIFICATION(err.message, 'error');
+            showNotification(err.message, 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSaveTuning = async () => {
-        setLoading(true);
-        try {
-            await deviceApi.setParams(selectedDevice, 'generic', tuningForm);
-            SHOW_NOTIFICATION("Image Tuning settings updated via generic handler.");
-        } catch (err) {
-            SHOW_NOTIFICATION(err.message, 'error');
-        } finally {
-            setLoading(false);
-        }
+    const toggleChn = (key, index) => {
+        setAdasForm(prev => {
+            const list = [...prev[key]];
+            list[index] = !list[index];
+            return { ...prev, [key]: list };
+        });
     };
 
-    const handleRecordingChange = (field, value) => {
-        setRecordingForm(prev => ({
-            audioVideo: {
-                ...prev.audioVideo,
-                [field]: value
-            }
-        }));
-    };
-
-    const handleTuningChange = (id, value) => {
-        setTuningForm(prev => ({
-            ...prev,
-            [id]: parseInt(value)
-        }));
-    };
-
-    return (
-        <div className="video-settings-page" style={{
-            minHeight: '100vh',
-            background: 'var(--bg-color)',
-            color: 'var(--text-primary)',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            padding: '24px',
-            transition: 'all 0.3s ease'
+    /* ── tiny reusable sub-components ── */
+    const Toggle = ({ value, onChange }) => (
+        <div onClick={() => onChange(!value)} style={{
+            width: 51, height: 31, borderRadius: 31, flexShrink: 0,
+            background: value ? '#007AFF' : '#E9E9EB',
+            position: 'relative', cursor: 'pointer', transition: 'background .2s',
         }}>
-            {/* Header */}
             <div style={{
-                maxWidth: '1200px',
-                margin: '0 auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '40px',
-                padding: '0 8px'
+                width: 27, height: 27, borderRadius: '50%', background: 'white',
+                position: 'absolute', top: 2, left: value ? 22 : 2, transition: 'left .2s',
+            }} />
+        </div>
+    );
+
+    const Checkbox = ({ checked, onChange, label }) => (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+            <input type="checkbox" checked={checked} onChange={onChange}
+                style={{ width: 18, height: 18, accentColor: '#007AFF' }} />
+            {label}
+        </label>
+    );
+
+    const Row = ({ label, children }) => (
+        <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '13px 16px', borderBottom: '0.5px solid rgba(0,0,0,0.06)',
+            background: 'white',
+        }}>
+            <span style={{ fontSize: 16, fontWeight: 500, color: '#222' }}>{label}</span>
+            {children}
+        </div>
+    );
+
+    const NumInput = ({ value, onChange }) => (
+        <input type="number" value={value} onChange={e => onChange(e.target.value)}
+            style={{
+                border: 'none', textAlign: 'right', fontSize: 16, width: 80,
+                background: 'transparent', outline: 'none', color: '#007AFF',
+            }} />
+    );
+
+    /* ── render ── */
+    return (
+        <div style={{
+            minHeight: '100vh', background: '#F2F2F7',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif',
+        }}>
+            {/* Blue header */}
+            <div style={{
+                background: '#007AFF', color: 'white', padding: '12px 16px',
+                display: 'flex', alignItems: 'center', gap: 12,
+                position: 'sticky', top: 0, zIndex: 100,
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <Link to="/dashcam" style={{
-                        background: 'var(--btn-secondary-bg)',
-                        border: '1px solid var(--surface-border)',
-                        color: 'var(--text-primary)',
-                        padding: '12px',
-                        borderRadius: '16px',
-                        display: 'flex',
-                        transition: 'all 0.2s',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                <Link to="/dashcam" style={{ color: 'white', lineHeight: 0 }}>
+                    <ArrowLeft size={24} />
+                </Link>
+                <h1 style={{ margin: 0, fontSize: 19, fontWeight: 600, flex: 1, textAlign: 'center' }}>
+                    Pedestrian collision
+                </h1>
+                <button
+                    onClick={handleSync}
+                    disabled={loading || !selectedDevice}
+                    title="Sync from device"
+                    style={{
+                        background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white',
+                        borderRadius: 8, padding: '4px 8px', cursor: 'pointer',
+                        fontSize: 20, lineHeight: 1,
+                        opacity: (!selectedDevice || loading) ? 0.45 : 1,
                     }}
-                        onMouseOver={(e) => e.currentTarget.style.transform = 'translateX(-4px)'}
-                        onMouseOut={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+                >↻</button>
+            </div>
+
+            <div style={{ maxWidth: 600, margin: '0 auto', paddingBottom: 48 }}>
+
+                {/* Device picker */}
+                <div style={{ padding: '20px 16px 12px' }}>
+                    <select
+                        value={selectedDevice}
+                        onChange={e => setSelectedDevice(e.target.value)}
+                        style={{
+                            width: '100%', background: 'white', border: 'none',
+                            padding: '13px 14px', borderRadius: 12, fontSize: 16,
+                            outline: 'none', boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                            color: selectedDevice ? '#000' : '#888',
+                        }}
                     >
-                        <ArrowLeft size={20} />
-                    </Link>
-                    <div>
-                        <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '900', letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>
-                            Video Configuration
-                        </h1>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '15px', color: 'var(--text-secondary)' }}>
-                            Optimize device stream parameters and visual quality
+                        <option value="">Select a device…</option>
+                        {devices.active.map(id =>
+                            <option key={id} value={id}>📱 {id} (Online)</option>)}
+                        {devices.historical.map(id =>
+                            <option key={id} value={id}>📱 {id} (Offline)</option>)}
+                    </select>
+                </div>
+
+                {/* Spinner while loading */}
+                {loading && (
+                    <div style={{ textAlign: 'center', padding: '48px 0', color: '#999', fontSize: 15 }}>
+                        Loading settings…
+                    </div>
+                )}
+
+                {/* Placeholder – no device chosen */}
+                {!loading && !selectedDevice && (
+                    <div style={{ textAlign: 'center', padding: '60px 24px', color: '#aaa' }}>
+                        <div style={{ fontSize: 52, marginBottom: 16 }}>📡</div>
+                        <p style={{ fontSize: 16, margin: 0 }}>
+                            Select a device above to load its current settings.
                         </p>
                     </div>
-                </div>
+                )}
 
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <button
-                        onClick={fetchCurrentValues}
-                        disabled={loading}
-                        style={{
-                            background: 'var(--accent-color)',
-                            border: 'none',
-                            color: 'white',
-                            padding: '12px 24px',
-                            borderRadius: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            cursor: 'pointer',
-                            fontWeight: '700',
-                            fontSize: '15px',
-                            boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.filter = 'brightness(1.1)'}
-                        onMouseOut={(e) => e.currentTarget.style.filter = 'none'}
-                    >
-                        <RefreshCw size={19} className={loading ? 'animate-spin' : ''} />
-                        {loading ? 'Synchronizing...' : 'Sync with Device'}
-                    </button>
-                </div>
+                {/* Settings – only rendered after adasForm is populated */}
+                {!loading && adasForm && (
+                    <>
+                        <div style={{
+                            borderRadius: 13, overflow: 'hidden',
+                            margin: '0 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                        }}>
+                            <Row label="Enable">
+                                <Toggle value={adasForm.enable}
+                                    onChange={v => setAdasForm({ ...adasForm, enable: v })} />
+                            </Row>
+
+                            <Row label="GNSS Speed (km/h)">
+                                <NumInput value={adasForm.gnssSpeed}
+                                    onChange={v => setAdasForm({ ...adasForm, gnssSpeed: v })} />
+                            </Row>
+
+                            <Row label="Classification">
+                                <NumInput value={adasForm.classification}
+                                    onChange={v => setAdasForm({ ...adasForm, classification: v })} />
+                            </Row>
+
+                            <Row label="interval (s)">
+                                <NumInput value={adasForm.interval}
+                                    onChange={v => setAdasForm({ ...adasForm, interval: v })} />
+                            </Row>
+
+                            <Row label="audio frequency">
+                                <Toggle value={adasForm.audioFrequency}
+                                    onChange={v => setAdasForm({ ...adasForm, audioFrequency: v })} />
+                            </Row>
+
+                            <Row label="Sense (0~30s)">
+                                <NumInput value={adasForm.sense}
+                                    onChange={v => setAdasForm({ ...adasForm, sense: v })} />
+                            </Row>
+
+                            <Row label="Record">
+                                <Toggle value={adasForm.record}
+                                    onChange={v => setAdasForm({ ...adasForm, record: v })} />
+                            </Row>
+
+                            {/* Record Lock Chn */}
+                            <div style={{ padding: '13px 16px', background: 'white', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 16, fontWeight: 500 }}>Record Lock Chn</span>
+                                    <div style={{ display: 'flex', gap: 16 }}>
+                                        <Checkbox checked={adasForm.recordLockChn[0]} onChange={() => toggleChn('recordLockChn', 0)} label="CH1" />
+                                        <Checkbox checked={adasForm.recordLockChn[1]} onChange={() => toggleChn('recordLockChn', 1)} label="CH2" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Record Upload Chn */}
+                            <div style={{ padding: '13px 16px', background: 'white', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 16, fontWeight: 500 }}>Record Upload Chn</span>
+                                    <div style={{ display: 'flex', gap: 16 }}>
+                                        <Checkbox checked={adasForm.recordUploadChn[0]} onChange={() => toggleChn('recordUploadChn', 0)} label="CH1" />
+                                        <Checkbox checked={adasForm.recordUploadChn[1]} onChange={() => toggleChn('recordUploadChn', 1)} label="CH2" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Alarm Output */}
+                            <div style={{ padding: '13px 16px', background: 'white', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 16, fontWeight: 500 }}>Alarm Output</span>
+                                    <Checkbox checked={adasForm.alarmOutput[0]} onChange={() => toggleChn('alarmOutput', 0)} label="IO1" />
+                                </div>
+                            </div>
+
+                            {/* Snap Chn */}
+                            <div style={{ padding: '13px 16px', background: 'white', borderTop: '0.5px solid rgba(0,0,0,0.06)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 16, fontWeight: 500 }}>Snap Chn</span>
+                                    <div style={{ display: 'flex', gap: 16 }}>
+                                        <Checkbox checked={adasForm.snapChn[0]} onChange={() => toggleChn('snapChn', 0)} label="CH1" />
+                                        <Checkbox checked={adasForm.snapChn[1]} onChange={() => toggleChn('snapChn', 1)} label="CH2" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Save button */}
+                        <button
+                            onClick={handleSave}
+                            disabled={loading}
+                            style={{
+                                margin: '28px 16px', width: 'calc(100% - 32px)',
+                                background: '#007AFF', color: 'white', border: 'none',
+                                padding: 16, borderRadius: 13, fontSize: 17,
+                                fontWeight: 600, cursor: 'pointer',
+                                opacity: loading ? 0.6 : 1, transition: 'opacity .2s',
+                            }}
+                        >
+                            {loading ? 'Saving…' : 'Save Settings'}
+                        </button>
+                    </>
+                )}
             </div>
 
+            {/* Toast notification */}
             {notification && (
                 <div style={{
-                    position: 'fixed',
-                    top: '32px',
-                    right: '32px',
-                    background: notification.type === 'error' ? '#ef4444' : '#10b981',
-                    color: 'white',
-                    padding: '16px 28px',
-                    borderRadius: '20px',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '14px',
-                    zIndex: 1000,
-                    animation: 'slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                    fontWeight: '600'
+                    position: 'fixed', bottom: 20, left: 20, right: 20,
+                    background: notification.type === 'error' ? '#FF3B30'
+                        : notification.type === 'info' ? '#5856D6' : '#34C759',
+                    color: 'white', padding: '12px 16px', borderRadius: 12,
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    zIndex: 1000, boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
                 }}>
-                    {notification.type === 'error' ? <AlertCircle size={22} /> : <CheckCircle2 size={22} />}
-                    <span>{notification.message}</span>
+                    {notification.type === 'error'
+                        ? <AlertCircle size={20} />
+                        : <CheckCircle2 size={20} />}
+                    <span style={{ fontSize: 14, fontWeight: 500 }}>{notification.message}</span>
                 </div>
             )}
-
-            <div style={{
-                maxWidth: '1200px',
-                margin: '0 auto',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))',
-                gap: '32px'
-            }}>
-
-                {/* Section A: Main Recording */}
-                <div style={{
-                    background: 'var(--surface-color)',
-                    border: '1px solid var(--surface-border)',
-                    borderRadius: '32px',
-                    padding: '32px',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)',
-                    transition: 'transform 0.3s ease'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                        <div style={{
-                            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                            padding: '12px',
-                            borderRadius: '18px',
-                            boxShadow: '0 8px 16px -4px rgba(37, 99, 235, 0.4)'
-                        }}>
-                            <Video color="white" size={26} />
-                        </div>
-                        <div>
-                            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>Main Recording</h2>
-                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Protocol structure 0x0075</p>
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gap: '24px' }}>
-                        <div className="form-group">
-                            <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                                <Monitor size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                                Resolution
-                            </label>
-                            <select
-                                value={recordingForm.audioVideo.liveResolution}
-                                onChange={(e) => handleRecordingChange('liveResolution', parseInt(e.target.value))}
-                                style={{
-                                    width: '100%',
-                                    background: 'var(--input-bg)',
-                                    border: '1px solid var(--surface-border)',
-                                    color: 'var(--text-primary)',
-                                    padding: '14px 18px',
-                                    borderRadius: '16px',
-                                    outline: 'none',
-                                    fontSize: '15px',
-                                    fontWeight: '500',
-                                    appearance: 'none',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                {RESOLUTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                            </select>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                            <div className="form-group">
-                                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '10px' }}>Bitrate (kbps)</label>
-                                <input
-                                    type="number"
-                                    value={recordingForm.audioVideo.liveTargetBitrate}
-                                    onChange={(e) => handleRecordingChange('liveTargetBitrate', parseInt(e.target.value))}
-                                    style={{
-                                        width: '100%',
-                                        background: 'var(--input-bg)',
-                                        border: '1px solid var(--surface-border)',
-                                        color: 'var(--text-primary)',
-                                        padding: '14px 18px',
-                                        borderRadius: '16px',
-                                        boxSizing: 'border-box',
-                                        fontSize: '15px',
-                                        fontWeight: '600'
-                                    }}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '10px' }}>Target FPS</label>
-                                <input
-                                    type="number"
-                                    value={recordingForm.audioVideo.liveTargetFrameRate}
-                                    onChange={(e) => handleRecordingChange('liveTargetFrameRate', parseInt(e.target.value))}
-                                    style={{
-                                        width: '100%',
-                                        background: 'var(--input-bg)',
-                                        border: '1px solid var(--surface-border)',
-                                        color: 'var(--text-primary)',
-                                        padding: '14px 18px',
-                                        borderRadius: '16px',
-                                        boxSizing: 'border-box',
-                                        fontSize: '15px',
-                                        fontWeight: '600'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <div style={{
-                            background: 'var(--bg-color)',
-                            border: '1px solid var(--surface-border)',
-                            borderRadius: '20px',
-                            padding: '20px'
-                        }}>
-                            <label style={{ display: 'block', fontSize: '14px', fontWeight: '800', color: 'var(--accent-color)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                OSD Overlay Matrix
-                            </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                                {[
-                                    { bit: 0, label: 'Date/Time' },
-                                    { bit: 1, label: 'Plate Number' },
-                                    { bit: 2, label: 'Channel Name' },
-                                    { bit: 3, label: 'Lat / Lon' },
-                                    { bit: 4, label: 'Rec Speed' },
-                                    { bit: 5, label: 'GPS Speed' }
-                                ].map(osd => (
-                                    <label key={osd.bit} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', fontWeight: '500', color: 'var(--text-primary)' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={!!(recordingForm.audioVideo.osdSettings & (1 << osd.bit))}
-                                            onChange={(e) => {
-                                                const current = recordingForm.audioVideo.osdSettings;
-                                                const next = e.target.checked ? (current | (1 << osd.bit)) : (current & ~(1 << osd.bit));
-                                                handleRecordingChange('osdSettings', next);
-                                            }}
-                                            style={{ width: '18px', height: '18px', borderRadius: '4px', accentColor: 'var(--accent-color)' }}
-                                        />
-                                        {osd.label}
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleSaveRecording}
-                            disabled={loading}
-                            style={{
-                                marginTop: '12px',
-                                background: 'var(--accent-color)',
-                                color: 'white',
-                                border: 'none',
-                                padding: '18px',
-                                borderRadius: '18px',
-                                fontWeight: '800',
-                                fontSize: '16px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '12px',
-                                boxShadow: '0 12px 20px -5px rgba(59, 130, 246, 0.4)',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                        >
-                            <Save size={20} /> Update Parameters
-                        </button>
-                    </div>
-                </div>
-
-                {/* Section B: Image Tuning */}
-                <div style={{
-                    background: 'var(--surface-color)',
-                    border: '1px solid var(--surface-border)',
-                    borderRadius: '32px',
-                    padding: '32px',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                        <div style={{
-                            background: 'linear-gradient(135deg, #10b981, #059669)',
-                            padding: '12px',
-                            borderRadius: '18px',
-                            boxShadow: '0 8px 16px -4px rgba(16, 185, 129, 0.4)'
-                        }}>
-                            <Sliders color="white" size={26} />
-                        </div>
-                        <div>
-                            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>Image Tuning</h2>
-                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Generic ID-Value mapping</p>
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gap: '32px' }}>
-                        {[
-                            { id: '0x0070', label: 'Image Quality', min: 1, max: 10, step: 1, icon: <Camera size={14} /> },
-                            { id: '0x0071', label: 'Brightness', min: 0, max: 255, step: 1, icon: <Info size={14} /> },
-                            { id: '0x0072', label: 'Contrast', min: 0, max: 127, step: 1, icon: <Info size={14} /> },
-                            { id: '0x0073', label: 'Saturation', min: 0, max: 127, step: 1, icon: <Info size={14} /> },
-                            { id: '0x0074', label: 'Chroma', min: 0, max: 255, step: 1, icon: <Info size={14} /> }
-                        ].map(item => (
-                            <div key={item.id} className="form-group">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'flex-end' }}>
-                                    <label style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                                        {item.label} <span style={{ opacity: 0.5, fontWeight: '400', marginLeft: '6px' }}>{item.id}</span>
-                                    </label>
-                                    <span style={{ fontSize: '18px', fontWeight: '900', color: '#10b981', fontFamily: 'monospace' }}>{tuningForm[item.id]}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min={item.min}
-                                    max={item.max}
-                                    step={item.step}
-                                    value={tuningForm[item.id]}
-                                    onChange={(e) => handleTuningChange(item.id, e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        height: '8px',
-                                        background: 'var(--bg-color)',
-                                        border: '1px solid var(--surface-border)',
-                                        borderRadius: '8px',
-                                        outline: 'none',
-                                        cursor: 'pointer',
-                                        accentColor: '#10b981',
-                                        padding: '0'
-                                    }}
-                                />
-                            </div>
-                        ))}
-
-                        <div style={{
-                            background: 'rgba(16, 185, 129, 0.08)',
-                            border: '1px solid rgba(16, 185, 129, 0.15)',
-                            borderRadius: '20px',
-                            padding: '20px',
-                            fontSize: '13px',
-                            lineHeight: '1.6',
-                            color: '#059669',
-                            display: 'flex',
-                            gap: '16px',
-                            fontWeight: '500'
-                        }}>
-                            <Info size={22} style={{ flexShrink: 0, marginTop: '2px' }} />
-                            <span>
-                                Generic updates bypass static builders. The system dynamically encodes these based on standard protocol definitions (BYTE, WORD, DWORD).
-                            </span>
-                        </div>
-
-                        <button
-                            onClick={handleSaveTuning}
-                            disabled={loading}
-                            style={{
-                                background: '#10b981',
-                                color: 'white',
-                                border: 'none',
-                                padding: '18px',
-                                borderRadius: '18px',
-                                fontWeight: '800',
-                                fontSize: '16px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '12px',
-                                boxShadow: '0 12px 20px -5px rgba(16, 185, 129, 0.4)',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                        >
-                            <Save size={20} /> Update Generic Tuning
-                        </button>
-                    </div>
-                </div>
-
-            </div>
-
-            <style>{`
-        @keyframes slideIn {
-          from { transform: translateX(100%) scale(0.9); opacity: 0; }
-          to { transform: translateX(0) scale(1); opacity: 1; }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        input[type="range"]::-webkit-slider-thumb {
-          width: 24px;
-          height: 24px;
-          background: #ffffff;
-          border: 4px solid #10b981;
-          border-radius: 50%;
-          cursor: pointer;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          margin-top: -8.5px;
-        }
-        input[type="range"]::-webkit-slider-runnable-track {
-          height: 8px;
-        }
-      `}</style>
         </div>
     );
 }
