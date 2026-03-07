@@ -55,6 +55,11 @@ export default function RealTimeMap() {
 
           if (lat === 0 && lng === 0) return null;
 
+          // Check if data is older than 5 minutes
+          const gpsTime = new Date(v.gps_time);
+          const now = new Date();
+          const isStale = (now - gpsTime) > 5 * 60 * 1000; // 5 minutes in ms
+
           return {
             id: deviceId,
             name: v.deviceName || deviceId,
@@ -63,10 +68,12 @@ export default function RealTimeMap() {
             speed: Number(v.speed || 0),
             heading: Number(v.direction || 0),
             timestamp: v.gps_time,
-            status: Number(v.speed || 0) > 0 ? "Moving" : "Stopped",
+            // If data is stale, show Offline, otherwise check speed
+            status: isStale ? "Offline" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped"),
           };
         })
         .filter(Boolean);
+
 
       setVehicles(apiVehicles);
     } catch (err) {
@@ -207,7 +214,7 @@ export default function RealTimeMap() {
                       alignItems: "center",
                       justifyContent: "center",
                       transition: "all 0.5s ease-out",
-                      filter: vehicle.status === "Stopped" ? "grayscale(100%) opacity(0.8)" : "none",
+                      filter: (vehicle.status === "Stopped" || vehicle.status === "Offline") ? "grayscale(100%) opacity(0.8)" : "none",
                     }}
                     onClick={() => setSelectedVehicle(vehicle)}
                   >
@@ -242,13 +249,16 @@ export default function RealTimeMap() {
                       Status:{" "}
                       <span
                         style={{
-                          color: selectedVehicle.status === "Moving" ? "#22c55e" : "#ef4444",
+                          color:
+                            selectedVehicle.status === "Moving" ? "#22c55e" :
+                              selectedVehicle.status === "Offline" ? "#94a3b8" : "#ef4444",
                           fontWeight: "bold",
                         }}
                       >
                         {selectedVehicle.status}
                       </span>
                     </p>
+
                     <p>Time: {selectedVehicle.timestamp}</p>
                   </div>
                 </div>
