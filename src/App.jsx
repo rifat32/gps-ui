@@ -5,6 +5,7 @@ import Dashcam from "./pages/Dashcam";
 import Playback from "./pages/Playback";
 import SavedVideos from "./pages/SavedVideos";
 import VideoSettings from "./pages/VideoSettings";
+import Layout from "./components/Layout";
 
 const RealTimeMap = lazy(() => import("./pages/RealTimeMap"));
 
@@ -29,30 +30,32 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route
-          path="/playback"
-          element={<Playback theme={theme} toggleTheme={toggleTheme} />}
-        />
-        <Route
-          path="/dashcam"
-          element={<Dashcam theme={theme} toggleTheme={toggleTheme} />}
-        />
-        <Route
-          path="/saved-videos"
-          element={<SavedVideos theme={theme} toggleTheme={toggleTheme} />}
-        />
-        <Route
-          path="/video-settings"
-          element={<VideoSettings theme={theme} toggleTheme={toggleTheme} />}
-        />
-        <Route
-          path="/"
-          element={
-            <Suspense fallback={<div className="p-4">Loading Map...</div>}>
-              <RealTimeMap />
-            </Suspense>
-          }
-        />
+        <Route element={<Layout theme={theme} toggleTheme={toggleTheme} />}>
+          <Route
+            path="/playback"
+            element={<Playback theme={theme} toggleTheme={toggleTheme} />}
+          />
+          <Route
+            path="/dashcam"
+            element={<Dashcam theme={theme} toggleTheme={toggleTheme} />}
+          />
+          <Route
+            path="/saved-videos"
+            element={<SavedVideos theme={theme} toggleTheme={toggleTheme} />}
+          />
+          <Route
+            path="/video-settings"
+            element={<VideoSettings theme={theme} toggleTheme={toggleTheme} />}
+          />
+          <Route
+            path="/"
+            element={
+              <Suspense fallback={<div className="p-4">Loading Map...</div>}>
+                <RealTimeMap />
+              </Suspense>
+            }
+          />
+        </Route>
       </Routes>
     </Router>
   );

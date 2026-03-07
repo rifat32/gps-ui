@@ -1,0 +1,99 @@
+import { 
+  Map as MapIcon, 
+  Video, 
+  History, 
+  Settings, 
+  PlayCircle, 
+  LayoutDashboard,
+  Menu,
+  X,
+  LogOut,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+
+const NAV_ITEMS = [
+  { path: "/", icon: MapIcon, label: "Live Map" },
+  { path: "/dashcam", icon: LayoutDashboard, label: "Dashcam (AI)" },
+  { path: "/playback", icon: PlayCircle, label: "Playback" },
+  { path: "/saved-videos", icon: History, label: "Recordings" },
+  { path: "/video-settings", icon: Settings, label: "Settings" },
+];
+
+export default function NavigationSidebar({ theme, toggleTheme }) {
+  const location = useLocation();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [location.pathname]);
+
+  const isActive = (path) => location.pathname === path;
+
+  return (
+    <>
+      {/* Mobile Toggle Button */}
+      <button 
+        className="mobile-nav-toggle"
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
+      >
+        <Menu size={24} />
+      </button>
+
+      {/* Overlay for mobile */}
+      {isMobileOpen && (
+        <div className="nav-overlay" onClick={() => setIsMobileOpen(false)} />
+      )}
+
+      <aside className={`nav-sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
+        <div className="nav-logo">
+          <div className="logo-icon">GPS</div>
+          {!isCollapsed && <span className="logo-text">FLEET PRO</span>}
+        </div>
+
+        <nav className="nav-items">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+              title={isCollapsed ? item.label : ""}
+            >
+              <item.icon size={20} className="nav-icon" />
+              {!isCollapsed && <span className="nav-label">{item.label}</span>}
+              {isActive(item.path) && !isCollapsed && <div className="active-indicator" />}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="nav-footer">
+          <button 
+            className="collapse-toggle"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+          >
+            {isCollapsed ? <ChevronRight size={18} /> : (
+              <>
+                <ChevronLeft size={18} />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+          
+          <div className="user-profile">
+            <div className="avatar">A</div>
+            {!isCollapsed && (
+              <div className="user-info">
+                <span className="user-name">Admin User</span>
+                <span className="user-role">Super Admin</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
