@@ -91,8 +91,29 @@ export default function VideoSettings({ theme, toggleTheme }) {
             try {
                 const res = await deviceApi.checkStatus();
                 if (res.success) {
-                    const active = Object.keys(res.activeConnections || {});
-                    const historical = Object.keys(res.lastSeenDevices || {}).filter(id => !active.includes(id));
+                    const activeEntries = Object.entries(res.activeConnections || {});
+                    const active = [];
+                    const historical = [];
+
+                    const now = new Date();
+                    activeEntries.forEach(([id, conn]) => {
+                        const lastSeen = new Date(conn.lastSeen);
+                        const diffMins = (now - lastSeen) / 60000;
+                        
+                        if (diffMins < 5) {
+                            active.push(id);
+                        } else {
+                            historical.push(id);
+                        }
+                    });
+
+                    // Add other historical devices
+                    Object.keys(res.lastSeenDevices || {}).forEach(id => {
+                        if (!active.includes(id) && !historical.includes(id)) {
+                            historical.push(id);
+                        }
+                    });
+
                     setDevices({ active, historical });
                 }
             } catch (err) {

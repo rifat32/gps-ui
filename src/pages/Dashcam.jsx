@@ -120,10 +120,12 @@ const MOCK_RECORDINGS = [
 
 export default function Dashcam({ theme, toggleTheme }) {
   const [gridSize, setGridSize] = useState(4); // Default 2x2
-  const [selectedDevice, setSelectedDevice] = useState(MOCK_DEVICES[0]);
-  const [alerts, setAlerts] = useState([]); // Real AI alerts
+  const [alerts, setAlerts] = useState([]);
+  const [devices, setDevices] = useState({ active: [], historical: [] });
+  const [selectedDevice, setSelectedDevice] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState("alerts"); // "alerts" | "recordings"
+  const [isFilterOpen, setFilterOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("live");
   const [activeChannel, setActiveChannel] = useState(2);
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
 
@@ -155,11 +157,28 @@ export default function Dashcam({ theme, toggleTheme }) {
     }
   };
 
-  // Socket.io for real-time alerts
+  // Fetch devices
+  const fetchDevices = async () => {
+    try {
+      const data = await deviceApi.getDevices();
+      const activeDevices = data.data.filter(d => d.status === 'online');
+      const historicalDevices = data.data.filter(d => d.status === 'offline');
+      setDevices({ active: activeDevices, historical: historicalDevices });
+      if (!selectedDevice && activeDevices.length > 0) {
+        setSelectedDevice(activeDevices[0]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch devices:", err);
+    }
+  };
+
+  // Initialize Socket.io and fetch data
   useEffect(() => {
     fetchInitialAlerts();
+    fetchDevices();
 
-    socketRef.current = io(WS_URL);
+    const socket = io(WS_URL);
+    socketRef.current = socket;
 
     socketRef.current.on("ai_event", (event) => {
       console.log("Real-time AI event:", event);
@@ -272,8 +291,8 @@ export default function Dashcam({ theme, toggleTheme }) {
       return liveStreams[key] || null;
     }
     // Other cells show other online devices
-    const onlineDevices = MOCK_DEVICES.filter(
-      (d) => d.status === "online" && d.id !== selectedDevice.id,
+    const onlineDevices = devices.active.filter(
+      (d) => d.id !== selectedDevice.id,
     );
     const device = onlineDevices[cellIndex - 1];
     if (!device) return null;
@@ -283,8 +302,8 @@ export default function Dashcam({ theme, toggleTheme }) {
 
   const getDeviceForCell = (cellIndex) => {
     if (cellIndex === 0) return selectedDevice;
-    const onlineDevices = MOCK_DEVICES.filter(
-      (d) => d.status === "online" && d.id !== selectedDevice.id,
+    const onlineDevices = devices.active.filter(
+      (d) => d.id !== selectedDevice.id,
     );
     return onlineDevices[cellIndex - 1] || null;
   };
@@ -311,9 +330,10 @@ export default function Dashcam({ theme, toggleTheme }) {
             <VideoPlayer
               key={i}
               i={i}
-              device={device}
+              selectedDevice={selectedDevice}
+              setSelectedDevice={setSelectedDevice}
+              devices={devices}
               streamState={stream}
-              MOCK_DEVICES={MOCK_DEVICES}
               onRetry={() => device && startLiveStream(device, activeChannel)}
             />
           );
