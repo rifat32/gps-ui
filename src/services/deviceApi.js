@@ -15,7 +15,11 @@ const deviceApi = {
       },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error("Failed to send command");
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to send command");
+    }
     return response.json();
   },
 
@@ -91,6 +95,12 @@ const deviceApi = {
     const query = new URLSearchParams(params).toString();
     const response = await fetch(`${BASE_URL}/api/ai-events?${query}`);
     if (!response.ok) throw new Error("Failed to get AI events");
+    return response.json();
+  },
+
+  getDevices: async () => {
+    const response = await fetch(`${BASE_URL}/api/devices`);
+    if (!response.ok) throw new Error("Failed to fetch devices");
     return response.json();
   },
 };

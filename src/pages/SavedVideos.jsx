@@ -74,13 +74,11 @@ export default function SavedVideos() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error("Failed to fetch devices");
-        const json = await response.json();
-        const apiDevices = (json.data || []).map((v) => ({
-          id: String(v.device_id),
-          name: v.deviceName || String(v.device_id),
-          status: v.speed > 0 ? "Moving" : "Stopped",
+        const json = await deviceApi.getDevices();
+        const apiDevices = (json.data || []).map((id) => ({
+          id: String(id),
+          name: `Device-${String(id).slice(-4)}`,
+          status: "online", // Default status for list
         }));
         setDevices(apiDevices);
       } catch (err) {
@@ -169,7 +167,7 @@ export default function SavedVideos() {
       );
     } catch (err) {
       console.error("Download command failed:", err);
-      alert("Failed to send download command");
+      alert("Failed: " + err.message);
     }
   };
 

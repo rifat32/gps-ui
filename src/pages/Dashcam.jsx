@@ -25,44 +25,6 @@ import deviceApi from "../services/deviceApi";
 const WS_URL = import.meta.env.VITE_WS_URL;
 
 // Mock Data
-const MOCK_DEVICES = [
-  {
-    id: "291078985963",
-    name: "Truck-01",
-    status: "online",
-    speed: 45,
-    alert: "none",
-  },
-  {
-    id: "JT8088985964",
-    name: "Van-02",
-    status: "online",
-    speed: 0,
-    alert: "DSM",
-  },
-  {
-    id: "JT8088985965",
-    name: "Sedan-03",
-    status: "offline",
-    speed: 0,
-    alert: "none",
-  },
-  {
-    id: "JT8088985966",
-    name: "Truck-04",
-    status: "online",
-    speed: 62,
-    alert: "ADAS",
-  },
-  {
-    id: "JT8088985967",
-    name: "Bus-05",
-    status: "online",
-    speed: 30,
-    alert: "none",
-  },
-];
-
 const MOCK_ALERTS = [
   {
     id: 1,
@@ -286,13 +248,13 @@ export default function Dashcam({ theme, toggleTheme }) {
 
   const getStreamForCell = (cellIndex) => {
     // Cell 0 always shows the selected device's current channel
-    if (cellIndex === 0) {
+    if (cellIndex === 0 && selectedDevice) {
       const key = `${selectedDevice.id}_ch${activeChannel}`;
       return liveStreams[key] || null;
     }
     // Other cells show other online devices
     const onlineDevices = devices.active.filter(
-      (d) => d.id !== selectedDevice.id,
+      (d) => d.id !== selectedDevice?.id,
     );
     const device = onlineDevices[cellIndex - 1];
     if (!device) return null;
@@ -303,7 +265,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   const getDeviceForCell = (cellIndex) => {
     if (cellIndex === 0) return selectedDevice;
     const onlineDevices = devices.active.filter(
-      (d) => d.id !== selectedDevice.id,
+      (d) => d.id !== selectedDevice?.id,
     );
     return onlineDevices[cellIndex - 1] || null;
   };
@@ -676,7 +638,7 @@ export default function Dashcam({ theme, toggleTheme }) {
             >
               Fleet Devices
             </div>
-            {MOCK_DEVICES.map((dev) => (
+            {[...devices.active, ...devices.historical].map((dev) => (
               <DeviceCard
                 key={dev.id}
                 dev={dev}
