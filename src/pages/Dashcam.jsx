@@ -201,7 +201,7 @@ export default function Dashcam({ theme, toggleTheme }) {
 
     socketRef.current.on("ai_file_complete", (data) => {
       console.log("Media upload complete:", data);
-      setAlerts((prev) => 
+      setAlerts((prev) =>
         prev.map(alert => {
           // Match by serial_no (hex ID) and device_id
           if (alert.deviceId === data.device_id && (String(alert.id).includes(data.serial_no) || alert.id === data.serial_no || alert.serial_no === data.serial_no)) {
@@ -937,9 +937,9 @@ export default function Dashcam({ theme, toggleTheme }) {
 
       {/* Media Viewer Modal */}
       {selectedMedia && (
-        <MediaViewer 
-          media={selectedMedia} 
-          onClose={() => setSelectedMedia(null)} 
+        <MediaViewer
+          media={selectedMedia}
+          onClose={() => setSelectedMedia(null)}
         />
       )}
 
@@ -979,6 +979,7 @@ export default function Dashcam({ theme, toggleTheme }) {
             border-color: #3b82f633 !important;
           }
         `}
+
       </style>
     </div>
   );

@@ -6,7 +6,8 @@ import {
   InfoWindow,
   OverlayView,
 } from "@react-google-maps/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, Bell, ShieldAlert } from "lucide-react";
+import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 
 // Configuration
@@ -265,6 +266,33 @@ export default function RealTimeMap() {
               </InfoWindow>
             )}
           </GoogleMap>
+
+      {/* Floating AI Notification Link */}
+      <Link 
+        to="/dashcam" 
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          backgroundColor: '#3b82f6',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          textDecoration: 'none',
+          fontWeight: '600',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          zIndex: 1000,
+          transition: 'transform 0.2s',
+        }}
+        onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+        onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+      >
+        <Bell size={20} />
+        AI Notifications
+      </Link>
         </div>
       </div>
     </LoadScript>

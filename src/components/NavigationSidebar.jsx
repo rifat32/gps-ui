@@ -16,10 +16,10 @@ import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
   { path: "/", icon: MapIcon, label: "Live Map" },
-  { path: "/dashcam", icon: LayoutDashboard, label: "Dashcam (AI)" },
-  { path: "/playback", icon: PlayCircle, label: "Playback" },
-  { path: "/saved-videos", icon: History, label: "Recordings" },
-  { path: "/video-settings", icon: Settings, label: "Settings" },
+  { path: "/dashcam", icon: LayoutDashboard, label: "AI Notifications" },
+  { path: "/playback", icon: PlayCircle, label: "History Playback" },
+  { path: "/saved-videos", icon: History, label: "Media Center" },
+  { path: "/video-settings", icon: Settings, label: "Configuration" },
 ];
 
 export default function NavigationSidebar({ theme, toggleTheme }) {
