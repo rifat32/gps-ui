@@ -82,9 +82,16 @@ const deviceApi = {
     return response.json();
   },
 
-  // Get live stream URL
+  // Get available parameter definitions
   getLiveUrl: (deviceId, channel = 1) => {
     return `${BASE_URL}/live/live_${deviceId}_ch${channel}.m3u8`;
+  },
+
+  getAiEvents: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const response = await fetch(`${BASE_URL}/api/ai-events?${query}`);
+    if (!response.ok) throw new Error("Failed to get AI events");
+    return response.json();
   },
 };
 

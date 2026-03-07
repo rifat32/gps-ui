@@ -15,10 +15,15 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { io } from "socket.io-client";
+import moment from "moment";
 import DeviceCard from "../components/DeviceCard";
 import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
+import MediaViewer from "../components/MediaViewer";
 import deviceApi from "../services/deviceApi";
+
+const WS_URL = import.meta.env.VITE_WS_URL;
 
 // Mock Data
 const MOCK_DEVICES = [
@@ -117,35 +122,90 @@ const MOCK_RECORDINGS = [
 export default function Dashcam({ theme, toggleTheme }) {
   const [gridSize, setGridSize] = useState(4); // Default 2x2
   const [selectedDevice, setSelectedDevice] = useState(MOCK_DEVICES[0]);
-  const [alerts, setAlerts] = useState(MOCK_ALERTS);
+  const [alerts, setAlerts] = useState([]); // Real AI alerts
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("alerts"); // "alerts" | "recordings"
   const [activeChannel, setActiveChannel] = useState(2);
+  const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
 
   // Live stream state: { [deviceId]: { url, channel, status: 'idle'|'loading'|'live'|'error', error } }
   const [liveStreams, setLiveStreams] = useState({});
   const activeStreamsRef = useRef({});
+  const socketRef = useRef(null);
 
-  // Simulate real-time alerts
+  // Fetch initial AI events
+  const fetchInitialAlerts = async () => {
+    try {
+      const data = await deviceApi.getAiEvents({ limit: 20 });
+      const formatted = (data.data || []).map(event => ({
+        id: event.id,
+        type: event.category,
+        message: event.event_code,
+        time: moment(event.event_time).format('HH:mm:ss'),
+        deviceId: event.device_id,
+        file_path: event.file_path,
+        video_path: event.video_path
+      }));
+      setAlerts(formatted);
+    } catch (err) {
+      console.error("Failed to fetch AI events:", err);
+    }
+  };
+
+  // Socket.io for real-time alerts
   useEffect(() => {
-    const interval = setInterval(() => {
-      const types = ["DSM", "ADAS", "BSD"];
-      const messages = [
-        "Forward Collision Warning",
-        "Distraction Detected",
-        "Pedestrian Warning",
-      ];
-      const newAlert = {
-        id: Date.now(),
-        type: types[Math.floor(Math.random() * types.length)],
-        message: messages[Math.floor(Math.random() * messages.length)],
-        time: new Date().toLocaleTimeString(),
-        deviceId:
-          MOCK_DEVICES[Math.floor(Math.random() * MOCK_DEVICES.length)].name,
-      };
-      setAlerts((prev) => [newAlert, ...prev].slice(0, 10));
-    }, 7000);
-    return () => clearInterval(interval);
+    fetchInitialAlerts();
+
+    socketRef.current = io(WS_URL);
+
+    socketRef.current.on("ai_event", (event) => {
+      console.log("Real-time AI event:", event);
+      setAlerts((prev) => {
+        const newAlert = {
+          id: Date.now(),
+          type: event.category,
+          message: event.code || event.event_code,
+          time: moment().format('HH:mm:ss'),
+          deviceId: event.deviceId || event.device_id,
+          serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
+          file_path: event.file_path,
+          video_path: event.video_path
+        };
+        // Avoid adding if same alert arrived via polling/refresh? 
+        // For simplicity, just unshift
+        return [newAlert, ...prev].slice(0, 20);
+      });
+    });
+
+    socketRef.current.on("ai_file_complete", (data) => {
+      console.log("Media upload complete:", data);
+      setAlerts((prev) => 
+        prev.map(alert => {
+          // Match by serial_no (hex ID) and device_id
+          if (alert.deviceId === data.device_id && (String(alert.id).includes(data.serial_no) || alert.id === data.serial_no || alert.serial_no === data.serial_no)) {
+            return {
+              ...alert,
+              file_path: data.file_path || alert.file_path,
+              video_path: data.video_path || alert.video_path
+            };
+          }
+          // The 'id' might be Date.now() for new real-time alerts, so also match by serial_no if we stored it
+          // Let's ensure 'serial_no' is stored in the alert object
+          if (alert.deviceId === data.device_id && alert.serial_no === data.serial_no) {
+            return {
+              ...alert,
+              file_path: data.file_path || alert.file_path,
+              video_path: data.video_path || alert.video_path
+            };
+          }
+          return alert;
+        })
+      );
+    });
+
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
   }, []);
 
   // Start live stream for a device
@@ -681,9 +741,15 @@ export default function Dashcam({ theme, toggleTheme }) {
             className="custom-scrollbar"
           >
             {activeTab === "alerts" ? (
-              alerts.map((alert) => (
-                <DashcamAlert key={alert.id} alert={alert} />
-              ))
+              alerts.length > 0 ? (
+                alerts.map((alert) => (
+                  <DashcamAlert key={alert.id} alert={alert} onOpenMedia={setSelectedMedia} />
+                ))
+              ) : (
+                <div style={{ padding: "40px 20px", textAlign: "center", color: "#475569" }}>
+                  Waiting for alerts...
+                </div>
+              )
             ) : (
               <div
                 style={{
@@ -845,6 +911,14 @@ export default function Dashcam({ theme, toggleTheme }) {
           </div>
         </aside> */}
       </div>
+
+      {/* Media Viewer Modal */}
+      {selectedMedia && (
+        <MediaViewer 
+          media={selectedMedia} 
+          onClose={() => setSelectedMedia(null)} 
+        />
+      )}
 
       {/* GLOBAL STYLES */}
       <style>
