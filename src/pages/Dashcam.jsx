@@ -16,7 +16,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
-import moment from "moment";
 import DeviceCard from "../components/DeviceCard";
 import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
@@ -137,15 +136,19 @@ export default function Dashcam({ theme, toggleTheme }) {
   const fetchInitialAlerts = async () => {
     try {
       const data = await deviceApi.getAiEvents({ limit: 20 });
-      const formatted = (data.data || []).map(event => ({
-        id: event.id,
-        type: event.category,
-        message: event.event_code,
-        time: moment(event.event_time).format('HH:mm:ss'),
-        deviceId: event.device_id,
-        file_path: event.file_path,
-        video_path: event.video_path
-      }));
+      const formatted = (data.data || []).map(event => {
+        const date = new Date(event.event_time);
+        const timeStr = date.toTimeString().split(' ')[0]; // HH:mm:ss
+        return {
+          id: event.id,
+          type: event.category,
+          message: event.event_code,
+          time: timeStr,
+          deviceId: event.device_id,
+          file_path: event.file_path,
+          video_path: event.video_path
+        };
+      });
       setAlerts(formatted);
     } catch (err) {
       console.error("Failed to fetch AI events:", err);
@@ -165,7 +168,7 @@ export default function Dashcam({ theme, toggleTheme }) {
           id: Date.now(),
           type: event.category,
           message: event.code || event.event_code,
-          time: moment().format('HH:mm:ss'),
+          time: new Date().toTimeString().split(' ')[0],
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
           file_path: event.file_path,
