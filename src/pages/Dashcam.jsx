@@ -20,6 +20,7 @@ import DeviceCard from "../components/DeviceCard";
 import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
 import MediaViewer from "../components/MediaViewer";
+import NotificationTable from "../components/NotificationTable";
 import deviceApi from "../services/deviceApi";
 
 const WS_URL = import.meta.env.VITE_WS_URL;
@@ -100,7 +101,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   const fetchInitialAlerts = async () => {
     try {
       const data = await deviceApi.getAiEvents({ limit: 20 });
-      const formatted = (data.data || []).map(event => {
+      const formatted = (data.events || []).map(event => {
         const date = new Date(event.event_time);
         const timeStr = date.toTimeString().split(' ')[0]; // HH:mm:ss
         return {
@@ -658,9 +659,24 @@ export default function Dashcam({ theme, toggleTheme }) {
             flexDirection: "column",
             background: "#020617",
             position: "relative",
+            overflow: "hidden"
           }}
         >
-          {renderVideoGrid()}
+          <div style={{ flex: 1, overflow: "hidden" }}>
+             {renderVideoGrid()}
+          </div>
+          
+          {/* BOTTOM TABLE PANEL */}
+          <div 
+            style={{ 
+              height: "300px", 
+              background: "#0f172a", 
+              borderTop: "1px solid var(--surface-border)",
+              padding: "16px"
+            }}
+          >
+            <NotificationTable alerts={alerts} onOpenMedia={setSelectedMedia} />
+          </div>
         </main>
 
         {/* Right Panel - Alerts & Recordings */}
