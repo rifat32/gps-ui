@@ -103,7 +103,8 @@ export default function Dashcam({ theme, toggleTheme }) {
       const data = await deviceApi.getAiEvents({ limit: 20 });
       const formatted = (data.events || []).map(event => {
         const date = new Date(event.event_time);
-        const timeStr = date.toTimeString().split(' ')[0]; // HH:mm:ss
+        // Format as YYYY-MM-DD HH:mm:ss in local time
+        const timeStr = date.toLocaleString('sv-SE', { timeZone: 'UTC' }).replace('T', ' '); 
         return {
           id: event.id,
           type: event.category,
@@ -150,7 +151,7 @@ export default function Dashcam({ theme, toggleTheme }) {
           id: Date.now(),
           type: event.category,
           message: event.code || event.event_code,
-          time: new Date().toTimeString().split(' ')[0],
+          time: new Date().toLocaleString('sv-SE').replace('T', ' '),
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
           file_path: event.file_path,

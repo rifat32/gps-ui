@@ -45,17 +45,17 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
       <div 
         style={{
           padding: "16px 20px",
-          background: "rgba(30, 41, 59, 0.5)",
+          background: "var(--header-bg)",
           borderBottom: "1px solid var(--surface-border)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center"
         }}
       >
-        <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#f8fafc" }}>
+        <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "var(--header-text)" }}>
           AI Notifications
         </h3>
-        <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "600" }}>
+        <span style={{ fontSize: "11px", color: "var(--text-secondary)", opacity: 0.8, fontWeight: "600" }}>
           Total: {alerts.length}
         </span>
       </div>
@@ -83,10 +83,10 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
               alerts.map((alert) => (
                 <tr key={alert.id} className="table-row-hover" style={{ borderBottom: "1px solid #1e293b" }}>
                   <td style={tdStyle}>
-                    <div style={{ fontWeight: "700", color: "#f1f5f9" }}>{alert.deviceId}</div>
+                    <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>{alert.deviceId}</div>
                   </td>
                   <td style={tdStyle}>
-                    <div style={{ color: "#94a3b8" }}>{alert.time}</div>
+                    <div style={{ color: "var(--text-secondary)" }}>{alert.time}</div>
                   </td>
                   <td style={tdStyle}>
                     <span
@@ -258,15 +258,16 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
 }
 
 const thStyle = {
-  padding: "12px 20px",
+  padding: "12px 12px", // Reduced padding to fit more content
   fontWeight: "700",
-  color: "#94a3b8",
+  color: "var(--text-secondary)",
   textTransform: "uppercase",
   fontSize: "11px",
   letterSpacing: "0.5px",
-  borderBottom: "1px solid #1e293b"
+  borderBottom: "1px solid var(--surface-border)",
+  background: "var(--card-bg)"
 };
 
 const tdStyle = {
-  padding: "12px 20px",
+  padding: "12px 12px", // Reduced padding
 };
