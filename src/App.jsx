@@ -6,6 +6,7 @@ import Playback from "./pages/Playback";
 import SavedVideos from "./pages/SavedVideos";
 import VideoSettings from "./pages/VideoSettings";
 import Layout from "./components/Layout";
+import AiNotifications from "./pages/AiNotifications";
 
 const RealTimeMap = lazy(() => import("./pages/RealTimeMap"));
 
@@ -46,6 +47,12 @@ function App() {
           <Route
             path="/video-settings"
             element={<VideoSettings theme={theme} toggleTheme={toggleTheme} />}
+          />
+          <Route
+            path="/ai-notifications"
+            element={
+              <AiNotifications theme={theme} toggleTheme={toggleTheme} />
+            }
           />
           <Route
             path="/"

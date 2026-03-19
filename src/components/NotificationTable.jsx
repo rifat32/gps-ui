@@ -8,15 +8,15 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
 
   const getProperUrl = (path) => {
     if (!path) return "";
-    if (path.startsWith('http')) return path;
-    
+    if (path.startsWith("http")) return path;
+
     // If the path is absolute (contains /home/), extract the relative part
-    if (path.includes('downloads/')) {
-        const relativePart = path.substring(path.indexOf('downloads/'));
-        return `${BASE_URL}/${relativePart}`;
+    if (path.includes("downloads/")) {
+      const relativePart = path.substring(path.indexOf("downloads/"));
+      return `${BASE_URL}/${relativePart}`;
     }
-    
-    return path.startsWith('/') ? `${BASE_URL}${path}` : `${BASE_URL}/${path}`;
+
+    return path.startsWith("/") ? `${BASE_URL}${path}` : `${BASE_URL}/${path}`;
   };
 
   const handleCopy = (path, id, type) => {
@@ -27,10 +27,11 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
     setTimeout(() => setCopiedType(null), 2000);
   };
 
-  const isCopied = (id, type) => copiedType?.id === id && copiedType?.type === type;
+  const isCopied = (id, type) =>
+    copiedType?.id === id && copiedType?.type === type;
 
   return (
-    <div 
+    <div
       className="notification-table-container custom-scrollbar"
       style={{
         background: "var(--sidebar-bg)",
@@ -39,37 +40,59 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        height: "100%"
+        height: "100%",
+        marginBottom: "100px",
       }}
     >
-      <div 
+      <div
         style={{
           padding: "16px 20px",
           background: "var(--header-bg)",
           borderBottom: "1px solid var(--surface-border)",
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center"
+          alignItems: "center",
         }}
       >
-        <h3 style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "var(--header-text)" }}>
+        <h3
+          style={{
+            margin: 0,
+            fontSize: "14px",
+            fontWeight: "700",
+            color: "var(--header-text)",
+          }}
+        >
           AI Notifications
         </h3>
-        <span style={{ fontSize: "11px", color: "var(--text-secondary)", opacity: 0.8, fontWeight: "600" }}>
+        <span
+          style={{
+            fontSize: "11px",
+            color: "var(--header-text)",
+            opacity: 0.8,
+            fontWeight: "600",
+          }}
+        >
           Total: {alerts.length}
         </span>
       </div>
 
       <div style={{ flex: 1, overflow: "auto" }} className="custom-scrollbar">
-        <table 
-          style={{ 
-            width: "100%", 
-            borderCollapse: "collapse", 
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
             fontSize: "13px",
-            textAlign: "left"
+            textAlign: "left",
           }}
         >
-          <thead style={{ position: "sticky", top: 0, background: "#0f172a", zIndex: 10 }}>
+          <thead
+            style={{
+              position: "sticky",
+              top: 0,
+              background: "#0f172a",
+              zIndex: 10,
+            }}
+          >
             <tr>
               <th style={thStyle}>Device</th>
               <th style={thStyle}>Time</th>
@@ -81,12 +104,25 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
           <tbody>
             {alerts.length > 0 ? (
               alerts.map((alert) => (
-                <tr key={alert.id} className="table-row-hover" style={{ borderBottom: "1px solid #1e293b" }}>
+                <tr
+                  key={alert.id}
+                  className="table-row-hover"
+                  style={{ borderBottom: "1px solid #1e293b" }}
+                >
                   <td style={tdStyle}>
-                    <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>{alert.deviceId}</div>
+                    <div
+                      style={{
+                        fontWeight: "700",
+                        color: "var(--text-primary)",
+                      }}
+                    >
+                      {alert.deviceId}
+                    </div>
                   </td>
                   <td style={tdStyle}>
-                    <div style={{ color: "var(--text-secondary)" }}>{alert.time}</div>
+                    <div style={{ color: "var(--text-secondary)" }}>
+                      {alert.time}
+                    </div>
                   </td>
                   <td style={tdStyle}>
                     <span
@@ -95,7 +131,8 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
                         fontWeight: "800",
                         padding: "3px 8px",
                         borderRadius: "5px",
-                        background: alert.type === "DSM" ? "#f59e0b15" : "#ef444415",
+                        background:
+                          alert.type === "DSM" ? "#f59e0b15" : "#ef444415",
                         color: alert.type === "DSM" ? "#f59e0b" : "#ef4444",
                         border: `1px solid ${alert.type === "DSM" ? "#f59e0b33" : "#ef444433"}`,
                         textTransform: "uppercase",
@@ -108,37 +145,47 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
                     <div style={{ display: "flex", gap: "6px" }}>
                       {alert.file_path ? (
                         <button
-                          onClick={() => onOpenMedia && onOpenMedia({ 
-                            url: getProperUrl(alert.file_path), 
-                            title: alert.message,
-                            time: alert.time,
-                            deviceId: alert.deviceId,
-                            type: 'image'
-                          })}
+                          onClick={() =>
+                            onOpenMedia &&
+                            onOpenMedia({
+                              url: getProperUrl(alert.file_path),
+                              title: alert.message,
+                              time: alert.time,
+                              deviceId: alert.deviceId,
+                              type: "image",
+                            })
+                          }
                           className="media-btn image"
                           title="View Image"
                         >
                           <Image size={14} />
                         </button>
                       ) : (
-                        <div className="media-btn disabled" title="No Image"><Image size={14} /></div>
+                        <div className="media-btn disabled" title="No Image">
+                          <Image size={14} />
+                        </div>
                       )}
                       {alert.video_path ? (
                         <button
-                          onClick={() => onOpenMedia && onOpenMedia({ 
-                            url: getProperUrl(alert.video_path), 
-                            title: alert.message,
-                            time: alert.time,
-                            deviceId: alert.deviceId,
-                            type: 'video'
-                          })}
+                          onClick={() =>
+                            onOpenMedia &&
+                            onOpenMedia({
+                              url: getProperUrl(alert.video_path),
+                              title: alert.message,
+                              time: alert.time,
+                              deviceId: alert.deviceId,
+                              type: "video",
+                            })
+                          }
                           className="media-btn video"
                           title="Play Video"
                         >
                           <PlaySquare size={14} />
                         </button>
                       ) : (
-                        <div className="media-btn disabled" title="No Video"><PlaySquare size={14} /></div>
+                        <div className="media-btn disabled" title="No Video">
+                          <PlaySquare size={14} />
+                        </div>
                       )}
                     </div>
                   </td>
@@ -146,11 +193,15 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
                     <div style={{ display: "flex", gap: "12px" }}>
                       {alert.file_path && (
                         <button
-                          onClick={() => handleCopy(alert.file_path, alert.id, 'image')}
+                          onClick={() =>
+                            handleCopy(alert.file_path, alert.id, "image")
+                          }
                           style={{
                             background: "transparent",
                             border: "none",
-                            color: isCopied(alert.id, 'image') ? "#22c55e" : "#3b82f6",
+                            color: isCopied(alert.id, "image")
+                              ? "#22c55e"
+                              : "#3b82f6",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
@@ -158,20 +209,28 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
                             fontSize: "11px",
                             fontWeight: "600",
                             padding: "4px",
-                            transition: "all 0.2s"
+                            transition: "all 0.2s",
                           }}
                         >
-                          {isCopied(alert.id, 'image') ? <Check size={14} /> : <Copy size={14} />}
+                          {isCopied(alert.id, "image") ? (
+                            <Check size={14} />
+                          ) : (
+                            <Copy size={14} />
+                          )}
                           Image
                         </button>
                       )}
                       {alert.video_path && (
                         <button
-                          onClick={() => handleCopy(alert.video_path, alert.id, 'video')}
+                          onClick={() =>
+                            handleCopy(alert.video_path, alert.id, "video")
+                          }
                           style={{
                             background: "transparent",
                             border: "none",
-                            color: isCopied(alert.id, 'video') ? "#22c55e" : "#22c55e",
+                            color: isCopied(alert.id, "video")
+                              ? "#22c55e"
+                              : "#22c55e",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
@@ -179,15 +238,21 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
                             fontSize: "11px",
                             fontWeight: "600",
                             padding: "4px",
-                            transition: "all 0.2s"
+                            transition: "all 0.2s",
                           }}
                         >
-                          {isCopied(alert.id, 'video') ? <Check size={14} /> : <Copy size={14} />}
+                          {isCopied(alert.id, "video") ? (
+                            <Check size={14} />
+                          ) : (
+                            <Copy size={14} />
+                          )}
                           Video
                         </button>
                       )}
                       {!alert.file_path && !alert.video_path && (
-                        <span style={{ color: "#475569", fontSize: "11px" }}>No Links</span>
+                        <span style={{ color: "#475569", fontSize: "11px" }}>
+                          No Links
+                        </span>
                       )}
                     </div>
                   </td>
@@ -195,7 +260,14 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
               ))
             ) : (
               <tr>
-                <td colSpan="5" style={{ padding: "40px", textAlign: "center", color: "#475569" }}>
+                <td
+                  colSpan="5"
+                  style={{
+                    padding: "40px",
+                    textAlign: "center",
+                    color: "#475569",
+                  }}
+                >
                   No notifications found
                 </td>
               </tr>
@@ -265,7 +337,7 @@ const thStyle = {
   fontSize: "11px",
   letterSpacing: "0.5px",
   borderBottom: "1px solid var(--surface-border)",
-  background: "var(--card-bg)"
+  background: "var(--card-bg)",
 };
 
 const tdStyle = {
