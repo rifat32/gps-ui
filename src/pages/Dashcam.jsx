@@ -101,10 +101,12 @@ export default function Dashcam({ theme, toggleTheme }) {
   const fetchInitialAlerts = async () => {
     try {
       const data = await deviceApi.getAiEvents({ limit: 20 });
-      const formatted = (data.events || []).map(event => {
+      const formatted = (data.events || []).map((event) => {
         const date = new Date(event.event_time);
         // Format as YYYY-MM-DD HH:mm:ss in local time
-        const timeStr = date.toLocaleString('sv-SE', { timeZone: 'UTC' }).replace('T', ' '); 
+        const timeStr = date
+          .toLocaleString("sv-SE", { timeZone: "UTC" })
+          .replace("T", " ");
         return {
           id: event.id,
           type: event.category,
@@ -112,7 +114,7 @@ export default function Dashcam({ theme, toggleTheme }) {
           time: timeStr,
           deviceId: event.device_id,
           file_path: event.file_path,
-          video_path: event.video_path
+          video_path: event.video_path,
         };
       });
       setAlerts(formatted);
@@ -125,8 +127,8 @@ export default function Dashcam({ theme, toggleTheme }) {
   const fetchDevices = async () => {
     try {
       const data = await deviceApi.getDevices();
-      const activeDevices = data.data.filter(d => d.status === 'online');
-      const historicalDevices = data.data.filter(d => d.status === 'offline');
+      const activeDevices = data.data.filter((d) => d.status === "online");
+      const historicalDevices = data.data.filter((d) => d.status === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
       if (!selectedDevice && activeDevices.length > 0) {
         setSelectedDevice(activeDevices[0]);
@@ -151,13 +153,13 @@ export default function Dashcam({ theme, toggleTheme }) {
           id: Date.now(),
           type: event.category,
           message: event.code || event.event_code,
-          time: new Date().toLocaleString('sv-SE').replace('T', ' '),
+          time: new Date().toLocaleString("sv-SE").replace("T", " "),
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
           file_path: event.file_path,
-          video_path: event.video_path
+          video_path: event.video_path,
         };
-        // Avoid adding if same alert arrived via polling/refresh? 
+        // Avoid adding if same alert arrived via polling/refresh?
         // For simplicity, just unshift
         return [newAlert, ...prev].slice(0, 20);
       });
@@ -166,26 +168,34 @@ export default function Dashcam({ theme, toggleTheme }) {
     socketRef.current.on("ai_file_complete", (data) => {
       console.log("Media upload complete:", data);
       setAlerts((prev) =>
-        prev.map(alert => {
+        prev.map((alert) => {
           // Match by serial_no (hex ID) and device_id
-          if (alert.deviceId === data.device_id && (String(alert.id).includes(data.serial_no) || alert.id === data.serial_no || alert.serial_no === data.serial_no)) {
+          if (
+            alert.deviceId === data.device_id &&
+            (String(alert.id).includes(data.serial_no) ||
+              alert.id === data.serial_no ||
+              alert.serial_no === data.serial_no)
+          ) {
             return {
               ...alert,
               file_path: data.file_path || alert.file_path,
-              video_path: data.video_path || alert.video_path
+              video_path: data.video_path || alert.video_path,
             };
           }
           // The 'id' might be Date.now() for new real-time alerts, so also match by serial_no if we stored it
           // Let's ensure 'serial_no' is stored in the alert object
-          if (alert.deviceId === data.device_id && alert.serial_no === data.serial_no) {
+          if (
+            alert.deviceId === data.device_id &&
+            alert.serial_no === data.serial_no
+          ) {
             return {
               ...alert,
               file_path: data.file_path || alert.file_path,
-              video_path: data.video_path || alert.video_path
+              video_path: data.video_path || alert.video_path,
             };
           }
           return alert;
-        })
+        }),
       );
     });
 
@@ -658,25 +668,19 @@ export default function Dashcam({ theme, toggleTheme }) {
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            background: "#020617",
+            background: "#ffffffff",
             position: "relative",
-            overflow: "hidden"
+            overflow: "hidden",
           }}
         >
-          <div style={{ flex: 1, overflow: "hidden" }}>
-             {renderVideoGrid()}
-          </div>
-          
-          {/* BOTTOM TABLE PANEL */}
-          <div 
-            style={{ 
-              height: "300px", 
-              background: "#0f172a", 
-              borderTop: "1px solid var(--surface-border)",
-              padding: "16px"
+          <div
+            style={{
+              flex: 1,
+              overflow: "hidden",
+              paddingBottom: "20px",
             }}
           >
-            <NotificationTable alerts={alerts} onOpenMedia={setSelectedMedia} />
+            {renderVideoGrid()}
           </div>
         </main>
 
@@ -958,7 +962,6 @@ export default function Dashcam({ theme, toggleTheme }) {
             border-color: #3b82f633 !important;
           }
         `}
-
       </style>
     </div>
   );
