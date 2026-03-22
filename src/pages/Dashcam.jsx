@@ -20,7 +20,6 @@ import DeviceCard from "../components/DeviceCard";
 import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
 import MediaViewer from "../components/MediaViewer";
-import NotificationTable from "../components/NotificationTable";
 import deviceApi from "../services/deviceApi";
 
 const WS_URL = import.meta.env.VITE_WS_URL;

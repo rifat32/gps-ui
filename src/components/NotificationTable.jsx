@@ -97,6 +97,8 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
               <th style={thStyle}>Device</th>
               <th style={thStyle}>Time</th>
               <th style={thStyle}>Alert Type</th>
+              <th style={thStyle}>Event Code</th>
+              <th style={thStyle}>Speed</th>
               <th style={thStyle}>Media View</th>
               <th style={thStyle}>Copy Links</th>
             </tr>
@@ -140,6 +142,17 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
                     >
                       {alert.type || "AI"}
                     </span>
+                  </td>
+
+                  <td style={tdStyle}>
+                    <div style={{ color: "var(--text-secondary)" }}>
+                      {alert.event_code}
+                    </div>
+                  </td>
+                  <td style={tdStyle}>
+                    <div style={{ color: "var(--text-secondary)" }}>
+                      {alert.speed}  km/h
+                    </div>
                   </td>
                   <td style={tdStyle}>
                     <div style={{ display: "flex", gap: "6px" }}>

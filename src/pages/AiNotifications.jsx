@@ -111,6 +111,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           message: event.event_code,
           time: timeStr,
           deviceId: event.device_id,
+          event_code: event.event_code,
+          speed: event.speed,
           file_path: event.file_path,
           video_path: event.video_path,
         };
