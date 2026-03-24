@@ -39,6 +39,15 @@ export default function ObdLive({ theme }) {
 
     socketRef.current.on(`live-location-${DEFAULT_DEVICE_ID}`, (data) => {
       console.log("Received OBD Live Update:", data);
+      
+      // Validation Filter: Ignore malformed data
+      const lat = parseFloat(data.lat);
+      const lng = parseFloat(data.lon || data.lng);
+      if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) {
+        console.warn("Discarding invalid coordinates:", { lat, lng });
+        return;
+      }
+
       setDeviceData(data);
     });
 

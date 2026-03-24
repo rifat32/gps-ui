@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { path: "/dashcam", icon: LayoutDashboard, label: "AI Dashcam" },
   { path: "/ai-notifications", icon: Bell, label: "AI Notifications" },
   { path: "/playback", icon: PlayCircle, label: "History Playback" },
+  { path: "/obd-playback", icon: History, label: "OBD Playback" },
   { path: "/obd-live", icon: MapIcon, label: "OBD Live" },
   { path: "/saved-videos", icon: History, label: "Media Center" },
   { path: "/video-settings", icon: Settings, label: "Configuration" },
