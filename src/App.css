@@ -221,3 +221,56 @@
     z-index: 90;
   }
 }
+
+/* OBD Pages Responsive Layout */
+.obd-page-wrapper {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.obd-sidebar {
+  width: 350px;
+  height: 100%;
+  z-index: 10;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.obd-map-container {
+  flex: 1;
+  position: relative;
+  height: 100%;
+}
+
+@media (max-width: 1024px) {
+  .obd-page-wrapper {
+    flex-direction: column;
+  }
+
+  .obd-sidebar {
+    width: 100% !important;
+    height: 40vh !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .obd-map-container {
+    height: 60vh !important;
+    width: 100% !important;
+  }
+  
+  /* Adjust RealTimeMap for mobile */
+  .realtime-map-card {
+    width: calc(100% - 20px) !important;
+    height: calc(100% - 20px) !important;
+    border-radius: 12px !important;
+  }
+
+  /* Padding for mobile toggle avoid */
+  .obd-sidebar h2 {
+    padding-left: 50px;
+  }
+}

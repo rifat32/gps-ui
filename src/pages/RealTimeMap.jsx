@@ -172,6 +172,7 @@ export default function RealTimeMap() {
         )}
 
         <div
+          className="realtime-map-card"
           style={{
             width: "calc(100% - 60px)", // 30px margin on each side
             height: "calc(100% - 60px)",
@@ -245,7 +246,7 @@ export default function RealTimeMap() {
                   </h3>
                   <div style={{ fontSize: "12px", color: "#555" }}>
                     <p>ID: {selectedVehicle.id}</p>
-                    <p>Speed: {selectedVehicle.speed} km/h</p>
+                    <p>Speed: {Math.round(selectedVehicle.speed * 0.621371)} mph</p>
                     <p>
                       Status:{" "}
                       <span

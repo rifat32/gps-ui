@@ -287,7 +287,7 @@ export default function VideoSettings({ theme, toggleTheme }) {
                                     onChange={v => setAdasForm({ ...adasForm, enable: v })} />
                             </Row>
 
-                            <Row label="GNSS Speed (km/h)">
+                            <Row label="GNSS Speed (mph)">
                                 <NumInput value={adasForm.gnssSpeed}
                                     onChange={v => setAdasForm({ ...adasForm, gnssSpeed: v })} />
                             </Row>

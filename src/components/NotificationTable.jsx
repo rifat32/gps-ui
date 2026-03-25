@@ -151,7 +151,7 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
                   </td>
                   <td style={tdStyle}>
                     <div style={{ color: "var(--text-secondary)" }}>
-                      {alert.speed}  km/h
+                      {Math.round(alert.speed * 0.621371)}  mph
                     </div>
                   </td>
                   <td style={tdStyle}>

@@ -158,21 +158,18 @@ export default function ObdPlayback({ theme }) {
 
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-      <div style={{ height: "100vh", width: "100%", position: "relative", display: "flex", overflow: "hidden", backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+      <div className={`obd-page-wrapper obd-playback-container ${theme}`} style={{ backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
         
         {/* Sidebar */}
-        <div style={{
-            width: isSidebarOpen ? "350px" : "0",
-            transition: "width 0.3s ease",
+        <div className="obd-sidebar" style={{
+            width: isSidebarOpen ? (window.innerWidth > 1024 ? "350px" : "100%") : "0",
             backgroundColor: theme === "dark" ? "#1e293b" : "white",
             borderRight: "1px solid #e2e8f0",
             display: "flex",
             flexDirection: "column",
-            zIndex: 100,
-            overflow: "hidden",
             boxShadow: "10px 0 15px -3px rgba(0,0,0,0.05)"
         }}>
-            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "24px", minWidth: "350px" }}>
+            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "24px", minWidth: window.innerWidth > 1024 ? "350px" : "100%" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "space-between" }}>
                     <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: theme === "dark" ? "#f8fafc" : "#1e293b", margin: 0 }}>OBD Playback</h2>
                     <button onClick={() => setIsSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
@@ -338,7 +335,7 @@ export default function ObdPlayback({ theme }) {
                             <StatCard 
                                 icon={<Activity size={18} color="#22c55e" />} 
                                 label="Speed" 
-                                value={`${currentPoint.speed || 0} km/h`} 
+                                value={`${Math.round((currentPoint.speed || 0) * 0.621371)} mph`} 
                                 theme={theme} 
                             />
                         </div>
@@ -382,7 +379,7 @@ export default function ObdPlayback({ theme }) {
         )}
 
         {/* Map Area */}
-        <div style={{ flex: 1, position: "relative" }}>
+        <div className="obd-map-container">
             <GoogleMap
                 mapContainerStyle={mapContainerStyle}
                 center={points[currentIndex] ? { lat: points[currentIndex].lat, lng: points[currentIndex].lng } : defaultCenter}

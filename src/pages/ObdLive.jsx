@@ -67,19 +67,16 @@ export default function ObdLive({ theme }) {
 
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-      <div className={`obd-live-container ${theme}`} style={{ height: "100vh", width: "100%", position: "relative", display: "flex" }}>
+      <div className={`obd-page-wrapper obd-live-container ${theme}`}>
         
         {/* Sidebar Info */}
-        <div style={{
-            width: "350px",
+        <div className="obd-sidebar" style={{
             backgroundColor: theme === "dark" ? "#1e293b" : "white",
             borderRight: "1px solid #e2e8f0",
             padding: "20px",
             display: "flex",
             flexDirection: "column",
             gap: "20px",
-            zIndex: 10,
-            overflowY: "auto",
             color: theme === "dark" ? "white" : "black"
         }}>
             <div style={{ marginBottom: "10px" }}>
@@ -96,7 +93,7 @@ export default function ObdLive({ theme }) {
                     <StatCard icon={<Zap size={18} color="#eab308" />} label="Battery" value={`${obd.batteryVoltage || "--"} V`} theme={theme} />
                     <StatCard icon={<Gauge size={18} color="#3b82f6" />} label="RPM" value={obd.rpm || "0"} theme={theme} />
                     <StatCard icon={<Thermometer size={18} color="#ef4444" />} label="Coolant" value={`${obd.coolantTemp || "--"} °C`} theme={theme} />
-                    <StatCard icon={<Activity size={18} color="#22c55e" />} label="Speed" value={`${deviceData?.speed || 0} km/h`} theme={theme} />
+                    <StatCard icon={<Activity size={18} color="#22c55e" />} label="Speed" value={`${Math.round((deviceData?.speed || 0) * 0.621371)} mph`} theme={theme} />
                 </div>
 
                 <div style={{ marginTop: "10px", padding: "15px", borderRadius: "12px", backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
@@ -111,7 +108,7 @@ export default function ObdLive({ theme }) {
         </div>
 
         {/* Map Area */}
-        <div style={{ flex: 1, position: "relative" }}>
+        <div className="obd-map-container">
             {loading && (
                 <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.8)" }}>
                     <Loader2 className="animate-spin text-blue-500" size={48} />
@@ -149,7 +146,7 @@ export default function ObdLive({ theme }) {
                             >
                                 <div style={{ padding: "5px" }}>
                                     <strong>Device ID:</strong> {DEFAULT_DEVICE_ID}<br/>
-                                    <strong>Speed:</strong> {deviceData.speed} km/h
+                                    <strong>Speed:</strong> {Math.round(deviceData.speed * 0.621371)} mph
                                 </div>
                             </InfoWindow>
                         )}

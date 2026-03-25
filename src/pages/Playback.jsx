@@ -36,10 +36,10 @@ const mapContainerStyle = { width: "100%", height: "100%" };
 
 // Speed Color Configuration
 const SPEED_COLORS = {
-  low: "#3b82f6", // Blue: < 20 km/h
-  normal: "#22c55e", // Green: 20-80 km/h
-  over: "#ef4444", // Red: 80-120 km/h
-  critical: "#7f1d1d", // Dark Red: > 120 km/h
+  low: "#3b82f6", // Blue: < 12 mph (roughly 20 km/h)
+  normal: "#22c55e", // Green: 12-50 mph (20-80 km/h)
+  over: "#ef4444", // Red: 50-75 mph (80-120 km/h)
+  critical: "#7f1d1d", // Dark Red: > 75 mph (120 km/h)
 };
 
 // Custom icons
@@ -784,7 +784,7 @@ export default function Playback({ theme, toggleTheme }) {
                         backgroundColor: SPEED_COLORS.low,
                       }}
                     />
-                    <span className="unit">km/h</span>
+                    <span className="unit">mph</span>
                   </div>
                   <div className="input-badge-wrapper">
                     <input
@@ -801,7 +801,7 @@ export default function Playback({ theme, toggleTheme }) {
                         backgroundColor: SPEED_COLORS.normal,
                       }}
                     />
-                    <span className="unit">km/h</span>
+                    <span className="unit">mph</span>
                   </div>
                   <div className="input-badge-wrapper">
                     <input
@@ -818,7 +818,7 @@ export default function Playback({ theme, toggleTheme }) {
                         backgroundColor: SPEED_COLORS.over,
                       }}
                     />
-                    <span className="unit">km/h</span>
+                    <span className="unit">mph</span>
                   </div>
                 </div>
                 <div className="legend-container">
@@ -1091,7 +1091,7 @@ export default function Playback({ theme, toggleTheme }) {
                       <strong>Device name:</strong> JT8088985963
                     </p>
                     <p className="tooltip-line">
-                      <strong>Speed:</strong> {currentPos.speed}Km/h
+                      <strong>Speed:</strong> {Math.round(currentPos.speed * 0.621371)} mph
                     </p>
                     <p className="tooltip-line">
                       <strong>Mileage:</strong>{" "}
@@ -1122,7 +1122,7 @@ export default function Playback({ theme, toggleTheme }) {
                     <strong>Device name :</strong> JT8088985963
                   </p>
                   <p>
-                    <strong>Speed :</strong> {selectedPoint.speed} km/h
+                    <strong>Speed :</strong> {Math.round(selectedPoint.speed * 0.621371)} mph
                   </p>
                   <p>
                     <strong>Remain :</strong>{" "}
@@ -1156,7 +1156,7 @@ export default function Playback({ theme, toggleTheme }) {
             </div>
             <div className="stats-bar">
               <span>Time: {currentPos.timestamp}</span>
-              <span>Speed: {currentPos.speed} km/h</span>
+              <span>Speed: {Math.round(currentPos.speed * 0.621371)} mph</span>
               <span>Mileage: {currentPos.mileage}</span>
               <button onClick={() => setCurrentIndex(0)} className="reset-btn">
                 <RotateCcw size={14} /> Reset
