@@ -19,6 +19,7 @@ import {
   Calendar,
   Clock,
   ChevronDown,
+  Car,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -35,6 +36,12 @@ const getPixelPositionOffset = (width, height) => ({
   x: -(width / 2),
   y: -(height / 2),
 });
+
+const VehicleMarker = ({ size = 48, color = "#3b82f6" }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))" }}>
+    <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
+  </svg>
+);
 
 export default function ObdPlayback({ theme }) {
   const [deviceList, setDeviceList] = useState([]);
@@ -109,7 +116,22 @@ export default function ObdPlayback({ theme }) {
         });
 
         if (validPoints.length > 0) {
-          setPoints(validPoints);
+          // Calculate bearings for smooth orientation
+          const pointsWithBearing = validPoints.map((p, idx) => {
+            if (idx < validPoints.length - 1) {
+              const next = validPoints[idx + 1];
+              const dLon = (next.lng - p.lng) * (Math.PI / 180);
+              const lat1 = p.lat * (Math.PI / 180);
+              const lat2 = next.lat * (Math.PI / 180);
+              const y = Math.sin(dLon) * Math.cos(lat2);
+              const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+              const bearing = (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
+              return { ...p, calculatedBearing: bearing };
+            }
+            return { ...p, calculatedBearing: idx > 0 ? validPoints[idx-1].calculatedBearing : p.direction };
+          });
+
+          setPoints(pointsWithBearing);
           if (mapRef.current) {
             mapRef.current.panTo({ lat: validPoints[0].lat, lng: validPoints[0].lng });
           }
@@ -342,7 +364,7 @@ export default function ObdPlayback({ theme }) {
                         <div style={{ marginTop: "8px", padding: "15px", borderRadius: "12px", backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
                             <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "8px", textTransform: "uppercase", fontWeight: "600" }}>Position Info</div>
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                <DetailRow icon={<Navigation size={14} />} label="Heading" value={`${currentPoint.direction || 0}°`} />
+                                <DetailRow icon={<Navigation size={14} />} label="Heading" value={`${Math.round(currentPoint.calculatedBearing || 0)}°`} />
                                 <DetailRow icon={<Clock size={14} />} label="Point Time" value={currentPoint.time ? new Date(currentPoint.timestamp).toLocaleTimeString() : "--"} />
                                 <DetailRow icon={<Activity size={14} />} label="Progression" value={`${currentIndex + 1} / ${points.length}`} />
                             </div>
@@ -407,12 +429,15 @@ export default function ObdPlayback({ theme }) {
                             getPixelPositionOffset={() => getPixelPositionOffset(48, 48)}
                         >
                             <div style={{
-                                transform: `rotate(${currentPoint.direction}deg)`,
+                                transform: `rotate(${currentPoint.calculatedBearing || 0}deg)`,
                                 width: "48px",
                                 height: "48px",
-                                transition: "all 0.1s linear"
+                                transition: "transform 0.1s linear",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center"
                             }}>
-                                <img src="/car-icon.png" alt="Car" style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.3))" }} />
+                                <VehicleMarker size={48} />
                             </div>
                         </OverlayView>
                     </>

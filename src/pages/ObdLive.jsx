@@ -5,7 +5,7 @@ import {
   InfoWindow,
   OverlayView,
 } from "@react-google-maps/api";
-import { Loader2, Zap, Thermometer, Gauge, Activity, Navigation } from "lucide-react";
+import { Loader2, Zap, Thermometer, Gauge, Activity, Navigation, Car } from "lucide-react";
 import { io } from "socket.io-client";
 
 // Configuration
@@ -21,12 +21,20 @@ const getPixelPositionOffset = (width, height) => ({
   y: -(height / 2),
 });
 
+const VehicleMarker = ({ size = 48, color = "#3b82f6" }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))" }}>
+    <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
+  </svg>
+);
+
 export default function ObdLive({ theme }) {
   const [deviceData, setDeviceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(true);
   const mapRef = useRef(null);
   const socketRef = useRef(null);
+  const prevPosRef = useRef(null);
+  const [bearing, setBearing] = useState(0);
 
   useEffect(() => {
     // Initialize Socket.io connecting specifically to the OBD server
@@ -56,10 +64,30 @@ export default function ObdLive({ theme }) {
     };
   }, []);
 
-  // Auto-center on movement
+  // Auto-center on movement & calculate bearing
   useEffect(() => {
     if (deviceData && mapRef.current) {
         mapRef.current.panTo({ lat: deviceData.lat, lng: deviceData.lon });
+
+        if (prevPosRef.current) {
+            const lat1 = prevPosRef.current.lat;
+            const lon1 = prevPosRef.current.lon;
+            const lat2 = deviceData.lat;
+            const lon2 = deviceData.lon;
+
+            // Only update bearing if the movement is significant (avoids jitter)
+            const dist = Math.sqrt(Math.pow(lat2-lat1, 2) + Math.pow(lon2-lon1, 2));
+            if (dist > 0.00001) {
+                const dLon = (lon2 - lon1) * (Math.PI / 180);
+                const rLat1 = lat1 * (Math.PI / 180);
+                const rLat2 = lat2 * (Math.PI / 180);
+                const y = Math.sin(dLon) * Math.cos(rLat2);
+                const x = Math.cos(rLat1) * Math.sin(rLat2) - Math.sin(rLat1) * Math.cos(rLat2) * Math.cos(dLon);
+                const b = (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
+                setBearing(b);
+            }
+        }
+        prevPosRef.current = { lat: deviceData.lat, lon: deviceData.lon };
     }
   }, [deviceData?.lat, deviceData?.lon]);
 
@@ -129,13 +157,16 @@ export default function ObdLive({ theme }) {
                             getPixelPositionOffset={() => getPixelPositionOffset(50, 50)}
                         >
                             <div style={{
-                                transform: `rotate(${deviceData.direction}deg)`,
+                                transform: `rotate(${bearing}deg)`,
                                 width: "50px",
                                 height: "50px",
                                 cursor: "pointer",
-                                transition: "all 0.5s ease-out"
+                                transition: "transform 0.5s ease-out",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center"
                             }} onClick={() => setSelected(!selected)}>
-                                <img src="/car-icon.png" alt="Car" style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.3))" }} />
+                                <VehicleMarker size={50} />
                             </div>
                         </OverlayView>
 
