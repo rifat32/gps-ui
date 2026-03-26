@@ -87,7 +87,7 @@ export default function ObdPlayback({ theme }) {
   }, []);
 
   // 2. Fetch Playback Data
-  const handleFetchData = async () => {
+  const handleFetchData = async (start, end) => {
     if (!selectedDeviceId) {
         setError("Please select a device first");
         return;
@@ -102,11 +102,11 @@ export default function ObdPlayback({ theme }) {
       const startIso = new Date(startDateTime).toISOString();
       const endIso = new Date(endDateTime).toISOString();
       
-      // If a specific trip is passed, use its times
-      const queryStart = typeof start === 'string' ? start : startIso;
-      const queryEnd = typeof end === 'string' ? end : endIso;
+      // Use provided trip times or fallback to date picker times
+      const queryStart = start || startIso;
+      const queryEnd = end || endIso;
 
-      const url = `${OBD_API_BASE_URL}/api/logs/${selectedDeviceId}/playback/duration?start=${queryStart}&end=${queryEnd}`;
+      const url = `${OBD_API_BASE_URL}/api/logs/v1.0/${selectedDeviceId}/playback/duration?start=${queryStart}&end=${queryEnd}`;
       
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch playback data");
@@ -143,16 +143,37 @@ export default function ObdPlayback({ theme }) {
             mapRef.current.panTo({ lat: validPoints[0].lat, lng: validPoints[0].lng });
           }
         } else {
-          setError("No valid coordinates found in the data");
+          setPoints([]);
+          setError("No valid coordinates found for this trip");
         }
       } else {
+        setPoints([]);
         setError("No data found for the selected duration");
       }
     } catch (err) {
+      setPoints([]);
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTripSelect = (trip, idx) => {
+    setSelectedTripId(idx);
+    // Format times for the datetime-local input (YYYY-MM-DDTHH:mm)
+    const formatForInput = (isoStr) => {
+        try {
+            const date = new Date(isoStr);
+            // Adjust to local time for input display
+            const tzOffset = date.getTimezoneOffset() * 60000;
+            const localDate = new Date(date.getTime() - tzOffset);
+            return localDate.toISOString().slice(0, 16);
+        } catch (e) { return isoStr.slice(0, 16); }
+    };
+    
+    setStartDateTime(formatForInput(trip.start_time));
+    setEndDateTime(formatForInput(trip.end_time));
+    handleFetchData(trip.start_time, trip.end_time);
   };
 
   const handleFetchTrips = async () => {
@@ -353,10 +374,7 @@ export default function ObdPlayback({ theme }) {
                                 {trips.map((trip, idx) => (
                                     <div 
                                         key={idx}
-                                        onClick={() => {
-                                            setSelectedTripId(idx);
-                                            handleFetchData(trip.start_time, trip.end_time);
-                                        }}
+                                        onClick={() => handleTripSelect(trip, idx)}
                                         style={{
                                             padding: "12px",
                                             borderRadius: "12px",
