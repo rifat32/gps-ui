@@ -11,6 +11,7 @@ import AiNotifications from "./pages/AiNotifications";
 const RealTimeMap = lazy(() => import("./pages/RealTimeMap"));
 const ObdLive = lazy(() => import("./pages/ObdLive"));
 const ObdPlayback = lazy(() => import("./pages/ObdPlayback"));
+const ObdStatus = lazy(() => import("./pages/ObdStatus"));
 
 function App() {
   const [theme, setTheme] = useState(() => {
@@ -69,6 +70,14 @@ function App() {
             element={
               <Suspense fallback={<div className="p-4">Loading OBD Playback...</div>}>
                 <ObdPlayback theme={theme} toggleTheme={toggleTheme} />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/obd-status"
+            element={
+              <Suspense fallback={<div className="p-4">Loading OBD Status...</div>}>
+                <ObdStatus theme={theme} toggleTheme={toggleTheme} />
               </Suspense>
             }
           />

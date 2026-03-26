@@ -54,6 +54,8 @@ export default function ObdPlayback({ theme }) {
   const [playbackSpeed, setPlaybackSpeed] = useState(1000); // ms per point
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+  const [trips, setTrips] = useState([]);
+  const [selectedTripId, setSelectedTripId] = useState(null);
 
   const [startDateTime, setStartDateTime] = useState(() => {
     const d = new Date();
@@ -99,7 +101,12 @@ export default function ObdPlayback({ theme }) {
     try {
       const startIso = new Date(startDateTime).toISOString();
       const endIso = new Date(endDateTime).toISOString();
-      const url = `${OBD_API_BASE_URL}/api/logs/${selectedDeviceId}/playback/duration?start=${startIso}&end=${endIso}`;
+      
+      // If a specific trip is passed, use its times
+      const queryStart = typeof start === 'string' ? start : startIso;
+      const queryEnd = typeof end === 'string' ? end : endIso;
+
+      const url = `${OBD_API_BASE_URL}/api/logs/${selectedDeviceId}/playback/duration?start=${queryStart}&end=${queryEnd}`;
       
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch playback data");
@@ -143,6 +150,23 @@ export default function ObdPlayback({ theme }) {
       }
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFetchTrips = async () => {
+    if (!selectedDeviceId) return;
+    setLoading(true);
+    try {
+      const startDate = startDateTime.split('T')[0];
+      const endDate = endDateTime.split('T')[0];
+      const url = `${OBD_API_BASE_URL}/api/logs/v1.0/trips?vehicle_id=${selectedDeviceId}&start_time=${startDate}&end_time=${endDate}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      setTrips(data.trips || []);
+    } catch (err) {
+      setError("Failed to fetch trips");
     } finally {
       setLoading(false);
     }
@@ -300,7 +324,7 @@ export default function ObdPlayback({ theme }) {
                     </div>
 
                     <button 
-                        onClick={handleFetchData}
+                        onClick={handleFetchTrips}
                         disabled={loading}
                         style={{
                             marginTop: "8px",
@@ -317,12 +341,43 @@ export default function ObdPlayback({ theme }) {
                             gap: "10px",
                             transition: "all 0.2s"
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#2563eb"}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#3b82f6"}
                     >
                         {loading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
-                        {loading ? "Loading..." : "View Playback"}
+                        {loading ? "Discover Trips" : "Analyze Trips"}
                     </button>
+
+                    {trips.length > 0 && (
+                        <div style={{ marginTop: "16px" }}>
+                            <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "12px", display: "block" }}>Detected Trips ({trips.length})</label>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}>
+                                {trips.map((trip, idx) => (
+                                    <div 
+                                        key={idx}
+                                        onClick={() => {
+                                            setSelectedTripId(idx);
+                                            handleFetchData(trip.start_time, trip.end_time);
+                                        }}
+                                        style={{
+                                            padding: "12px",
+                                            borderRadius: "12px",
+                                            border: `2px solid ${selectedTripId === idx ? "#3b82f6" : "#e2e8f0"}`,
+                                            backgroundColor: selectedTripId === idx ? (theme === "dark" ? "#1e3a8a" : "#eff6ff") : "transparent",
+                                            cursor: "pointer",
+                                            transition: "all 0.2s"
+                                        }}
+                                    >
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                                            <span style={{ fontWeight: "700", fontSize: "0.875rem", color: theme === "dark" ? "white" : "#1e293b" }}>Trip #{idx + 1}</span>
+                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{parseFloat(trip.distance_km).toFixed(1)} km</span>
+                                        </div>
+                                        <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                                            {new Date(trip.start_time).toLocaleTimeString()} - {new Date(trip.end_time).toLocaleTimeString()}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {error && (
                         <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "#fef2f2", color: "#dc2626", fontSize: "0.875rem", border: "1px solid #fecaca" }}>

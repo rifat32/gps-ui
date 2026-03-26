@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { path: "/playback", icon: PlayCircle, label: "History Playback" },
   { path: "/obd-playback", icon: History, label: "OBD Playback" },
   { path: "/obd-live", icon: MapIcon, label: "OBD Live" },
+  { path: "/obd-status", icon: LayoutDashboard, label: "OBD Status" },
   { path: "/saved-videos", icon: History, label: "Media Center" },
   { path: "/video-settings", icon: Settings, label: "Configuration" },
 ];
