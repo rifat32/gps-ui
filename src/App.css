@@ -274,3 +274,64 @@
     padding-left: 50px;
   }
 }
+
+/* Floating Diagnostics Overlay for Mobile */
+.floating-diagnostics-overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 40;
+  display: none; /* Controlled by JS/Media Query */
+  pointer-events: none;
+}
+
+@media (max-width: 1024px) {
+  .floating-diagnostics-overlay {
+    display: block;
+  }
+  
+  .sidebar-diagnostics {
+    display: none !important;
+  }
+}
+
+.diagnostics-card-wrapper {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  pointer-events: auto;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.dark .diagnostics-card-wrapper {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(71, 85, 105, 0.8);
+}
+
+.overlay-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .overlay-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.overlay-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.dark .overlay-stat-item {
+  background: rgba(15, 23, 42, 0.5);
+}

@@ -128,7 +128,6 @@ export default function ObdLive({ theme }) {
                     <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "8px", textTransform: "uppercase", fontWeight: "600" }}>Location Details</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         <DetailRow icon={<Navigation size={14} />} label="Heading" value={`${deviceData?.direction || 0}°`} />
-                        <DetailRow icon={<Activity size={14} />} label="Mileage" value={`${deviceData?.mileage || 0} km`} />
                         <DetailRow icon={<Activity size={14} />} label="Last Seen" value={deviceData?.time ? new Date(deviceData.time).toLocaleTimeString() : "--"} />
                     </div>
                 </div>

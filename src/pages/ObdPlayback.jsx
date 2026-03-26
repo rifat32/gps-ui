@@ -21,7 +21,7 @@ import {
   ChevronDown,
   Car,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // =========================================================================
 // 1. CONFIGURATION
@@ -168,7 +168,7 @@ export default function ObdPlayback({ theme }) {
             const tzOffset = date.getTimezoneOffset() * 60000;
             const localDate = new Date(date.getTime() - tzOffset);
             return localDate.toISOString().slice(0, 16);
-        } catch (e) { return isoStr.slice(0, 16); }
+        } catch (_e) { return isoStr.slice(0, 16); }
     };
     
     setStartDateTime(formatForInput(trip.start_time));
@@ -186,7 +186,7 @@ export default function ObdPlayback({ theme }) {
       const response = await fetch(url);
       const data = await response.json();
       setTrips(data.trips || []);
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to fetch trips");
     } finally {
       setLoading(false);
@@ -406,7 +406,7 @@ export default function ObdPlayback({ theme }) {
 
                 {/* Diagnostics Panel */}
                 {points.length > 0 && (
-                    <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div className="sidebar-diagnostics" style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
                          <h3 style={{ fontSize: "0.875rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", margin: "0 0 4px 0" }}>Live Diagnostics</h3>
                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                             <StatCard 
@@ -475,6 +475,40 @@ export default function ObdPlayback({ theme }) {
 
         {/* Map Area */}
         <div className="obd-map-container">
+            {/* Mobile Floating Diagnostics */}
+            {points.length > 0 && (
+                <div className="floating-diagnostics-overlay">
+                    <div className="diagnostics-card-wrapper">
+                        <div className="overlay-stat-grid">
+                            <OverlayStatItem 
+                                icon={<Activity size={16} color="#22c55e" />} 
+                                label="Speed" 
+                                value={`${Math.round((currentPoint.speed || 0) * 0.621371)} mph`} 
+                                theme={theme} 
+                            />
+                            <OverlayStatItem 
+                                icon={<Gauge size={16} color="#3b82f6" />} 
+                                label="RPM" 
+                                value={obd.rpm || "0"} 
+                                theme={theme} 
+                            />
+                            <OverlayStatItem 
+                                icon={<Zap size={16} color="#eab308" />} 
+                                label="Battery" 
+                                value={`${obd.batteryVoltage || "--"}V`} 
+                                theme={theme} 
+                            />
+                            <OverlayStatItem 
+                                icon={<Thermometer size={16} color="#ef4444" />} 
+                                label="Coolant" 
+                                value={`${obd.coolantTemp || "--"}°C`} 
+                                theme={theme} 
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <GoogleMap
                 mapContainerStyle={mapContainerStyle}
                 center={points[currentIndex] ? { lat: points[currentIndex].lat, lng: points[currentIndex].lng } : defaultCenter}
@@ -643,6 +677,18 @@ function StatCard({ icon, label, value, theme }) {
       <div style={{ fontSize: "1rem", fontWeight: "800", color: theme === "dark" ? "#f8fafc" : "#1e293b" }}>{value}</div>
     </div>
   );
+}
+
+function OverlayStatItem({ icon, label, value, theme }) {
+    return (
+        <div className="overlay-stat-item">
+            {icon}
+            <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontSize: "0.6rem", color: "#64748b", fontWeight: "700", textTransform: "uppercase", lineHeight: "1" }}>{label}</span>
+                <span style={{ fontSize: "0.875rem", fontWeight: "800", color: theme === "dark" ? "#f8fafc" : "#1e293b" }}>{value}</span>
+            </div>
+        </div>
+    );
 }
 
 function DetailRow({ icon, label, value }) {

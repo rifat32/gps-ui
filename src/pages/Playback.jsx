@@ -1094,10 +1094,6 @@ export default function Playback({ theme, toggleTheme }) {
                       <strong>Speed:</strong> {Math.round(currentPos.speed * 0.621371)} mph
                     </p>
                     <p className="tooltip-line">
-                      <strong>Mileage:</strong>{" "}
-                      {currentPos.rawMileage.toFixed(3)}Kilometer
-                    </p>
-                    <p className="tooltip-line">
                       <strong>Locate:</strong> {currentPos.timestamp}
                     </p>
                     <p className="tooltip-line">
@@ -1157,7 +1153,6 @@ export default function Playback({ theme, toggleTheme }) {
             <div className="stats-bar">
               <span>Time: {currentPos.timestamp}</span>
               <span>Speed: {Math.round(currentPos.speed * 0.621371)} mph</span>
-              <span>Mileage: {currentPos.mileage}</span>
               <button onClick={() => setCurrentIndex(0)} className="reset-btn">
                 <RotateCcw size={14} /> Reset
               </button>
