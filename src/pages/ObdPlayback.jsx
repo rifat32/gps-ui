@@ -37,11 +37,15 @@ const getPixelPositionOffset = (width, height) => ({
   y: -(height / 2),
 });
 
-const VehicleMarker = ({ size = 48, color = "#3b82f6" }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))" }}>
-    <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
-  </svg>
-);
+const VehicleMarker = ({ size = 48, status = "ONLINE" }) => {
+  const isOnline = status === "ONLINE";
+  const color = isOnline ? "#3b82f6" : "#94a3b8";
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))", opacity: isOnline ? 1 : 0.7 }}>
+      <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+};
 
 export default function ObdPlayback({ theme }) {
   const [deviceList, setDeviceList] = useState([]);

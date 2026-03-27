@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Fragment } from "react";
+import { useEffect, useRef, useState, Fragment, useMemo } from "react";
 import {
   GoogleMap,
   LoadScript,
@@ -21,14 +21,62 @@ const getPixelPositionOffset = (width, height) => ({
   y: -(height / 2),
 });
 
-const VehicleMarker = ({ size = 48, color = "#3b82f6" }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))" }}>
-    <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
-  </svg>
-);
+const VehicleMarker = ({ size = 48, status = "ONLINE", theme = "light" }) => {
+  const isOnline = status === "ONLINE";
+  const isStandby = status === "STANDBY";
+  
+  // ONLINE = Blue (Active), STANDBY = Grey (Engine Off), OFFLINE = Dim Grey (Disconnected)
+  let color = "#3b82f6"; // Blue default
+  if (isStandby) color = "#94a3b8"; // Grey for standby
+  if (status === "OFFLINE") color = "#64748b"; // Darker grey for offline
+  
+  return (
+    <div style={{ position: "relative" }}>
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ 
+        filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))", 
+        opacity: status === "OFFLINE" ? 0.6 : 1,
+        transition: "all 0.3s ease"
+      }}>
+        <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+      {status === "OFFLINE" && (
+        <div style={{
+          position: "absolute",
+          top: -10,
+          right: -10,
+          backgroundColor: "#f1f5f9",
+          border: "1px solid #e2e8f0",
+          borderRadius: "4px",
+          padding: "2px 4px",
+          fontSize: "10px",
+          fontWeight: "700",
+          color: "#64748b",
+          whiteSpace: "nowrap"
+        }}>OFFLINE</div>
+      )}
+      {status === "STANDBY" && (
+        <div style={{
+            position: "absolute",
+            top: -10,
+            right: -10,
+            backgroundColor: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: "4px",
+            padding: "2px 4px",
+            fontSize: "10px",
+            fontWeight: "700",
+            color: "#b45309",
+            whiteSpace: "nowrap"
+          }}>STANDBY</div>
+      )}
+    </div>
+  );
+};
 
 export default function ObdLive({ theme }) {
   const [deviceData, setDeviceData] = useState(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(true);
   const mapRef = useRef(null);
@@ -37,26 +85,40 @@ export default function ObdLive({ theme }) {
   const [bearing, setBearing] = useState(0);
 
   useEffect(() => {
-    // Initialize Socket.io connecting specifically to the OBD server
     socketRef.current = io(OBD_WS_URL);
 
     socketRef.current.on("connect", () => {
       console.log("Connected to OBD Socket.io server");
       setLoading(false);
+      setIsOnline(true);
+    });
+
+    socketRef.current.on("disconnect", () => {
+      setIsOnline(false);
     });
 
     socketRef.current.on(`live-location-${DEFAULT_DEVICE_ID}`, (data) => {
       console.log("Received OBD Live Update:", data);
       
-      // Validation Filter: Ignore malformed data
       const lat = parseFloat(data.lat);
       const lng = parseFloat(data.lon || data.lng);
-      if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) {
+
+      // Robust Validation: Skip if not a valid number or out of bounds
+      if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) {
         console.warn("Discarding invalid coordinates:", { lat, lng });
         return;
       }
 
-      setDeviceData(data);
+      // Map 'lon' to 'lng' for internal consistency
+      const validatedData = {
+        ...data,
+        lat,
+        lng
+      };
+
+      setDeviceData(validatedData);
+      setLastUpdateTime(Date.now());
+      setIsOnline(true);
     });
 
     return () => {
@@ -64,34 +126,60 @@ export default function ObdLive({ theme }) {
     };
   }, []);
 
+  // Monitor for staleness (e.g. if we don't get data for 45s, consider it offline)
+  useEffect(() => {
+    const checkStaleness = setInterval(() => {
+      if (lastUpdateTime && Date.now() - lastUpdateTime > 45000) {
+        setIsOnline(false);
+      }
+    }, 10000);
+    return () => clearInterval(checkStaleness);
+  }, [lastUpdateTime]);
+
   // Auto-center on movement & calculate bearing
   useEffect(() => {
-    if (deviceData && mapRef.current) {
-        mapRef.current.panTo({ lat: deviceData.lat, lng: deviceData.lon });
+    if (deviceData && mapRef.current && isOnline) {
+        const centerPos = { lat: Number(deviceData.lat), lng: Number(deviceData.lng) };
+        if (isFinite(centerPos.lat) && isFinite(centerPos.lng)) {
+            mapRef.current.panTo(centerPos);
+        }
 
         if (prevPosRef.current) {
-            const lat1 = prevPosRef.current.lat;
-            const lon1 = prevPosRef.current.lon;
-            const lat2 = deviceData.lat;
-            const lon2 = deviceData.lon;
-
-            // Only update bearing if the movement is significant (avoids jitter)
-            const dist = Math.sqrt(Math.pow(lat2-lat1, 2) + Math.pow(lon2-lon1, 2));
+            const dist = Math.sqrt(Math.pow(deviceData.lat-prevPosRef.current.lat, 2) + Math.pow(deviceData.lng-prevPosRef.current.lng, 2));
             if (dist > 0.00001) {
-                const dLon = (lon2 - lon1) * (Math.PI / 180);
-                const rLat1 = lat1 * (Math.PI / 180);
-                const rLat2 = lat2 * (Math.PI / 180);
+                const dLon = (deviceData.lng - prevPosRef.current.lng) * (Math.PI / 180);
+                const rLat1 = prevPosRef.current.lat * (Math.PI / 180);
+                const rLat2 = deviceData.lat * (Math.PI / 180);
                 const y = Math.sin(dLon) * Math.cos(rLat2);
                 const x = Math.cos(rLat1) * Math.sin(rLat2) - Math.sin(rLat1) * Math.cos(rLat2) * Math.cos(dLon);
                 const b = (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
                 setBearing(b);
             }
         }
-        prevPosRef.current = { lat: deviceData.lat, lon: deviceData.lon };
+        prevPosRef.current = { lat: deviceData.lat, lng: deviceData.lng };
     }
-  }, [deviceData?.lat, deviceData?.lon]);
+  }, [deviceData?.lat, deviceData?.lng, isOnline]);
 
   const obd = deviceData?.vehicleCondition || {};
+  
+  // Logical Status: ONLINE (Moving/Running), STANDBY (Connected but Idle), OFFLINE (No Data)
+  const functionalStatus = useMemo(() => {
+    if (!isOnline || !deviceData) return "OFFLINE";
+    const rpm = Number(obd.rpm || 0);
+    const speed = Number(deviceData.speed || 0);
+    return (rpm > 0 || speed > 0) ? "ONLINE" : "STANDBY";
+  }, [isOnline, deviceData, obd.rpm]);
+
+  // Check if current center is valid
+  const currentCenter = (deviceData && isFinite(deviceData.lat) && isFinite(deviceData.lng)) 
+    ? { lat: deviceData.lat, lng: deviceData.lng } 
+    : defaultCenter;
+
+  const statusColors = {
+    ONLINE: "#22c55e",
+    STANDBY: "#f59e0b",
+    OFFLINE: "#ef4444"
+  };
 
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
@@ -110,21 +198,21 @@ export default function ObdLive({ theme }) {
             <div style={{ marginBottom: "10px" }}>
                 <h2 style={{ fontSize: "1.25rem", fontWeight: "700", marginBottom: "4px" }}>Vehicle Live Diagnostics</h2>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.875rem", color: "#64748b" }}>
-                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: deviceData ? "#22c55e" : "#94a3b8" }}></div>
-                    {deviceData ? "Connected" : "Waiting for device..."}
+                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: statusColors[functionalStatus] }}></div>
+                    {functionalStatus === "ONLINE" ? "Connected (Live)" : (functionalStatus === "STANDBY" ? "Standby (Engine Off)" : "Offline / Waiting")}
                 </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 {/* Stats Grid */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", opacity: functionalStatus === "OFFLINE" ? 0.6 : 1 }}>
                     <StatCard icon={<Zap size={18} color="#eab308" />} label="Battery" value={`${obd.batteryVoltage || "--"} V`} theme={theme} />
                     <StatCard icon={<Gauge size={18} color="#3b82f6" />} label="RPM" value={obd.rpm || "0"} theme={theme} />
                     <StatCard icon={<Thermometer size={18} color="#ef4444" />} label="Coolant" value={`${obd.coolantTemp || "--"} °C`} theme={theme} />
                     <StatCard icon={<Activity size={18} color="#22c55e" />} label="Speed" value={`${Math.round((deviceData?.speed || 0) * 0.621371)} mph`} theme={theme} />
                 </div>
 
-                <div style={{ marginTop: "10px", padding: "15px", borderRadius: "12px", backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+                <div style={{ marginTop: "10px", padding: "15px", borderRadius: "12px", backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc", opacity: functionalStatus === "OFFLINE" ? 0.6 : 1 }}>
                     <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "8px", textTransform: "uppercase", fontWeight: "600" }}>Location Details</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         <DetailRow icon={<Navigation size={14} />} label="Heading" value={`${deviceData?.direction || 0}°`} />
@@ -136,7 +224,7 @@ export default function ObdLive({ theme }) {
 
         {/* Map Area */}
         <div className="obd-map-container">
-            {loading && (
+            {loading && !deviceData && (
                 <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.8)" }}>
                     <Loader2 className="animate-spin text-blue-500" size={48} />
                 </div>
@@ -144,14 +232,14 @@ export default function ObdLive({ theme }) {
 
             <GoogleMap
                 mapContainerStyle={mapContainerStyle}
-                center={deviceData ? { lat: deviceData.lat, lng: deviceData.lon } : defaultCenter}
+                center={currentCenter}
                 zoom={15}
                 onLoad={(map) => (mapRef.current = map)}
             >
-                {deviceData && (
+                {deviceData && isFinite(deviceData.lat) && isFinite(deviceData.lng) && (
                     <Fragment>
                         <OverlayView
-                            position={{ lat: deviceData.lat, lng: deviceData.lon }}
+                            position={{ lat: deviceData.lat, lng: deviceData.lng }}
                             mapPaneName="overlayMouseTarget"
                             getPixelPositionOffset={() => getPixelPositionOffset(50, 50)}
                         >
@@ -160,18 +248,18 @@ export default function ObdLive({ theme }) {
                                 width: "50px",
                                 height: "50px",
                                 cursor: "pointer",
-                                transition: "transform 0.5s ease-out",
+                                transition: "all 0.5s ease-out",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center"
                             }} onClick={() => setSelected(!selected)}>
-                                <VehicleMarker size={50} />
+                                <VehicleMarker size={50} status={functionalStatus} />
                             </div>
                         </OverlayView>
 
                         {selected && (
                             <InfoWindow 
-                                position={{ lat: deviceData.lat, lng: deviceData.lon }}
+                                position={{ lat: deviceData.lat, lng: deviceData.lng }}
                                 onCloseClick={() => setSelected(false)}
                             >
                                 <div style={{ padding: "5px" }}>

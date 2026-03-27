@@ -19,15 +19,14 @@ const mapContainerStyle = { width: "100%", height: "100vh" };
 const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
 
 // Custom Car SVG
-const carSvg = {
-  path: "M21 11.5V16a1 1 0 0 1-1 1h-1.5m2.5-5.5h-7m7 0-1.736-3.906A1 1 0 0 0 18.35 7H14M5.5 17H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1M5.5 17a2 2 0 1 0 4 0m-4 0a2 2 0 1 1 4 0m0 0H14m0 0h.5m-.5 0v-5.5m.5 5.5a2 2 0 1 0 4 0m-4 0a2 2 0 1 1 4 0M14 11.5V7",
-  fillColor: "#3b82f6",
-  fillOpacity: 1,
-  strokeWeight: 1,
-  strokeColor: "#ffffff",
-  scale: 1.5,
-  anchor: { x: 12, y: 12 },
-  rotation: 0,
+const VehicleMarker = ({ size = 48, status = "ONLINE" }) => {
+  const isOnline = status === "ONLINE";
+  const color = isOnline ? "#3b82f6" : "#94a3b8";
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))", opacity: isOnline ? 1 : 0.7 }}>
+      <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
 };
 
 const getPixelPositionOffset = (width, height) => ({
@@ -96,6 +95,15 @@ export default function RealTimeMap() {
 
     socketRef.current.on("gps_update", (update) => {
       console.log("Received GPS update:", update);
+      
+      const lat = Number(update.latitude);
+      const lng = Number(update.longitude || update.lng || update.lon);
+
+      if (!isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) {
+        console.warn("Discarding invalid GPS update:", update);
+        return;
+      }
+
       setVehicles((prev) => {
         const deviceId = String(update.deviceId);
         const index = prev.findIndex((v) => String(v.id) === deviceId);
@@ -103,9 +111,9 @@ export default function RealTimeMap() {
         const updatedVehicle = {
           id: deviceId,
           name: update.name || deviceId || "Unknown",
-          lat: Number(update.latitude),
-          lng: Number(update.longitude),
-          speed: Number(update.speed),
+          lat,
+          lng,
+          speed: Number(update.speed || 0),
           heading: Number(update.heading || 0),
           status: (Number(update.speed) || 0) > 0 ? "Moving" : "Stopped",
           timestamp: update.gpsTime,
@@ -130,17 +138,28 @@ export default function RealTimeMap() {
 
   // Auto-center map on first load of vehicles
   useEffect(() => {
-    if (vehicles.length > 0 && mapRef.current) {
+    if (vehicles.length > 0 && mapRef.current && window.google) {
       const bounds = new window.google.maps.LatLngBounds();
-      vehicles.forEach((v) => bounds.extend({ lat: v.lat, lng: v.lng }));
-      mapRef.current.fitBounds(bounds);
+      let hasValidCoords = false;
 
-      // Don't zoom in too much for a single vehicle
-      if (vehicles.length === 1) {
-        setTimeout(() => mapRef.current.setZoom(15), 100);
+      vehicles.forEach((v) => {
+        if (isFinite(v.lat) && isFinite(v.lng)) {
+          bounds.extend({ lat: v.lat, lng: v.lng });
+          hasValidCoords = true;
+        }
+      });
+
+      if (hasValidCoords) {
+        mapRef.current.fitBounds(bounds);
+        // Don't zoom in too much for a single vehicle
+        if (vehicles.length === 1) {
+          setTimeout(() => {
+             if (mapRef.current) mapRef.current.setZoom(15);
+          }, 100);
+        }
       }
     }
-  }, [vehicles.length > 0]); // Run once when vehicles are first found
+  }, [vehicles.length]); // Run when vehicles count changes
 
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
@@ -206,31 +225,38 @@ export default function RealTimeMap() {
                   mapPaneName="overlayMouseTarget"
                   getPixelPositionOffset={() => getPixelPositionOffset(44, 44)}
                 >
-                  <div
-                    style={{
-                      transform: `rotate(${vehicle.heading}deg)`,
-                      width: "44px",
-                      height: "44px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.5s ease-out",
-                      filter: (vehicle.status === "Stopped" || vehicle.status === "Offline") ? "grayscale(100%) opacity(0.8)" : "none",
-                    }}
-                    onClick={() => setSelectedVehicle(vehicle)}
-                  >
-                    <img
-                      src="/car-icon.png"
-                      alt="Car"
+                    <div
                       style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.3))",
+                        transform: `rotate(${vehicle.heading}deg)`,
+                        width: "44px",
+                        height: "44px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.5s ease-out",
+                        position: "relative"
                       }}
-                    />
-                  </div>
+                      onClick={() => setSelectedVehicle(vehicle)}
+                    >
+                      <VehicleMarker size={44} status={vehicle.status === "Offline" ? "OFFLINE" : "ONLINE"} />
+                      {vehicle.status === "Offline" && (
+                        <div style={{
+                          position: "absolute",
+                          top: -5,
+                          right: -10,
+                          backgroundColor: "#f1f5f9",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "4px",
+                          padding: "1px 4px",
+                          fontSize: "9px",
+                          fontWeight: "800",
+                          color: "#64748b",
+                          whiteSpace: "nowrap",
+                          zIndex: 10
+                        }}>OFFLINE</div>
+                      )}
+                    </div>
                 </OverlayView>
               </Fragment>
             ))}
