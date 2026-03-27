@@ -8,14 +8,14 @@ function DeviceCard({ dev, selectedDevice, setSelectedDevice }) {
         margin: "4px 0",
         padding: "12px 14px",
         cursor: "pointer",
-        background: selectedDevice.id === dev.id ? "#3b82f615" : "transparent",
+        background: selectedDevice?.id === dev.id ? "#3b82f615" : "transparent",
         borderRadius: "10px",
         display: "flex",
         alignItems: "center",
         gap: "14px",
         transition: "all 0.2s",
         border:
-          selectedDevice.id === dev.id
+          selectedDevice?.id === dev.id
             ? "1px solid #3b82f633"
             : "1px solid transparent",
       }}
