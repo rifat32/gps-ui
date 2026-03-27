@@ -1,8 +1,6 @@
 import {
   GoogleMap,
-  InfoWindow,
   LoadScript,
-  Marker,
   Polyline,
   OverlayView,
 } from "@react-google-maps/api";
@@ -12,1154 +10,742 @@ import {
   Play,
   RotateCcw,
   Search,
-  Menu,
   X,
-  Sun,
-  Moon,
-  Video as VideoIcon,
+  Activity,
+  Navigation,
+  Calendar,
+  Clock,
   ChevronDown,
+  Signal,
+  Wind,
 } from "lucide-react";
-import { io } from "socket.io-client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // =========================================================================
 // 1. CONFIGURATION
 // =========================================================================
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const API_URL_FOR_DEVICE_LIST = `${import.meta.env.VITE_API_BASE_URL}/api/devices/logs`;
-const API_URL_FOR_ALL_PACKETS = `${import.meta.env.VITE_API_BASE_URL}/api/packets/gps/all`;
-const API_URL_FOR_PARSED_PACKETS = `${import.meta.env.VITE_API_BASE_URL}/api/packets/parsed`;
-const WS_URL = import.meta.env.VITE_WS_URL;
+const GOOGLE_MAP_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
+const DASHCAM_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const mapContainerStyle = { width: "100%", height: "100%" };
+const defaultCenter = { lat: 51.5074, lng: -0.1278 };
 
-// Speed Color Configuration
-const SPEED_COLORS = {
-  low: "#3b82f6", // Blue: < 12 mph (roughly 20 km/h)
-  normal: "#22c55e", // Green: 12-50 mph (20-80 km/h)
-  over: "#ef4444", // Red: 50-75 mph (80-120 km/h)
-  critical: "#7f1d1d", // Dark Red: > 75 mph (120 km/h)
+const getPixelPositionOffset = (width, height) => ({
+  x: -(width / 2),
+  y: -(height / 2),
+});
+
+const VehicleMarker = ({ size = 48, status = "ONLINE" }) => {
+  const isOnline = status === "ONLINE";
+  const color = isOnline ? "#3b82f6" : "#94a3b8";
+  return (
+    <div style={{ position: "relative" }}>
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))" }}>
+        <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
 };
 
-// Custom icons
-const CAR_ICON = {
-  // Detailed top-down car SVG
-  path: "M21 11.5V16a1 1 0 0 1-1 1h-1.5m2.5-5.5h-7m7 0-1.736-3.906A1 1 0 0 0 18.35 7H14M5.5 17H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v1M5.5 17a2 2 0 1 0 4 0m-4 0a2 2 0 1 1 4 0m0 0H14m0 0h.5m-.5 0v-5.5m.5 5.5a2 2 0 1 0 4 0m-4 0a2 2 0 1 1 4 0M14 11.5V7",
-  fillColor: "#1e293b",
-  fillOpacity: 1,
-  strokeWeight: 1.5,
-  strokeColor: "#ffffff",
-  rotation: 0,
-  scale: 2,
-  anchor: { x: 11, y: 10 },
-};
-
-const REVISIT_ICON = {
-  path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
-  fillColor: "#f97316",
-  fillOpacity: 1,
-  strokeWeight: 1,
-  strokeColor: "#ffffff",
-  scale: 1.8,
-  anchor: { x: 12, y: 22 },
-};
-
-export default function Playback({ theme, toggleTheme }) {
-  const [trackingData, setTrackingData] = useState([]);
-  const [allData, setAllData] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Playback({ theme }) {
+  const [deviceList, setDeviceList] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [points, setPoints] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const currentIndexRef = useRef(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1000); // ms per point
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+  const [trips, setTrips] = useState([]);
+  const [selectedTripId, setSelectedTripId] = useState(null);
 
-  // Keep ref in sync for use in socket listeners (avoiding stale closures)
-  useEffect(() => {
-    currentIndexRef.current = currentIndex;
-  }, [currentIndex]);
-  const [selectedPoint, setSelectedPoint] = useState(null);
   const [startDateTime, setStartDateTime] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hours = String(d.getHours()).padStart(2, "0");
-    const minutes = String(d.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    // Local time string for datetime-local input
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
   });
   const [endDateTime, setEndDateTime] = useState(() => {
     const d = new Date();
-    d.setHours(23, 59, 0, 0);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hours = String(d.getHours()).padStart(2, "0");
-    const minutes = String(d.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    d.setHours(23, 59, 59, 999);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
   });
-  const [center, setCenter] = useState({ lat: 51.5278, lng: 0.0694 });
-  const [playbackInterval, setPlaybackInterval] = useState(1000);
-  const [thresholds, setThresholds] = useState({
-    low: 20,
-    normal: 80,
-    over: 120,
-  });
-  const [showPlayTooltip, setShowPlayTooltip] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const playInterval = useRef(null);
+
   const mapRef = useRef(null);
-  const socketRef = useRef(null);
+  const playInterval = useRef(null);
 
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
-  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
-  const [filterType, setFilterType] = useState("all");
-
-  const toggleDeviceSelection = (deviceId) => {
-    setSelectedDeviceIds((prev) =>
-      prev.includes(deviceId)
-        ? prev.filter((id) => id !== deviceId)
-        : [...prev, deviceId],
-    );
+  // Helper for formatting time (HH:mm:ss) from ISO/Date
+  const formatTime = (dateInput) => {
+    if (!dateInput) return "--";
+    const d = new Date(dateInput);
+    return d.toLocaleTimeString([], { hour12: false });
   };
 
-  const isLive = useMemo(() => {
-    const now = new Date();
-    // Convert current start/end to comparable Dates
-    const start = new Date(startDateTime.replace("T", " "));
-    const end = new Date(endDateTime.replace("T", " "));
-    return start <= now && end >= now;
-  }, [startDateTime, endDateTime]);
-
-  const onMapLoad = useCallback((map) => {
-    mapRef.current = map;
-  }, []);
-
-  const [deviceList, setDeviceList] = useState([]);
-  // GET ALL DEVICES
+  // 1. Fetch Device List
   useEffect(() => {
-    const fetchDeviceList = async () => {
+    const fetchDevices = async () => {
       try {
-        const response = await fetch(`${API_URL_FOR_DEVICE_LIST}`);
-        if (!response.ok) throw new Error("Failed to fetch device list");
-        const json = await response.json();
-        const list = Array.isArray(json) ? json : json.data || [];
-        setDeviceList(list);
-        console.log({ deviceList: list });
+        const response = await fetch(`${DASHCAM_API_BASE_URL}/api/devices/logs`);
+        if (!response.ok) throw new Error("Failed to fetch devices");
+        const data = await response.json();
+        setDeviceList(Array.isArray(data) ? data : (data.data || []));
       } catch (err) {
-        setError(err.message);
+        console.error("Device fetch error:", err);
       }
     };
-    fetchDeviceList();
+    fetchDevices();
   }, []);
 
-  // Socket.io for Live Updates
-  useEffect(() => {
-    if (!isLive) {
-      if (socketRef.current) {
-        console.log("Range is historical - disconnecting socket");
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-      return;
-    }
-
-    console.log("Range includes 'now' - connecting socket for live updates");
-    socketRef.current = io(WS_URL);
-
-    socketRef.current.on("connect", () => {
-      console.log("Playback connected to Socket.io for live updates");
-    });
-
-    socketRef.current.on("gps_update", (update) => {
-      // Only care about updates for currently selected devices
-      if (selectedDeviceIds.length > 0 && !selectedDeviceIds.includes(update.deviceId)) {
+  // 2. Fetch Playback Data (Points for a trip)
+  const handleFetchData = async (start, end) => {
+    if (!selectedDeviceId) {
+        setError("Please select a device first");
         return;
-      }
-
-      console.log("Playback received live GPS update:", update);
-
-      const newPoint = {
-        timestamp: update.gpsTime,
-        time: update.gpsTime.split(" ")[1],
-        date: update.gpsTime.split(" ")[0],
-        lat: Number(update.latitude),
-        lng: Number(update.longitude),
-        speed: Number(update.speed),
-        status: Number(update.speed) > 0 ? "Moving" : "Stopped",
-        mileage: "0.0km", // We don't have mileage in basic update yet
-        rawMileage: 0,
-      };
-
-      setTrackingData((prev) => {
-        // Automatically follow live updates if we are at the end of the current trail
-        // Use the Ref to avoid stale closure issues
-        const isAtEnd = currentIndexRef.current >= prev.length - 1 || prev.length === 0;
-
-        // Detect trip changes for the new point
-        let newTripId = prev.length > 0 ? prev[prev.length - 1].tripId : 1;
-        const lastPoint = prev[prev.length - 1];
-
-        if (lastPoint && lastPoint.status === "Stopped" && newPoint.status === "Moving") {
-          newTripId++;
-        }
-
-        const offset = (newTripId - 1) * 0.00008;
-        const adjustedPoint = {
-          ...newPoint,
-          id: prev.length + 1,
-          tripId: newTripId,
-          lat: newPoint.lat + offset,
-          lng: newPoint.lng + offset,
-        };
-
-        const newData = [...prev, adjustedPoint];
-        // User Request: Always jump to the latest point when new data arrives, 
-        // regardless of whether we were playing history or not.
-        setCurrentIndex(newData.length - 1);
-
-        return newData;
-      });
-
-      // Update allData too to keep them in sync
-      setAllData((prev) => [update, ...prev]);
-    });
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, [isLive, selectedDeviceIds]);
-
-  // Auto-pan map when playing
-  useEffect(() => {
-    if (isPlaying && trackingData[currentIndex] && mapRef.current) {
-      const position = {
-        lat: trackingData[currentIndex].lat,
-        lng: trackingData[currentIndex].lng,
-      };
-
-      // Check if PanTo is available
-      if (typeof mapRef.current.panTo === "function") {
-        mapRef.current.panTo(position);
-      } else {
-        setCenter(position);
-      }
     }
-  }, [currentIndex, isPlaying, trackingData]);
+    setLoading(true);
+    setError(null);
+    setPoints([]);
+    setCurrentIndex(0);
+    setIsPlaying(false);
 
-  // Fetch Data
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setAllData([]); // Clear previous data
-      setTrackingData([]); // Clear map
-      setCurrentIndex(0); // Reset playback
-      try {
-        // Convert datetime-local format to API format
-        const startFormatted = startDateTime.replace("T", " ") + ":00";
-        const endFormatted = endDateTime.replace("T", " ") + ":59";
+    try {
+      const queryStart = start || new Date(startDateTime).toISOString();
+      const queryEnd = end || new Date(endDateTime).toISOString();
 
-        if (filterType === "all") {
-          const queryParams = new URLSearchParams({
-            startTime: startFormatted,
-            endTime: endFormatted,
-            nopaging: "true",
+      const url = `${DASHCAM_API_BASE_URL}/api/v1.0/dashcam/${selectedDeviceId}/playback/duration?start=${queryStart}&end=${queryEnd}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch playback data");
+      const data = await response.json();
+      
+      if (data.points && data.points.length > 0) {
+        const validPoints = data.points.filter(p => {
+          const lat = parseFloat(p.lat);
+          const lng = parseFloat(p.lng);
+          return !isNaN(lat) && !isNaN(lng) && 
+                 Math.abs(lat) <= 90 && Math.abs(lng) <= 180 &&
+                 (Math.abs(lat) > 0.001 || Math.abs(lng) > 0.001);
+        });
+
+        if (validPoints.length > 0) {
+          const pointsWithBearing = validPoints.map((p, idx) => {
+            if (idx < validPoints.length - 1) {
+              const next = validPoints[idx + 1];
+              const dLon = (next.lng - p.lng) * (Math.PI / 180);
+              const lat1 = p.lat * (Math.PI / 180);
+              const lat2 = next.lat * (Math.PI / 180);
+              const y = Math.sin(dLon) * Math.cos(lat2);
+              const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+              const bearing = (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
+              return { ...p, calculatedBearing: bearing };
+            }
+            return { ...p, calculatedBearing: idx > 0 ? validPoints[idx-1].calculatedBearing : (p.direction || 0) };
           });
 
-          if (selectedDeviceIds.length > 0) {
-            queryParams.append("device_ids", selectedDeviceIds.join(","));
+          setPoints(pointsWithBearing);
+          if (mapRef.current) {
+            mapRef.current.panTo({ lat: validPoints[0].lat, lng: validPoints[0].lng });
           }
-
-          const response = await fetch(
-            `${API_URL_FOR_ALL_PACKETS}?${queryParams}`,
-          );
-          if (!response.ok) throw new Error("Failed to fetch tracking data");
-          const json = await response.json();
-
-          // Flatten data: API returns { data: [ { deviceId, logs: [] }, ... ] }
-          const rawPackets = Array.isArray(json)
-            ? json
-            : json.data && Array.isArray(json.data) && json.data[0]?.logs
-              ? json.data.flatMap((d) => d.logs || [])
-              : json.data || [];
-
-          setAllData(rawPackets);
-          // Process data immediately after fetching
-          processAndSetData(rawPackets);
         } else {
-          const queryParams = new URLSearchParams({
-            startTime: startFormatted,
-            endTime: endFormatted,
-            nopaging: "true", // Ensure we get all points for the track
-          });
-
-          const response = await fetch(
-            `${API_URL_FOR_PARSED_PACKETS}?${queryParams}`,
-          );
-          if (!response.ok) throw new Error("Failed to fetch tracking data");
-          const json = await response.json();
-          // Handle if response is array or object with packets key
-          const rawPackets = Array.isArray(json) ? json : json.data || [];
-          console.log({ rawPackets });
-          setAllData(rawPackets);
-          // Process data immediately after fetching
-          processAndSetData(rawPackets);
+          setError("No valid coordinates found for this trip");
         }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      } else {
+        setError("No data found for the selected duration");
       }
-    };
-    fetchData();
-  }, [startDateTime, endDateTime, filterType, selectedDeviceIds]);
-
-  const processAndSetData = (packets) => {
-    let tripCount = 0;
-    let isStopped = true;
-
-    const filtered = packets
-      .filter((p) => {
-        // Handle both messageIdHex and messageId
-        const msgId = p.messageIdHex || p.messageId;
-        // If data comes from database, it's already filtered to GPS records, 
-        // so we don't strictly require msgId to be 0200 if it's missing.
-        if (msgId && msgId !== "0200") return false;
-        return true;
-      })
-      .map((p, index) => {
-        // Extract data from top-level or detailed.body.parsed
-        const parsed = p.detailed?.body?.parsed || {};
-
-        const lat = p.latitude ?? parsed.latitude ?? 0;
-        const lon = p.longitude ?? parsed.longitude ?? 0;
-        const speed = p.speed ?? parsed.speed ?? 0;
-        const mileageVal = p.mileage ?? parsed.mileage ?? 0;
-
-        return {
-          id: index + 1,
-          timestamp: p.gps_time || p.timestamp,
-          time: (p.gps_time || p.timestamp).split(" ")[1],
-          date: (p.gps_time || p.timestamp).split(" ")[0],
-          lat: Number(lat),
-          lng: Number(lon),
-          speed: Number(speed),
-          status: Number(speed) > 0 ? "Moving" : "Stopped",
-          mileage: `${Number(mileageVal).toFixed(1)}km`,
-          rawMileage: Number(mileageVal),
-        };
-      })
-      .reverse() // Sort chronologically
-      .map((p, index, arr) => {
-        // Detect trip changes (Start moving after being stopped)
-        if (p.speed > 0 && isStopped) {
-          tripCount++;
-          isStopped = false;
-        } else if (p.speed === 0) {
-          isStopped = true;
-        }
-
-        // Apply a small offset based on trip number to separate overlapping lines
-        // 0.00008 is approx 8-10 meters. We alternate offset directions.
-        const offset = (tripCount - 1) * 0.00008;
-
-        return {
-          ...p,
-          tripId: tripCount,
-          lat: p.lat + offset,
-          lng: p.lng + offset,
-        };
-      });
-
-    setTrackingData(filtered);
-    if (filtered.length > 0) {
-      setCenter({ lat: filtered[0].lat, lng: filtered[0].lng });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getSpeedColor = useCallback(
-    (speed) => {
-      if (speed < thresholds.low) return SPEED_COLORS.low;
-      if (speed < thresholds.normal) return SPEED_COLORS.normal;
-      if (speed < thresholds.over) return SPEED_COLORS.over;
-      return SPEED_COLORS.critical;
-    },
-    [thresholds],
-  );
+  // 3. Fetch Trip List (Analyze)
+  const handleFetchTrips = async () => {
+    if (!selectedDeviceId) {
+        setError("Please select a device first");
+        return;
+    }
+    setLoading(true);
+    setError(null);
+    setTrips([]);
+    setSelectedTripId(null);
+    try {
+      const startTime = new Date(startDateTime).toISOString();
+      const endTime = new Date(endDateTime).toISOString();
+      const url = `${DASHCAM_API_BASE_URL}/api/v1.0/dashcam/trips?device_id=${selectedDeviceId}&start_time=${startTime}&end_time=${endTime}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch trips");
+      const data = await response.json();
+      setTrips(data.trips || []);
+      if (data.trips && data.trips.length === 0) {
+          setError("No trips detected for the selected date range");
+      }
+    } catch (err) {
+      setError("Failed to fetch trips: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const getPixelPositionOffset = useCallback(() => ({ x: -20, y: -20 }), []);
-
-  // Group data into segments by speed for colored polyline
-  const segments = useMemo(() => {
-    if (trackingData.length < 2) return [];
-    const colorSegments = [];
-    let currentSegment = {
-      path: [{ lat: trackingData[0].lat, lng: trackingData[0].lng }],
-      color: getSpeedColor(trackingData[0].speed),
-      tripId: trackingData[0].tripId,
+  const handleTripSelect = (trip, idx) => {
+    setSelectedTripId(idx);
+    
+    const formatForInput = (isoStr) => {
+        const date = new Date(isoStr);
+        const tzOffset = date.getTimezoneOffset() * 60000;
+        return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
     };
+    
+    setStartDateTime(formatForInput(trip.start_time));
+    setEndDateTime(formatForInput(trip.end_time));
+    handleFetchData(trip.start_time, trip.end_time);
+  };
 
-    for (let i = 1; i < trackingData.length; i++) {
-      const point = trackingData[i];
-      const color = getSpeedColor(point.speed);
-
-      // Breakdown segment if color OR trip changes
-      if (
-        color === currentSegment.color &&
-        point.tripId === currentSegment.tripId
-      ) {
-        currentSegment.path.push({ lat: point.lat, lng: point.lng });
-      } else {
-        colorSegments.push(currentSegment);
-        currentSegment = {
-          path: [
-            { lat: trackingData[i - 1].lat, lng: trackingData[i - 1].lng }, // Add previous point to close gap
-            { lat: point.lat, lng: point.lng },
-          ],
-          color: color,
-          tripId: point.tripId,
-        };
-      }
-    }
-    colorSegments.push(currentSegment);
-    return colorSegments;
-  }, [trackingData, getSpeedColor]);
-
-  // Identify Stops (Points where speed is 0)
-  const stops = useMemo(() => {
-    const result = [];
-    let currentStop = null;
-
-    trackingData.forEach((p, idx) => {
-      if (p.speed === 0) {
-        if (!currentStop) {
-          currentStop = {
-            ...p,
-            startTime: p.timestamp,
-            stopIndex: idx,
-            count: 1,
-          };
-        } else {
-          currentStop.endTime = p.timestamp;
-          currentStop.count++;
-        }
-      } else {
-        if (currentStop && currentStop.count > 5) {
-          // Only count as stop if it stays for some time
-          // Revisit detection (~50m threshold)
-          const isRevisit = result.some(
-            (prev) =>
-              Math.abs(prev.lat - currentStop.lat) < 0.0005 &&
-              Math.abs(prev.lng - currentStop.lng) < 0.0005,
-          );
-          result.push({ ...currentStop, isRevisit });
-        }
-        currentStop = null;
-      }
-    });
-
-    if (currentStop && currentStop.count > 5) {
-      const isRevisit = result.some(
-        (prev) =>
-          Math.abs(prev.lat - currentStop.lat) < 0.0005 &&
-          Math.abs(prev.lng - currentStop.lng) < 0.0005,
-      );
-      result.push({ ...currentStop, isRevisit });
-    }
-    return result;
-  }, [trackingData]);
-
-  // Playback
+  // 4. Playback Logic
   useEffect(() => {
-    if (isPlaying && trackingData.length > 0) {
+    if (isPlaying && points.length > 0) {
       playInterval.current = setInterval(() => {
         setCurrentIndex((prev) => {
-          if (prev >= trackingData.length - 1) {
-            // Only stop if this is a historical range. 
-            // In live mode, we stay active waiting for new points.
-            if (!isLive) {
-              setIsPlaying(false);
-            }
+          if (prev >= points.length - 1) {
+            setIsPlaying(false);
             return prev;
           }
           return prev + 1;
         });
-      }, playbackInterval);
+      }, playbackSpeed);
     } else {
       clearInterval(playInterval.current);
     }
     return () => clearInterval(playInterval.current);
-  }, [isPlaying, trackingData, playbackInterval, isLive]);
+  }, [isPlaying, points, playbackSpeed]);
 
-  // Quick Date Helpers
-  const setQuickDate = (type) => {
-    const today = new Date();
-    const start = new Date();
-
-    if (type === "Today") {
-      start.setHours(0, 0, 0, 0);
-      today.setHours(23, 59, 0, 0);
-    } else if (type === "Yesterday") {
-      start.setDate(today.getDate() - 1);
-      today.setDate(today.getDate() - 1);
-      start.setHours(0, 0, 0, 0);
-      today.setHours(23, 59, 0, 0);
-    } else if (type === "ThisWeek") {
-      start.setDate(today.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
-      today.setHours(23, 59, 0, 0);
-    } else if (type === "LastWeek") {
-      start.setDate(today.getDate() - 14);
-      today.setDate(today.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
-      today.setHours(23, 59, 0, 0);
+  // 5. Auto-center map
+  useEffect(() => {
+    if (isPlaying && points[currentIndex] && mapRef.current) {
+        mapRef.current.panTo({ lat: points[currentIndex].lat, lng: points[currentIndex].lng });
     }
+  }, [currentIndex, isPlaying, points]);
 
-    setStartDateTime(start.toISOString().slice(0, 16));
-    setEndDateTime(today.toISOString().slice(0, 16));
-  };
-
-  // Calculate duration helper for tooltip
-  const getDurationString = (index) => {
-    if (index < 0 || !trackingData[index]) return "0s";
-    const current = trackingData[index];
-    let firstIndex = index;
-
-    // Find the first point in this state sequence (same status and trip)
-    for (let i = index - 1; i >= 0; i--) {
-      if (
-        trackingData[i].status === current.status &&
-        trackingData[i].tripId === current.tripId
-      ) {
-        firstIndex = i;
-      } else {
-        break;
-      }
-    }
-
-    const start = new Date(trackingData[firstIndex].timestamp);
-    const end = new Date(current.timestamp);
-    const diff = Math.abs(end - start) / 1000; // seconds
-
-    const h = Math.floor(diff / 3600);
-    const m = Math.floor((diff % 3600) / 60);
-    const s = Math.floor(diff % 60);
-
-    let res = "";
-    if (h > 0) res += `${h}h `;
-    if (m > 0 || h > 0) res += `${m} Minute `;
-    res += `${s} Second`;
-    return res;
-  };
-
-  const currentPos = trackingData[currentIndex] || {
-    lat: 0,
-    lng: 0,
-    status: "N/A",
-    time: "00:00:00",
-    speed: 0,
-    mileage: "0km",
-    rawMileage: 0,
-  };
-
-  // Calculate rotation
-  const getRotation = () => {
-    if (
-      currentIndex > 0 &&
-      trackingData[currentIndex] &&
-      trackingData[currentIndex - 1]
-    ) {
-      const p1 = trackingData[currentIndex - 1];
-      const p2 = trackingData[currentIndex];
-      const angle =
-        Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat) * (180 / Math.PI);
-      return angle;
-    }
-    return 0;
-  };
+  const currentPoint = points[currentIndex] || {};
+  const polylinePath = useMemo(() => points.map(p => ({ lat: p.lat, lng: p.lng })), [points]);
 
   return (
-    <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-      <div className="app-container">
-        {/* --- SIDEBAR --- */}
-        <aside className={`sidebar ${isSidebarOpen ? "open" : ""}`}>
-          <div className="sidebar-header">
-            <h1 className="sidebar-title">Playback</h1>
-            <button
-              className="close-sidebar-btn"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <X size={24} />
-            </button>
-          </div>
-
-          <div className="sidebar-content">
-            {/* Device Info */}
-            <div className="section">
-              <div className="input-group" style={{ position: "relative" }}>
-                <div
-                  className="text-input"
-                  style={{
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                  onClick={() => setIsDeviceDropdownOpen(!isDeviceDropdownOpen)}
-                >
-                  <span
-                    style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      marginRight: "8px",
-                      color:
-                        selectedDeviceIds.length > 0 ? "#334155" : "#94a3b8",
-                    }}
-                  >
-                    {selectedDeviceIds.length > 0
-                      ? `${selectedDeviceIds.length} Selected`
-                      : "Select Devices"}
-                  </span>
-                  <ChevronDown size={16} color="#94a3b8" />
+    <LoadScript googleMapsApiKey={GOOGLE_MAP_API_KEY}>
+      <div className={`obd-page-wrapper obd-playback-container ${theme}`} style={{ backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+        
+        {/* Sidebar */}
+        <div className="obd-sidebar" style={{
+            width: isSidebarOpen ? (window.innerWidth > 1024 ? "350px" : "100%") : "0",
+            backgroundColor: theme === "dark" ? "#1e293b" : "white",
+            borderRight: "1px solid #e2e8f0",
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "10px 0 15px -3px rgba(0,0,0,0.05)",
+            overflowX: "hidden",
+            transition: "width 0.3s ease"
+        }}>
+            <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "24px", minWidth: "350px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "space-between" }}>
+                    <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: theme === "dark" ? "#f8fafc" : "#1e293b", margin: 0 }}>Dashcam Playback</h2>
+                    <button onClick={() => setIsSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
+                        <X size={24} />
+                    </button>
                 </div>
 
-                {isDeviceDropdownOpen && (
-                  <div
-                    className="device-dropdown"
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      backgroundColor: "white",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "0.5rem",
-                      zIndex: 50,
-                      maxHeight: "200px",
-                      overflowY: "auto",
-                      marginTop: "4px",
-                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                    }}
-                  >
-                    {deviceList.length === 0 && (
-                      <div style={{ padding: "8px 12px", color: "#94a3b8" }}>
-                        No devices found
-                      </div>
-                    )}
-                    {deviceList.map((device) => (
-                      <div
-                        key={device}
-                        onClick={() => toggleDeviceSelection(device)}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <div style={{ position: "relative" }}>
+                        <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>Select Dashcam</label>
+                        <div 
+                            onClick={() => setIsDeviceDropdownOpen(!isDeviceDropdownOpen)}
+                            style={{
+                                padding: "12px 16px",
+                                borderRadius: "12px",
+                                border: "2px solid #e2e8f0",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                backgroundColor: theme === "dark" ? "#0f172a" : "white"
+                            }}
+                        >
+                            <span style={{ color: selectedDeviceId ? (theme === "dark" ? "white" : "#1e293b") : "#94a3b8" }}>
+                                {selectedDeviceId || "Choose a device..."}
+                            </span>
+                            <ChevronDown size={18} color="#64748b" />
+                        </div>
+                        {isDeviceDropdownOpen && (
+                            <div style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                right: 0,
+                                marginTop: "8px",
+                                backgroundColor: theme === "dark" ? "#1e293b" : "white",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "12px",
+                                boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                                zIndex: 110,
+                                maxHeight: "200px",
+                                overflowY: "auto"
+                            }}>
+                                {deviceList.map(dev => (
+                                    <div 
+                                        key={dev} 
+                                        onClick={() => { setSelectedDeviceId(dev); setIsDeviceDropdownOpen(false); }}
+                                        style={{
+                                            padding: "12px 16px",
+                                            cursor: "pointer",
+                                            borderBottom: "1px solid #f1f5f9",
+                                            color: theme === "dark" ? "#f8fafc" : "#1e293b",
+                                            backgroundColor: selectedDeviceId === dev ? "#3b82f6" : "transparent"
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
+                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : "transparent"}
+                                    >
+                                        {dev}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        <div>
+                            <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>Start Time</label>
+                            <div style={{ position: "relative" }}>
+                                <Calendar size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+                                <input 
+                                    type="datetime-local" 
+                                    value={startDateTime}
+                                    onChange={(e) => setStartDateTime(e.target.value)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "12px 12px 12px(40px)",
+                                        borderRadius: "12px",
+                                        border: "2px solid #e2e8f0",
+                                        backgroundColor: theme === "dark" ? "#0f172a" : "white",
+                                        color: theme === "dark" ? "white" : "black",
+                                        fontSize: "0.875rem",
+                                        paddingLeft: "40px"
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>End Time</label>
+                            <div style={{ position: "relative" }}>
+                                <Clock size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+                                <input 
+                                    type="datetime-local" 
+                                    value={endDateTime}
+                                    onChange={(e) => setEndDateTime(e.target.value)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "12px 12px 12px 40px",
+                                        borderRadius: "12px",
+                                        border: "2px solid #e2e8f0",
+                                        backgroundColor: theme === "dark" ? "#0f172a" : "white",
+                                        color: theme === "dark" ? "white" : "black",
+                                        fontSize: "0.875rem"
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={handleFetchTrips}
+                        disabled={loading}
                         style={{
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          backgroundColor: selectedDeviceIds.includes(device)
-                            ? "#eff6ff"
-                            : "transparent",
-                          color: selectedDeviceIds.includes(device)
-                            ? "#3b82f6"
-                            : "#334155",
-                          fontSize: "14px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          borderBottom: "1px solid #f1f5f9",
+                            marginTop: "8px",
+                            padding: "14px",
+                            borderRadius: "12px",
+                            backgroundColor: "#3b82f6",
+                            color: "white",
+                            border: "none",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "10px",
+                            transition: "all 0.2s"
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedDeviceIds.includes(device)}
-                          readOnly
-                          style={{ cursor: "pointer" }}
-                        />
-                        {device}
-                      </div>
-                    ))}
-                  </div>
+                    >
+                        {loading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                        {loading ? "Discovering Trips..." : "Analyze Trips"}
+                    </button>
+
+                    {trips.length > 0 && (
+                        <div style={{ marginTop: "16px" }}>
+                            <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "12px", display: "block" }}>Detected Trips ({trips.length})</label>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "300px", overflowY: "auto", paddingRight: "4px" }}>
+                                {trips.map((trip, idx) => (
+                                    <div 
+                                        key={idx}
+                                        onClick={() => handleTripSelect(trip, idx)}
+                                        style={{
+                                            padding: "12px",
+                                            borderRadius: "12px",
+                                            border: `2px solid ${selectedTripId === idx ? "#3b82f6" : "#e2e8f0"}`,
+                                            backgroundColor: selectedTripId === idx ? (theme === "dark" ? "#1e3a8a" : "#eff6ff") : "transparent",
+                                            cursor: "pointer",
+                                            transition: "all 0.2s"
+                                        }}
+                                    >
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                                            <span style={{ fontWeight: "700", fontSize: "0.875rem", color: theme === "dark" ? "white" : "#1e293b" }}>Trip #{idx + 1}</span>
+                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{trip.distance_km} km</span>
+                                        </div>
+                                        <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                                            {formatTime(trip.start_time).slice(0, 5)} - {formatTime(trip.end_time).slice(0, 5)} ({Math.floor(trip.duration_sec / 60)} min)
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "#fef2f2", color: "#dc2626", fontSize: "0.875rem", border: "1px solid #fecaca" }}>
+                            {error}
+                        </div>
+                    )}
+                </div>
+
+                {/* Diagnostics Panel */}
+                {points.length > 0 && (
+                    <div className="sidebar-diagnostics" style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                         <h3 style={{ fontSize: "0.875rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", margin: "0 0 4px 0" }}>Point Details</h3>
+                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <StatCard 
+                                icon={<Activity size={18} color="#22c55e" />} 
+                                label="Speed" 
+                                value={`${currentPoint.speed || "0"} km/h`} 
+                                theme={theme} 
+                            />
+                            <StatCard 
+                                icon={<Navigation size={18} color="#3b82f6" />} 
+                                label="Heading" 
+                                value={`${Math.round(currentPoint.calculatedBearing || 0)}°`} 
+                                theme={theme} 
+                            />
+                            <StatCard 
+                                icon={<Signal size={18} color="#ef4444" />} 
+                                label="Signal" 
+                                value={currentPoint.signal_strength || "--"} 
+                                theme={theme} 
+                            />
+                            <StatCard 
+                                icon={<Wind size={18} color="#eab308" />} 
+                                label="Altitude" 
+                                value={`${currentPoint.altitude || "--"}m`} 
+                                theme={theme} 
+                            />
+                        </div>
+                        <div style={{ marginTop: "8px", padding: "15px", borderRadius: "12px", backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+                            <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "8px", textTransform: "uppercase", fontWeight: "600" }}>Time Info</div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                <DetailRow icon={<Clock size={14} />} label="Point Time" value={currentPoint.timestamp ? formatTime(currentPoint.timestamp) : "--"} />
+                                <DetailRow icon={<Activity size={14} />} label="Progression" value={`${currentIndex + 1} / ${points.length}`} />
+                            </div>
+                        </div>
+                    </div>
                 )}
-              </div>
-              <div className="locate-type-tags">
-                <span className="tag-active">GPS+BDS/LBS/WIFI</span>
-                <span className="tag">GPS+BDS</span>
-              </div>
             </div>
+        </div>
 
-            {/* Date Selection */}
-            <div className="section">
-              <div className="date-label">February 2026</div>
-              <div className="calendar-mini">
-                {/* Mock calendar for visual alignment */}
-                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                  <span key={d} className="cal-day">
-                    {d}
-                  </span>
-                ))}
-                {[...Array(31)].map((_, i) => (
-                  <span
-                    key={i}
-                    className="cal-date"
-                    style={{
-                      color: i + 1 === 7 ? "#3b82f6" : "#334155",
-                      fontWeight: i + 1 === 7 ? "bold" : "normal",
-                    }}
-                  >
-                    {i + 1}
-                  </span>
-                ))}
-              </div>
-              <div className="date-time-field">
-                <label className="field-label">*Time for start:</label>
-                <input
-                  type="datetime-local"
-                  value={startDateTime}
-                  onChange={(e) => setStartDateTime(e.target.value)}
-                  className="date-time-input"
-                />
-              </div>
-              <div className="date-time-field">
-                <label className="field-label">*Time for end:</label>
-                <input
-                  type="datetime-local"
-                  value={endDateTime}
-                  onChange={(e) => setEndDateTime(e.target.value)}
-                  className="date-time-input"
-                />
-              </div>
-            </div>
-
-            {/* Playback Controls */}
-            <div className="section">
-              <div className="control-row">
-                <span className="label">Speed:</span>
-                <select
-                  value={playbackInterval}
-                  onChange={(e) =>
-                    setPlaybackInterval(parseInt(e.target.value, 10))
-                  }
-                  className="select-input"
-                >
-                  <option value={100}>10x Fast (0.1s)</option>
-                  <option value={200}>5x Fast (0.2s)</option>
-                  <option value={500}>2x Fast (0.5s)</option>
-                  <option value={1000}>Normal (1s)</option>
-                  <option value={2000}>Slow (2s)</option>
-                  <option value={5000}>Slower (5s)</option>
-                  <option value={10000}>Very Slow (10s)</option>
-                  <option value={20000}>Extra Slow (20s)</option>
-                  <option value={30000}>Super Slow (30s)</option>
-                </select>
-              </div>
-              <div className="control-row">
-                <span className="label">Play Tooltip:</span>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={showPlayTooltip}
-                    onChange={(e) => setShowPlayTooltip(e.target.checked)}
-                  />
-                  <span className="slider-round"></span>
-                </label>
-              </div>
-
-              {/* Legends */}
-              <div className="legend-wrapper">
-                <div className="threshold-badges">
-                  <div className="input-badge-wrapper">
-                    <input
-                      type="number"
-                      value={thresholds.low}
-                      onChange={(e) =>
-                        setThresholds({
-                          ...thresholds,
-                          low: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="speed-input"
-                      style={{
-                        backgroundColor: SPEED_COLORS.low,
-                      }}
-                    />
-                    <span className="unit">mph</span>
-                  </div>
-                  <div className="input-badge-wrapper">
-                    <input
-                      type="number"
-                      value={thresholds.normal}
-                      onChange={(e) =>
-                        setThresholds({
-                          ...thresholds,
-                          normal: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="speed-input"
-                      style={{
-                        backgroundColor: SPEED_COLORS.normal,
-                      }}
-                    />
-                    <span className="unit">mph</span>
-                  </div>
-                  <div className="input-badge-wrapper">
-                    <input
-                      type="number"
-                      value={thresholds.over}
-                      onChange={(e) =>
-                        setThresholds({
-                          ...thresholds,
-                          over: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="speed-input"
-                      style={{
-                        backgroundColor: SPEED_COLORS.over,
-                      }}
-                    />
-                    <span className="unit">mph</span>
-                  </div>
-                </div>
-                <div className="legend-container">
-                  <div className="legend-item">
-                    <span
-                      className="dot"
-                      style={{
-                        backgroundColor: SPEED_COLORS.low,
-                      }}
-                    ></span>
-                    <span className="legend-text">lowSpeed</span>
-                  </div>
-                  <div className="legend-item">
-                    <span
-                      className="dot"
-                      style={{
-                        backgroundColor: SPEED_COLORS.normal,
-                      }}
-                    ></span>
-                    <span className="legend-text">normal</span>
-                  </div>
-                  <div className="legend-item">
-                    <span
-                      className="dot"
-                      style={{
-                        backgroundColor: SPEED_COLORS.over,
-                      }}
-                    ></span>
-                    <span className="legend-text">OverSpeed</span>
-                  </div>
-                  <div className="legend-item">
-                    <span
-                      className="dot"
-                      style={{
-                        backgroundColor: SPEED_COLORS.critical,
-                      }}
-                    ></span>
-                    <span className="legend-text">OverSpeed (1.5)</span>
-                  </div>
-                  <div className="legend-item">
-                    <span
-                      className="dot"
-                      style={{ backgroundColor: "#f97316" }}
-                    ></span>
-                    <span className="legend-text">Revisit</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Date Selectors */}
-              <div className="quick-dates">
-                <button
-                  onClick={() => setQuickDate("LastWeek")}
-                  className="quick-btn"
-                >
-                  Last...
-                </button>
-                <button
-                  onClick={() => setQuickDate("ThisWeek")}
-                  className="quick-btn"
-                >
-                  This...
-                </button>
-                <button className="quick-btn">Before...</button>
-                <button
-                  onClick={() => setQuickDate("Yesterday")}
-                  className="quick-btn"
-                >
-                  Yester...
-                </button>
-                <button
-                  onClick={() => setQuickDate("Today")}
-                  className="quick-btn"
-                >
-                  Today
-                </button>
-              </div>
-
-              <button
-                className="start-btn"
+        {/* Floating Sidebar Toggle (if closed) */}
+        {!isSidebarOpen && (
+            <button 
+                onClick={() => setIsSidebarOpen(true)}
                 style={{
-                  backgroundColor: isPlaying ? "#ef4444" : "#3b82f6",
-                }}
-                onClick={() => setIsPlaying(!isPlaying)}
-              >
-                {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-                {isPlaying ? "STOP" : "START"}
-              </button>
-            </div>
-
-            {/* Event List */}
-            <div className="tabs">
-              <span className="tab-active">Remain(2)</span>
-              <span className="tab">event(0)</span>
-            </div>
-            <div className="event-list">
-              {stops.map((stop, ix) => (
-                <div
-                  key={ix}
-                  className="event-item"
-                  style={{
-                    borderLeft: stop.isRevisit ? "4px solid #f97316" : "none",
-                  }}
-                >
-                  <div
-                    className="event-pin"
-                    style={{
-                      backgroundColor: stop.isRevisit ? "#f97316" : "#3b82f6",
-                    }}
-                  >
-                    P{ix + 1}
-                  </div>
-                  <div className="event-detail">
-                    <p className="event-addr">
-                      {stop.isRevisit
-                        ? "🔄 REVISITED LOCATION"
-                        : "London Borough of Barking and Dagenham..."}
-                    </p>
-                    <p className="event-time">
-                      {stop.startTime} - {stop.endTime || "Ongoing"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-        {/* --- MAP AREA --- */}
-        <main className="map-area">
-          {loading && (
-            <div className="map-loader-overlay">
-              <Loader2 size={48} className="animate-spin" color="#3b82f6" />
-              <p>Loading GPS Data...</p>
-            </div>
-          )}
-          {!isSidebarOpen && (
-            <button
-              className="menu-toggle"
-              onClick={() => setIsSidebarOpen(true)}
-            >
-              <Menu size={24} color="#334155" />
-            </button>
-          )}
-          {/* Map Header Overlay */}
-          <div className="map-header">
-            <div className="map-actions">
-              <button className="map-btn-active">Map</button>
-              <button className="map-btn">Satellite</button>
-              <button className="map-btn">Bing</button>
-            </div>
-            <div className="map-right-actions">
-              <button className="top-btn" onClick={toggleTheme}>
-                {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-              </button>
-              <Link
-                to="/dashcam"
-                className="top-btn"
-                style={{
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px",
-                }}
-              >
-                <VideoIcon size={16} /> Dashcam
-              </Link>
-              <button className="top-btn">AllView location</button>
-              <button className="top-btn">View Speed Graph</button>
-              <button className="top-btn-active">Detail</button>
-              <button className="top-btn">Print</button>
-            </div>
-          </div>
-
-          <GoogleMap
-            key="map-static-playback"
-            mapContainerStyle={mapContainerStyle}
-            center={center}
-            zoom={17}
-            onLoad={onMapLoad}
-            options={{ disableDefaultUI: false }}
-          >
-            {/* Colored Segments */}
-            {segments.map((seg, i) => (
-              <Polyline
-                key={i}
-                path={seg.path}
-                options={{
-                  strokeColor: seg.color,
-                  strokeOpacity: 1,
-                  strokeWeight: 5,
-                  icons: [
-                    {
-                      icon: {
-                        path: "M 0,-1 L 1,1 L -1,1 z", // Custom arrow shape
-                        fillOpacity: 1,
-                        fillColor: seg.color,
-                        strokeWeight: 1,
-                        scale: 3,
-                      },
-                      offset: "50px",
-                      repeat: "100px",
-                    },
-                  ],
-                }}
-              />
-            ))}
-
-            {/* Stop Markers */}
-            {stops.map((stop, i) => (
-              <Marker
-                key={i}
-                position={{ lat: stop.lat, lng: stop.lng }}
-                label={{
-                  text: `P${i + 1}`,
-                  color: "white",
-                  fontWeight: "bold",
-                  fontSize: "12px",
-                }}
-                icon={stop.isRevisit ? REVISIT_ICON : undefined}
-                onClick={() => setSelectedPoint(stop)}
-              />
-            ))}
-
-            {/* Current Position (Custom Rotatable Car Image) */}
-            {trackingData.length > 0 && (
-              <OverlayView
-                position={{ lat: currentPos.lat, lng: currentPos.lng }}
-                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                getPixelPositionOffset={getPixelPositionOffset}
-              >
-                <div
-                  style={{
-                    transform: `rotate(${getRotation()}deg)`,
-                    width: "40px",
-                    height: "40px",
+                    position: "absolute",
+                    left: "24px",
+                    top: "24px",
+                    zIndex: 110,
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "12px",
+                    backgroundColor: theme === "dark" ? "#1e293b" : "white",
+                    border: "none",
+                    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                  }}
-                  onClick={() => setSelectedPoint(currentPos)}
-                >
-                  <img
-                    src="https://d1a3f4spazzrp4.cloudfront.net/car-types/mapIconsStandard/car_bag_x_2d.png"
-                    alt="Car"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
-                    }}
-                  />
-                </div>
-              </OverlayView>
-            )}
-
-            {/* Automated Play Tooltip */}
-            {(isPlaying || currentIndex > 0) &&
-              showPlayTooltip &&
-              trackingData.length > 0 && (
-                <InfoWindow
-                  position={{ lat: currentPos.lat, lng: currentPos.lng }}
-                  options={{
-                    disableAutoPan: true,
-                    pixelOffset: new window.google.maps.Size(0, -20),
-                  }}
-                >
-                  <div className="tooltip-play">
-                    <p className="tooltip-line">
-                      <strong>Device name:</strong> JT8088985963
-                    </p>
-                    <p className="tooltip-line">
-                      <strong>Speed:</strong> {Math.round(currentPos.speed * 0.621371)} mph
-                    </p>
-                    <p className="tooltip-line">
-                      <strong>Locate:</strong> {currentPos.timestamp}
-                    </p>
-                    <p className="tooltip-line">
-                      <strong>Duration:</strong>{" "}
-                      {getDurationString(currentIndex)}
-                    </p>
-                  </div>
-                </InfoWindow>
-              )}
-
-            {/* Tooltip */}
-            {selectedPoint && (
-              <InfoWindow
-                position={{ lat: selectedPoint.lat, lng: selectedPoint.lng }}
-                onCloseClick={() => setSelectedPoint(null)}
-              >
-                <div className="tooltip-custom">
-                  <p>
-                    <strong>No. :</strong> P1
-                  </p>
-                  <p>
-                    <strong>Device name :</strong> JT8088985963
-                  </p>
-                  <p>
-                    <strong>Speed :</strong> {Math.round(selectedPoint.speed * 0.621371)} mph
-                  </p>
-                  <p>
-                    <strong>Remain :</strong>{" "}
-                    {selectedPoint.count > 1
-                      ? `${Math.floor(selectedPoint.count / 60)}h ${selectedPoint.count % 60}m`
-                      : "0m"}
-                  </p>
-                  <p>
-                    <strong>Start :</strong>{" "}
-                    {selectedPoint.startTime || selectedPoint.timestamp}
-                  </p>
-                  {selectedPoint.endTime && (
-                    <p>
-                      <strong>Stop :</strong> {selectedPoint.endTime}
-                    </p>
-                  )}
-                </div>
-              </InfoWindow>
-            )}
-          </GoogleMap>
-
-          {/* Bottom Progress Overlay */}
-          <div className="bottom-stats">
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{
-                  width: `${trackingData.length > 0 ? (currentIndex / (trackingData.length - 1)) * 100 : 0}%`,
+                    color: "#3b82f6"
                 }}
-              />
-            </div>
-            <div className="stats-bar">
-              <span>Time: {currentPos.timestamp}</span>
-              <span>Speed: {Math.round(currentPos.speed * 0.621371)} mph</span>
-              <button onClick={() => setCurrentIndex(0)} className="reset-btn">
-                <RotateCcw size={14} /> Reset
-              </button>
-            </div>
-          </div>
-        </main>
+            >
+                <Activity size={24} />
+            </button>
+        )}
+
+        {/* Map Area */}
+        <div className="obd-map-container" style={{ position: "relative", flex: 1, height: "100%" }}>
+            <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={points[currentIndex] ? { lat: points[currentIndex].lat, lng: points[currentIndex].lng } : defaultCenter}
+                zoom={14}
+                onLoad={(map) => (mapRef.current = map)}
+                options={{
+                    styles: theme === "dark" ? darkMapStyles : [],
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                }}
+            >
+                {points.length > 0 && (
+                    <>
+                        <Polyline 
+                            path={polylinePath}
+                            options={{
+                                strokeColor: "#3b82f6",
+                                strokeWeight: 4,
+                                strokeOpacity: 0.8
+                            }}
+                        />
+                        <OverlayView
+                            position={{ lat: currentPoint.lat, lng: currentPoint.lng }}
+                            mapPaneName="overlayMouseTarget"
+                            getPixelPositionOffset={() => getPixelPositionOffset(48, 48)}
+                        >
+                            <div style={{
+                                transform: `rotate(${currentPoint.calculatedBearing || 0}deg)`,
+                                width: "48px",
+                                height: "48px",
+                                transition: "transform 0.1s linear",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center"
+                            }}>
+                                <VehicleMarker size={48} />
+                            </div>
+                        </OverlayView>
+                    </>
+                )}
+            </GoogleMap>
+
+            {/* Playback Controls Overlay */}
+            {points.length > 0 && (
+                <div style={{
+                    position: "absolute",
+                    bottom: "24px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: "80%",
+                    maxWidth: "800px",
+                    padding: "16px 24px",
+                    borderRadius: "20px",
+                    backgroundColor: theme === "dark" ? "rgba(30, 41, 59, 0.95)" : "rgba(255, 255, 255, 0.95)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                    zIndex: 50
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                        <button 
+                            onClick={() => setIsPlaying(!isPlaying)}
+                            style={{
+                                width: "48px",
+                                height: "48px",
+                                borderRadius: "14px",
+                                backgroundColor: "#3b82f6",
+                                color: "white",
+                                border: "none",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                transition: "all 0.2s"
+                            }}
+                        >
+                            {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+                        </button>
+
+                        <button 
+                            onClick={() => setCurrentIndex(0)}
+                            style={{
+                                width: "40px",
+                                height: "40px",
+                                borderRadius: "12px",
+                                backgroundColor: "transparent",
+                                color: "#64748b",
+                                border: "2px solid #e2e8f0",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer"
+                            }}
+                        >
+                            <RotateCcw size={20} />
+                        </button>
+
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max={points.length - 1} 
+                                value={currentIndex}
+                                onChange={(e) => setCurrentIndex(parseInt(e.target.value))}
+                                style={{
+                                    width: "100%",
+                                    height: "6px",
+                                    borderRadius: "3px",
+                                    appearance: "none",
+                                    backgroundColor: "#e2e8f0",
+                                    outline: "none",
+                                    cursor: "pointer"
+                                }}
+                            />
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#64748b", fontWeight: "600" }}>
+                                <span>{formatTime(points[0].timestamp)}</span>
+                                <span style={{ color: "#3b82f6" }}>{formatTime(points[currentIndex].timestamp)}</span>
+                                <span>{formatTime(points[points.length-1].timestamp)}</span>
+                            </div>
+                        </div>
+
+                        <select 
+                            value={playbackSpeed}
+                            onChange={(e) => setPlaybackSpeed(parseInt(e.target.value))}
+                            style={{
+                                padding: "8px 12px",
+                                borderRadius: "10px",
+                                border: "2px solid #e2e8f0",
+                                backgroundColor: "transparent",
+                                color: theme === "dark" ? "white" : "#1e293b",
+                                fontWeight: "600",
+                                outline: "none"
+                            }}
+                        >
+                            <option value={2000}>0.5x</option>
+                            <option value={1000}>1x</option>
+                            <option value={500}>2x</option>
+                            <option value={250}>4x</option>
+                            <option value={100}>10x</option>
+                        </select>
+                    </div>
+                </div>
+            )}
+        </div>
       </div>
     </LoadScript>
   );
 }
+
+function StatCard({ icon, label, value, theme }) {
+  return (
+    <div style={{
+      padding: "12px",
+      borderRadius: "12px",
+      backgroundColor: theme === "dark" ? "#334155" : "#f1f5f9",
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+      border: theme === "dark" ? "1px solid #475569" : "1px solid #e2e8f0",
+      transition: "transform 0.2s"
+    }}>
+      {icon}
+      <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: "600" }}>{label}</div>
+      <div style={{ fontSize: "1rem", fontWeight: "800", color: theme === "dark" ? "#f8fafc" : "#1e293b" }}>{value}</div>
+    </div>
+  );
+}
+
+function DetailRow({ icon, label, value }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#64748b" }}>
+        {icon}
+        <span>{label}</span>
+      </div>
+      <span style={{ fontWeight: "700" }}>{value}</span>
+    </div>
+  );
+}
+
+const darkMapStyles = [
+  { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+  {
+    featureType: "administrative.locality",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry",
+    stylers: [{ color: "#263c3f" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#6b9a76" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#38414e" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#212a37" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#9ca5b3" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#746855" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#1f2835" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#f3d19c" }],
+  },
+  {
+    featureType: "transit",
+    elementType: "geometry",
+    stylers: [{ color: "#2f3948" }],
+  },
+  {
+    featureType: "transit.station",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#d59563" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#17263c" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#515c6d" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.stroke",
+    stylers: [{ color: "#17263c" }],
+  },
+];
