@@ -10,10 +10,10 @@ REMOTE_DIR="/home/ubuntu/gps-ui"
 LOCAL_DIR="."
 
 # Load .env file (for SERVER_PASSWORD)
-if [ -f ../j42-server/.env ]; then
-    export $(grep -v '^#' ../j42-server/.env | xargs)
+if [ -f ../final-dashcam/.env ]; then
+    export $(grep -v '^#' ../final-dashcam/.env | xargs)
 elif [ -f .env ]; then
-    # Note: gps-ui/.env might not have SERVER_PASSWORD, so we check j42-server first
+    # Note: gps-ui/.env might not have SERVER_PASSWORD, so we check final-dashcam first
     export $(grep -v '^#' .env | xargs)
 fi
 
