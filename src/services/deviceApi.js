@@ -103,6 +103,12 @@ const deviceApi = {
     if (!response.ok) throw new Error("Failed to fetch devices");
     return response.json();
   },
+
+  getDevicesV2: async () => {
+    const response = await fetch(`${BASE_URL}/api/devices/v2`);
+    if (!response.ok) throw new Error("Failed to fetch devices V2");
+    return response.json();
+  },
 };
 
 export default deviceApi;

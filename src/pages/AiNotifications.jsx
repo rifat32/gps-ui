@@ -126,7 +126,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   // Fetch devices
   const fetchDevices = async () => {
     try {
-      const data = await deviceApi.getDevices();
+      const data = await deviceApi.getDevicesV2();
       const activeDevices = data.data.filter((d) => d.status === "online");
       const historicalDevices = data.data.filter((d) => d.status === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });

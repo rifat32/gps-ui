@@ -74,13 +74,8 @@ export default function SavedVideos() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const json = await deviceApi.getDevices();
-        const apiDevices = (json.data || []).map((id) => ({
-          id: String(id),
-          name: `Device-${String(id).slice(-4)}`,
-          status: "online", // Default status for list
-        }));
-        setDevices(apiDevices);
+        const json = await deviceApi.getDevicesV2();
+        setDevices(json.data || []);
       } catch (err) {
         console.error("Error fetching devices:", err);
       }
