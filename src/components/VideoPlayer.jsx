@@ -23,18 +23,19 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
   const error = streamState?.error;
 
   useEffect(() => {
-    // Make sure Video.js player is only initialized once
-    if (
-      !playerRef.current &&
-      status === "live" &&
-      streamUrl &&
-      videoRef.current
-    ) {
-      const videoElement = videoRef.current;
-      if (!videoElement) return;
+    // If we're not live or don't have a URL, dispose existing player
+    if (status !== "live" || !streamUrl) {
+      if (playerRef.current) {
+        playerRef.current.dispose();
+        playerRef.current = null;
+      }
+      return;
+    }
 
+    // Initialize player if not exists
+    if (!playerRef.current && videoRef.current) {
       const player = (playerRef.current = videojs(
-        videoElement,
+        videoRef.current,
         {
           autoplay: true,
           muted: true,
@@ -60,39 +61,37 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
         },
       ));
 
-      player.src({
-        src: streamUrl,
-        type: "application/x-mpegURL",
+      player.on("error", () => {
+        const playerError = player.error();
+        console.error("Video.js Error:", playerError);
+
+        if (playerError && playerError.code === 3) {
+          console.log("Decoding error detected, attempting recovery...");
+          player.dispose();
+          playerRef.current = null;
+          setTimeout(() => {
+            if (onRetry) onRetry();
+          }, 2000);
+        }
       });
-    } else if (playerRef.current && status === "live" && streamUrl) {
-      // Update source if player already exists
+    }
+
+    // Update source if player exists
+    if (playerRef.current && streamUrl) {
       playerRef.current.src({
         src: streamUrl,
         type: "application/x-mpegURL",
       });
     }
 
-    // Error handling
-    if (playerRef.current) {
-      playerRef.current.on("error", () => {
-        const playerError = playerRef.current.error();
-        console.error("Video.js Error:", playerError);
+    // Cleanup on effect re-run (e.g. status/url change)
+    return () => {
+      // We don't necessarily want to dispose here if just the URL changed,
+      // but if the status changed to non-live, it's already handled above.
+    };
+  }, [status, streamUrl]);
 
-        // Auto-recovery for Decode Error (Code 3)
-        if (playerError && playerError.code === 3) {
-          console.log("Decoding error detected, attempting recovery...");
-          playerRef.current.dispose();
-          playerRef.current = null;
-          // Trigger a re-init via status/url change logic or by calling onRetry
-          setTimeout(() => {
-            if (onRetry) onRetry();
-          }, 1000);
-        }
-      });
-    }
-  }, [status, streamUrl, onRetry]);
-
-  // Dispose the player on unmount
+  // Force disposal on unmount
   useEffect(() => {
     return () => {
       if (playerRef.current) {
@@ -191,7 +190,8 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
         style={{ width: "100%", height: "100%", position: "relative" }}
         data-vjs-player
       >
-        {status === "live" && streamUrl ? (
+        {/* WE ALWAYS KEEP THE VIDEO TAG TO AVOID NODE MANIPULATION ERRORS */}
+        <div style={{ width: "100%", height: "100%", display: status === "live" ? "block" : "none" }}>
           <video
             ref={videoRef}
             className="video-js vjs-big-play-centered"
@@ -205,7 +205,9 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
               borderRadius: "12px",
             }}
           />
-        ) : (
+        </div>
+
+        {status !== "live" && (
           <div
             style={{
               width: "100%",
