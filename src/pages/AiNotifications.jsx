@@ -89,19 +89,32 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeChannel, setActiveChannel] = useState(2);
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
+  const [pagination, setPagination] = useState({
+    page: 1,
+    perPage: 20,
+    total: 0,
+    totalPages: 1,
+    hasNext: false,
+    hasPrev: false,
+  });
 
   // Live stream state: { [deviceId]: { url, channel, status: 'idle'|'loading'|'live'|'error', error } }
   const [liveStreams, setLiveStreams] = useState({});
   const activeStreamsRef = useRef({});
   const socketRef = useRef(null);
+  const paginationRef = useRef(pagination);
 
-  // Fetch initial AI events
-  const fetchInitialAlerts = async () => {
+  // Sync ref with state
+  useEffect(() => {
+    paginationRef.current = pagination;
+  }, [pagination]);
+
+  // Fetch AI events with pagination
+  const fetchAlerts = async (page = 1) => {
     try {
-      const data = await deviceApi.getAiEvents({ limit: 20 });
+      const data = await deviceApi.getAiEvents({ page, perPage: 20 });
       const formatted = (data.events || []).map((event) => {
         const date = new Date(event.event_time);
-        // Format as YYYY-MM-DD HH:mm:ss in local time
         const timeStr = date
           .toLocaleString("sv-SE", { timeZone: "UTC" })
           .replace("T", " ");
@@ -118,6 +131,9 @@ export default function AiNotifications({ theme, toggleTheme }) {
         };
       });
       setAlerts(formatted);
+      if (data.pagination) {
+        setPagination(data.pagination);
+      }
     } catch (err) {
       console.error("Failed to fetch AI events:", err);
     }
@@ -140,7 +156,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
   // Initialize Socket.io and fetch data
   useEffect(() => {
-    fetchInitialAlerts();
+    fetchAlerts(1);
     fetchDevices();
 
     const socket = io(WS_URL);
@@ -148,6 +164,9 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
     socketRef.current.on("ai_event", (event) => {
       console.log("Real-time AI event:", event);
+      // Only prepend if on first page
+      if (paginationRef.current.page !== 1) return;
+
       setAlerts((prev) => {
         const newAlert = {
           id: Date.now(),
@@ -161,7 +180,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
         };
         // Avoid adding if same alert arrived via polling/refresh?
         // For simplicity, just unshift
-        return [newAlert, ...prev].slice(0, 20);
+        return [newAlert, ...prev].slice(0, paginationRef.current.perPage);
       });
     });
 
@@ -304,6 +323,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
             <VideoPlayer
               key={i}
               i={i}
+              device={device}
               selectedDevice={selectedDevice}
               setSelectedDevice={setSelectedDevice}
               devices={devices}
@@ -439,7 +459,12 @@ export default function AiNotifications({ theme, toggleTheme }) {
               padding: "16px",
             }}
           >
-            <NotificationTable alerts={alerts} onOpenMedia={setSelectedMedia} />
+            <NotificationTable
+              alerts={alerts}
+              onOpenMedia={setSelectedMedia}
+              pagination={pagination}
+              onPageChange={fetchAlerts}
+            />
           </div>
         </main>
       </div>

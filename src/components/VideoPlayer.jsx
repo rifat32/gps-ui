@@ -15,91 +15,166 @@ import "video.js/dist/video-js.css";
 export default function VideoPlayer({ i, device, streamState, onRetry }) {
   const [kbps] = useState(() => 2500 + Math.floor(Math.random() * 1000));
   const [latency] = useState(() => (0.1 + Math.random() * 0.2).toFixed(2));
-  const videoRef = useRef(null);
+  
+  // Local states to handle actual player conditions independent of backend status
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [internalError, setInternalError] = useState(null);
+
+  const videoContainerRef = useRef(null);
   const playerRef = useRef(null);
+  const stallTimeoutRef = useRef(null);
 
   const streamUrl = streamState?.url;
-  const status = streamState?.status || "idle";
-  const error = streamState?.error;
+  const backendStatus = streamState?.status || "idle";
+  const backendError = streamState?.error;
+
+  // --- Diagnostic Logging ---
+  useEffect(() => {
+    if (device?.id) {
+      console.log(`[Device ${device.id}] Full Context Update:`, {
+        device,
+        streamState,
+        kbps,
+        latency,
+        timestamp: new Date().toLocaleTimeString()
+      });
+    }
+  }, [device, streamState, kbps, latency]);
+
+  // Determine what to show to the user
+  const displayError = internalError || backendError;
+  const isEffectivelyLoading = backendStatus === "loading" || isBuffering;
+
+  // --- Watchdog Timer for Stalled Streams ---
+  const clearWatchdog = () => {
+    if (stallTimeoutRef.current) {
+      clearTimeout(stallTimeoutRef.current);
+      stallTimeoutRef.current = null;
+    }
+  };
+
+  const startWatchdog = () => {
+    clearWatchdog();
+    // If stalled for 12 seconds, force a hard reconnect
+    stallTimeoutRef.current = setTimeout(() => {
+      console.warn(`[Device ${device?.id}] Stream stalled indefinitely. Forcing reconnect...`);
+      setInternalError("Stream stalled due to poor connectivity.");
+      if (onRetry) onRetry();
+    }, 12000);
+  };
 
   useEffect(() => {
-    // If we're not live or don't have a URL, dispose existing player
-    if (status !== "live" || !streamUrl) {
+    // Teardown if the backend says we are no longer live
+    if (backendStatus !== "live" || !streamUrl) {
       if (playerRef.current) {
         playerRef.current.dispose();
         playerRef.current = null;
+        setIsBuffering(false);
       }
       return;
     }
 
-    // Initialize player if not exists
-    if (!playerRef.current && videoRef.current) {
-      const player = (playerRef.current = videojs(
-        videoRef.current,
-        {
-          autoplay: true,
-          muted: true,
-          playsInline: true,
-          controls: true,
-          responsive: true,
-          fluid: true,
-          liveui: true,
-          html5: {
-            vhs: {
-              overrideNative: true,
-              fastQualityChange: true,
-              enableLowInitialPlaylist: true,
-              smoothQualityChange: true,
-              handlePartialData: true,
-              useDevicePixelRatio: true,
-              experimentalBufferBasedABR: true,
-            },
+    // Initialize player
+    if (!playerRef.current && videoContainerRef.current) {
+      setInternalError(null);
+      setIsBuffering(true);
+
+      // Dynamically create the video element so React doesn't lose track of the DOM
+      const videoElement = document.createElement("video-js");
+      videoElement.classList.add("vjs-big-play-centered");
+      videoElement.setAttribute("playsinline", "true");
+      videoContainerRef.current.appendChild(videoElement);
+
+      const player = (playerRef.current = videojs(videoElement, {
+        autoplay: true,
+        muted: true,
+        controls: true,
+        responsive: true,
+        fluid: true,
+        liveui: true,
+        // Crucial tuning for dashcam 4G/5G streams
+        html5: {
+          vhs: {
+            overrideNative: true,
+            fastQualityChange: true,
+            handlePartialData: true, // Don't crash on dropped packets
+            limitRenditionByPlayerDimensions: false,
+            GOAL_BUFFER_LENGTH: 5, // Keep buffer small for low latency
+            MAX_GOAL_BUFFER_LENGTH: 10,
           },
         },
-        () => {
-          console.log("Player is ready");
-        },
-      ));
+      }));
+
+      // --- Event Listeners for robust UI feedback ---
+      player.on("ready", () => {
+        player.src({ src: streamUrl, type: "application/x-mpegURL" });
+      });
+
+      player.on("playing", () => {
+        console.log(`[Device ${device?.id}] Event: playing`);
+        setIsBuffering(false);
+        clearWatchdog();
+      });
+
+      player.on("waiting", () => {
+        console.warn(`[Device ${device?.id}] Event: waiting (buffering)`);
+        setIsBuffering(true);
+        startWatchdog();
+      });
+
+      player.on("stalled", () => {
+        console.warn(`[Device ${device?.id}] Event: stalled`);
+        setIsBuffering(true);
+        startWatchdog();
+      });
+
+      player.on("suspend", () => {
+        console.warn(`[Device ${device?.id}] Event: suspend`);
+        setIsBuffering(true);
+        startWatchdog();
+      });
 
       player.on("error", () => {
-        const playerError = player.error();
-        console.error("Video.js Error:", playerError);
-
-        if (playerError && playerError.code === 3) {
-          console.log("Decoding error detected, attempting recovery...");
-          player.dispose();
-          playerRef.current = null;
+        clearWatchdog();
+        const errorObj = player.error();
+        console.error(`[Device ${device?.id}] CRITICAL Video.js Error:`, {
+          code: errorObj?.code,
+          message: errorObj?.message,
+          vhsError: player.vhs?.error,
+          responseTime: player.vhs?.stats?.lastResponseTime,
+          bandwidth: player.vhs?.systemBandwidth
+        });
+        
+        // Code 3 = MEDIA_ERR_DECODE, Code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED (usually 404/network drop)
+        if (errorObj && (errorObj.code === 3 || errorObj.code === 4)) {
+          setInternalError("Network interruption detected. Reconnecting...");
+          
+          // Auto-recover after a brief pause
           setTimeout(() => {
+            if (playerRef.current) {
+              playerRef.current.dispose();
+              playerRef.current = null;
+            }
             if (onRetry) onRetry();
-          }, 2000);
+          }, 3000);
+        } else {
+          setInternalError(errorObj?.message || "An unexpected playback error occurred.");
         }
       });
     }
 
-    // Update source if player exists
-    if (playerRef.current && streamUrl) {
-      playerRef.current.src({
-        src: streamUrl,
-        type: "application/x-mpegURL",
-      });
-    }
-
-    // Cleanup on effect re-run (e.g. status/url change)
+    // Cleanup on unmount or URL change
     return () => {
-      // We don't necessarily want to dispose here if just the URL changed,
-      // but if the status changed to non-live, it's already handled above.
-    };
-  }, [status, streamUrl]);
-
-  // Force disposal on unmount
-  useEffect(() => {
-    return () => {
+      clearWatchdog();
       if (playerRef.current) {
         playerRef.current.dispose();
         playerRef.current = null;
       }
+      if (videoContainerRef.current) {
+        videoContainerRef.current.innerHTML = "";
+      }
     };
-  }, []);
+  }, [backendStatus, streamUrl, device?.id]);
 
   return (
     <div
@@ -111,8 +186,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        border:
-          i === 0 ? "2px solid #3b82f6" : "1px solid var(--surface-border)",
+        border: i === 0 ? "2px solid #3b82f6" : "1px solid var(--surface-border)",
         boxShadow: i === 0 ? "0 0 20px rgba(59, 130, 246, 0.15)" : "none",
         overflow: "hidden",
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -120,7 +194,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
         minHeight: "200px",
       }}
     >
-      {/* Label Overlay */}
+      {/* Top Left Label Overlay */}
       <div
         style={{
           position: "absolute",
@@ -134,7 +208,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
           gap: "6px",
           fontSize: "11px",
           fontWeight: "700",
-          color: status === "live" ? "#3b82f6" : "#f8fafc",
+          color: backendStatus === "live" && !isBuffering ? "#3b82f6" : "#f8fafc",
           zIndex: 20,
           backdropFilter: "blur(8px)",
           border: "1px solid rgba(255,255,255,0.05)",
@@ -144,17 +218,21 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
           style={{
             width: 8,
             height: 8,
-            background: status === "live" ? "#3b82f6" : "#475569",
+            background: backendStatus === "live" && !isBuffering ? "#3b82f6" : "#475569",
             borderRadius: "50%",
-            animation: status === "live" ? "pulse 1.5s infinite" : "none",
+            animation: backendStatus === "live" && !isBuffering ? "pulse 1.5s infinite" : "none",
           }}
-        ></div>
-        {status === "live" ? "LIVE" : "STANDBY"} • CH{" "}
-        {String(streamState?.channel || 1).padStart(2, "0")}
+        />
+        {backendStatus === "live"
+          ? isBuffering
+            ? "BUFFERING"
+            : "LIVE"
+          : "STANDBY"}{" "}
+        • CH {String(streamState?.channel || 1).padStart(2, "0")}
       </div>
 
-      {/* Stats Overlay */}
-      {status === "live" && (
+      {/* Top Right Stats Overlay */}
+      {backendStatus === "live" && !isBuffering && !displayError && (
         <div
           style={{
             position: "absolute",
@@ -170,127 +248,96 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
             border: "1px solid rgba(255,255,255,0.05)",
           }}
         >
-          <div
-            style={{
-              color: "#22c55e",
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-          >
+          <div style={{ color: "#22c55e", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px" }}>
             <Zap size={10} /> {kbps} kbps
           </div>
           <div style={{ opacity: 0.8 }}>{latency}s latency</div>
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* Main Video Container */}
       <div
-        style={{ width: "100%", height: "100%", position: "relative" }}
-        data-vjs-player
-      >
-        {/* WE ALWAYS KEEP THE VIDEO TAG TO AVOID NODE MANIPULATION ERRORS */}
-        <div style={{ width: "100%", height: "100%", display: status === "live" ? "block" : "none" }}>
-          <video
-            ref={videoRef}
-            className="video-js vjs-big-play-centered"
-            muted
-            playsInline
-            preload="auto"
-            style={{
-              objectFit: "cover",
-              width: "100%",
-              height: "100%",
-              borderRadius: "12px",
-            }}
-          />
+        ref={videoContainerRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          display: backendStatus === "live" && !displayError ? "block" : "none",
+        }}
+      />
+
+      {/* Loading / Error / Standby Overlays */}
+      {(backendStatus !== "live" || displayError || isBuffering) && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(2, 6, 23, 0.8)",
+            backdropFilter: "blur(4px)",
+            gap: "12px",
+            zIndex: 10,
+          }}
+        >
+          {displayError ? (
+            <>
+              <AlertCircle size={40} color="#ef4444" />
+              <div style={{ fontSize: "13px", color: "#f8fafc", fontWeight: "600" }}>
+                Stream Disconnected
+              </div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", maxWidth: "240px", textAlign: "center" }}>
+                {displayError}
+              </div>
+              <button
+                onClick={() => {
+                  setInternalError(null);
+                  if (onRetry) onRetry();
+                }}
+                style={{
+                  marginTop: "8px",
+                  background: "#1e293b",
+                  border: "1px solid #334155",
+                  color: "white",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                }}
+              >
+                <RefreshCw size={14} /> Reconnect
+              </button>
+            </>
+          ) : isEffectivelyLoading ? (
+            <>
+              <Loader2
+                size={40}
+                style={{
+                  color: "#3b82f6",
+                  animation: "spin 1s linear infinite",
+                }}
+              />
+              <div style={{ fontSize: "13px", color: "#f8fafc", fontWeight: "600", marginTop: "8px" }}>
+                {isBuffering ? "Waiting for signal..." : "Establishing Connection..."}
+              </div>
+              {isBuffering && (
+                <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "center" }}>
+                  Poor network conditions detected.
+                </div>
+              )}
+            </>
+          ) : (
+            <Video size={80} color={i === 0 ? "#3b82f622" : "#47556922"} />
+          )}
         </div>
+      )}
 
-        {status !== "live" && (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "#020617",
-              gap: "12px",
-            }}
-          >
-            {status === "loading" ? (
-              <>
-                <Loader2
-                  size={40}
-                  className="animate-spin"
-                  style={{
-                    color: "#3b82f6",
-                    animation: "spin 1s linear infinite",
-                  }}
-                />
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#94a3b8",
-                    fontWeight: "600",
-                  }}
-                >
-                  Establishing Connection...
-                </div>
-              </>
-            ) : status === "error" ? (
-              <>
-                <AlertCircle size={40} color="#ef4444" />
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#f8fafc",
-                    fontWeight: "600",
-                  }}
-                >
-                  Connection Failed
-                </div>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: "#94a3b8",
-                    maxWidth: "200px",
-                    textAlign: "center",
-                  }}
-                >
-                  {error ||
-                    "Unknown error occurred while connecting to device."}
-                </div>
-                <button
-                  onClick={onRetry}
-                  style={{
-                    marginTop: "8px",
-                    background: "#1e293b",
-                    border: "1px solid #334155",
-                    color: "white",
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontSize: "12px",
-                    fontWeight: "600",
-                  }}
-                >
-                  <RefreshCw size={14} /> Retry
-                </button>
-              </>
-            ) : (
-              <Video size={80} color={i === 0 ? "#3b82f622" : "#47556922"} />
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Overlay Info (Bottom) */}
+      {/* Bottom Device Info Overlay */}
       <div
         style={{
           position: "absolute",
@@ -331,7 +378,8 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: "12px", color: "#94a3b8" }}>
-          <Signal size={16} />
+          {/* Visual indicator of stream health based on buffering state */}
+          <Signal size={16} color={isBuffering ? "#eab308" : "currentColor"} />
           <Wifi size={16} />
         </div>
       </div>

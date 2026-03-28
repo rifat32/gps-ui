@@ -303,6 +303,7 @@ export default function Dashcam({ theme, toggleTheme }) {
             <VideoPlayer
               key={i}
               i={i}
+              device={device}
               selectedDevice={selectedDevice}
               setSelectedDevice={setSelectedDevice}
               devices={devices}

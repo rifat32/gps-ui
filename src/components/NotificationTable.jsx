@@ -3,7 +3,7 @@ import { useState } from "react";
 
 const BASE_URL = "http://54.37.225.65:4020";
 
-export default function NotificationTable({ alerts, onOpenMedia }) {
+export default function NotificationTable({ alerts, onOpenMedia, pagination, onPageChange }) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
 
   const getProperUrl = (path) => {
@@ -72,7 +72,7 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
             fontWeight: "600",
           }}
         >
-          Total: {alerts.length}
+          Total: {pagination?.total || alerts.length}
         </span>
       </div>
 
@@ -288,6 +288,60 @@ export default function NotificationTable({ alerts, onOpenMedia }) {
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Footer */}
+      {pagination && pagination.totalPages > 1 && (
+        <div
+          style={{
+            padding: "12px 20px",
+            background: "var(--header-bg)",
+            borderTop: "1px solid var(--surface-border)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+            Page <strong>{pagination.page}</strong> of <strong>{pagination.totalPages}</strong>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              onClick={() => onPageChange(pagination.page - 1)}
+              disabled={!pagination.hasPrev}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                background: pagination.hasPrev ? "var(--btn-primary-bg)" : "var(--btn-disabled-bg)",
+                border: "1px solid var(--surface-border)",
+                color: pagination.hasPrev ? "var(--text-primary)" : "var(--text-disabled)",
+                cursor: pagination.hasPrev ? "pointer" : "not-allowed",
+                fontSize: "12px",
+                fontWeight: "600",
+                transition: "all 0.2s",
+              }}
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => onPageChange(pagination.page + 1)}
+              disabled={!pagination.hasNext}
+              style={{
+                padding: "6px 12px",
+                borderRadius: "6px",
+                background: pagination.hasNext ? "var(--btn-primary-bg)" : "var(--btn-disabled-bg)",
+                border: "1px solid var(--surface-border)",
+                color: pagination.hasNext ? "var(--text-primary)" : "var(--text-disabled)",
+                cursor: pagination.hasNext ? "pointer" : "not-allowed",
+                fontSize: "12px",
+                fontWeight: "600",
+                transition: "all 0.2s",
+              }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>
         {`
