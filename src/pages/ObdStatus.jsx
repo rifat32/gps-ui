@@ -120,7 +120,15 @@ function DeviceStatusCard({ device, theme }) {
         </div>
         <div style={{ fontSize: "10px", color: "#64748b", textAlign: "right" }}>
           Last seen:<br />
-          {new Date(device.last_seen).toLocaleTimeString()}
+          {device.last_seen ? (
+            isNaN(new Date(device.last_seen).getTime()) ? (
+              device.last_seen
+            ) : (
+              new Date(device.last_seen).toLocaleString()
+            )
+          ) : (
+            "Never"
+          )}
         </div>
       </div>
     </div>
