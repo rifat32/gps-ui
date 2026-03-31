@@ -7,6 +7,7 @@ import SavedVideos from "./pages/SavedVideos";
 import VideoSettings from "./pages/VideoSettings";
 import Layout from "./components/Layout";
 import AiNotifications from "./pages/AiNotifications";
+import Logs from "./pages/Logs";
 
 const RealTimeMap = lazy(() => import("./pages/RealTimeMap"));
 const ObdLive = lazy(() => import("./pages/ObdLive"));
@@ -50,6 +51,10 @@ function App() {
           <Route
             path="/video-settings"
             element={<VideoSettings theme={theme} toggleTheme={toggleTheme} />}
+          />
+          <Route
+            path="/logs"
+            element={<Logs theme={theme} toggleTheme={toggleTheme} />}
           />
           <Route
             path="/ai-notifications"

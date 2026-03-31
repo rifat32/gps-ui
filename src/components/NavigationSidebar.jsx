@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
+  FileText,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { path: "/obd-status", icon: LayoutDashboard, label: "OBD Status" },
   { path: "/saved-videos", icon: History, label: "Media Center" },
   { path: "/video-settings", icon: Settings, label: "Configuration" },
+  { path: "/logs", icon: FileText, label: "System Logs" },
 ];
 
 export default function NavigationSidebar({ theme, toggleTheme }) {
