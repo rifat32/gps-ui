@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { FileText, Calendar, HardDrive, RefreshCw, Download, Search } from "lucide-react";
+import "./Logs.css";
 
-// Assuming API_BASE_URL is handled via proxy or env, matching existing patterns
-const API_BASE = "/api";
+// Use environment variable for API base URL, fallback to localhost for development
+const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
+const API_BASE = `${API_BASE_URL}/api`;
 
 const Logs = ({ theme }) => {
-  const [dates, setDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
+  const [selectedService, setSelectedService] = useState("dashcam");
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState("");
   const [logContent, setLogContent] = useState("");
@@ -16,35 +17,26 @@ const Logs = ({ theme }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetchDates();
+    // Default to today's date
+    const today = new Date().toISOString().split("T")[0];
+    setSelectedDate(today);
+    fetchDevices(today, "dashcam");
   }, []);
 
-  const fetchDates = async () => {
+  const fetchDevices = async (date, service) => {
+    if (!date || !service) return;
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE}/logs/dates`);
-      if (response.data.success) {
-        setDates(response.data.dates);
-        if (response.data.dates.length > 0) {
-          // Auto-select latest date
-          // setSelectedDate(response.data.dates[0]);
-        }
-      }
-    } catch (err) {
-      setError("Failed to fetch log dates");
-    } finally {
-      setLoading(false);
-    }
-  };
+      setError("");
+      // Reset dependent state
+      setDevices([]);
+      setLogContent("");
+      setSelectedDevice("");
 
-  const fetchDevices = async (date) => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_BASE}/logs/dates/${date}/devices`);
-      if (response.data.success) {
-        setDevices(response.data.devices);
-        setLogContent("");
-        setSelectedDevice("");
+      const response = await fetch(`${API_BASE}/logs/dates/${date}/devices?service=${service}`);
+      const data = await response.json();
+      if (data.success) {
+        setDevices(data.devices);
       }
     } catch (err) {
       setError("Failed to fetch devices for this date");
@@ -53,12 +45,14 @@ const Logs = ({ theme }) => {
     }
   };
 
-  const fetchLogs = async (date, deviceId) => {
+  const fetchLogs = async (date, deviceId, service) => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE}/logs/dates/${date}/devices/${deviceId}`);
-      if (response.data.success) {
-        setLogContent(response.data.content);
+      setError("");
+      const response = await fetch(`${API_BASE}/logs/dates/${date}/devices/${deviceId}?service=${service}`);
+      const data = await response.json();
+      if (data.success) {
+        setLogContent(data.content);
       }
     } catch (err) {
       setError("Failed to fetch log content");
@@ -70,7 +64,7 @@ const Logs = ({ theme }) => {
   const handleDateChange = (e) => {
     const val = e.target.value;
     setSelectedDate(val);
-    if (val) fetchDevices(val);
+    if (val && selectedService) fetchDevices(val, selectedService);
     else {
       setDevices([]);
       setSelectedDevice("");
@@ -78,43 +72,48 @@ const Logs = ({ theme }) => {
     }
   };
 
+  const handleServiceChange = (e) => {
+    const val = e.target.value;
+    setSelectedService(val);
+    if (selectedDate && val) fetchDevices(selectedDate, val);
+  };
+
   const handleDeviceChange = (e) => {
     const val = e.target.value;
     setSelectedDevice(val);
-    if (val && selectedDate) fetchLogs(selectedDate, val);
+    if (val && selectedDate && selectedService) fetchLogs(selectedDate, val, selectedService);
     else setLogContent("");
   };
 
-  const filteredLogs = logContent
-    .split("\n")
-    .filter((line) => line.toLowerCase().includes(searchTerm.toLowerCase()))
-    .join("\n");
+  const filteredLines = logContent.split("\n").filter((line) => 
+    line.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const downloadLogs = () => {
     const blob = new Blob([logContent], { type: "text/plain" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `raw_logs_${selectedDate}_${selectedDevice}.log`;
+    a.download = `raw_logs_${selectedService}_${selectedDate}_${selectedDevice}.log`;
     a.click();
   };
 
   return (
-    <div className={`logs-page p-6 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+    <div className="logs-page">
+      <div className="logs-header">
+        <div className="logs-header-left">
+          <div className="logs-icon-wrapper">
             <FileText size={24} />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold">System Communication Logs</h1>
-            <p className="text-sm opacity-60">View raw hex data from connected devices</p>
+          <div className="logs-title">
+            <h1>System Communication Logs</h1>
+            <p>View raw hex data from connected devices</p>
           </div>
         </div>
         <button 
-          onClick={() => selectedDate && selectedDevice ? fetchLogs(selectedDate, selectedDevice) : fetchDates()}
+          onClick={() => selectedDate && selectedDevice ? fetchLogs(selectedDate, selectedDevice, selectedService) : (selectedDate && fetchDevices(selectedDate, selectedService))}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          className="refresh-btn"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -122,79 +121,70 @@ const Logs = ({ theme }) => {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg flex items-center gap-3">
+        <div className="error-toast">
           <span>{error}</span>
-          <button onClick={() => setError("")} className="ml-auto hover:opacity-70">✕</button>
+          <button onClick={() => setError("")} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>✕</button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Selectors */}
-        <div className={`p-5 rounded-xl border ${theme === "dark" ? "bg-gray-900/50 border-gray-800" : "bg-white border-gray-200"} shadow-sm`}>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider opacity-60 flex items-center gap-2">
-                <Calendar size={14} /> Select Log Date
-              </label>
-              <select 
+      <div className="logs-controls">
+        <div className="logs-card">
+          <div className="logs-row">
+            <div className="form-group flex-1">
+              <label><Calendar size={14} /> Log Date</label>
+              <input 
+                type="date" 
                 value={selectedDate} 
-                onChange={handleDateChange}
-                className={`w-full p-2.5 rounded-lg border outline-none transition-all ${
-                  theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
-                } focus:border-blue-500`}
-              >
-                <option value="">-- Select Date --</option>
-                {dates.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
+                onChange={handleDateChange} 
+                className="logs-input"
+              />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider opacity-60 flex items-center gap-2">
-                <HardDrive size={14} /> Select Device ID
-              </label>
+            <div className="form-group flex-1">
+              <label><RefreshCw size={14} /> Service Type</label>
               <select 
-                value={selectedDevice} 
-                onChange={handleDeviceChange}
-                disabled={!selectedDate}
-                className={`w-full p-2.5 rounded-lg border outline-none transition-all ${
-                  theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
-                } focus:border-blue-500 disabled:opacity-50`}
+                value={selectedService} 
+                onChange={handleServiceChange}
+                className="logs-select"
               >
-                <option value="">{selectedDate ? "-- Select Device --" : "-- Select a date first --"}</option>
-                {devices.map((dev) => (
-                  <option key={dev} value={dev}>{dev}</option>
-                ))}
+                <option value="dashcam">Dashcam Service</option>
+                <option value="j42">J42 Service</option>
+                <option value="obd">OBD Service</option>
               </select>
             </div>
           </div>
+
+          <div className="form-group">
+            <label><HardDrive size={14} /> Select Device ID</label>
+            <select 
+              value={selectedDevice} 
+              onChange={handleDeviceChange}
+              disabled={!selectedDate || !selectedService}
+              className="logs-select"
+            >
+              <option value="">{devices.length > 0 ? "-- Select Device --" : "-- No devices found --"}</option>
+              {devices.map((dev) => (
+                <option key={dev} value={dev}>{dev}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Search & Actions */}
-        <div className={`p-5 rounded-xl border ${theme === "dark" ? "bg-gray-900/50 border-gray-800" : "bg-white border-gray-200"} shadow-sm flex flex-col justify-between`}>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider opacity-60 flex items-center gap-2">
-              <Search size={14} /> Filter Output
-            </label>
+        <div className="logs-card">
+          <div className="form-group">
+            <label><Search size={14} /> Filter Output</label>
             <input 
               type="text" 
-              placeholder="Search in hex data or direction..." 
+              placeholder="Search in logs..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full p-2.5 rounded-lg border outline-none transition-all ${
-                theme === "dark" ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"
-              } focus:border-blue-500`}
+              className="logs-input"
             />
           </div>
           <button
             onClick={downloadLogs}
             disabled={!logContent}
-            className={`mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
-              logContent 
-                ? "bg-green-600/10 border-green-600/20 text-green-500 hover:bg-green-600/20" 
-                : "opacity-40 cursor-not-allowed border-gray-700"
-            }`}
+            className="download-btn"
           >
             <Download size={18} />
             Download Log File
@@ -202,19 +192,18 @@ const Logs = ({ theme }) => {
         </div>
       </div>
 
-      {/* Log Viewer */}
-      <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "bg-black/40 border-gray-800" : "bg-gray-50 border-gray-200"}`}>
-        <div className={`px-4 py-2 border-b flex items-center justify-between text-xs font-mono opacity-50 ${theme === "dark" ? "border-gray-800" : "border-gray-200"}`}>
+      <div className="logs-viewer-container">
+        <div className="logs-viewer-header">
           <span>raw_logs.log output</span>
           {selectedDevice && <span>Device: {selectedDevice}</span>}
         </div>
-        <div className="h-[500px] overflow-auto p-4 font-mono text-sm leading-relaxed">
+        <div className="logs-viewport">
           {logContent ? (
-            <pre className="whitespace-pre-wrap">
-              {filteredLogs || <span className="opacity-30 italic">No matches for current filter</span>}
+            <pre>
+              {filteredLines.length > 0 ? filteredLines.join("\n") : "No matches found for current filter"}
             </pre>
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-500 italic">
+            <div className="placeholder-text">
               {loading ? "Loading logs..." : "Select a date and device to view logs"}
             </div>
           )}

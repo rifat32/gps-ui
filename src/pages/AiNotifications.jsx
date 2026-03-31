@@ -175,6 +175,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           time: new Date().toLocaleString("sv-SE").replace("T", " "),
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
+          speed: event.speed,
+          event_code: event.code || event.event_code,
           file_path: event.file_path,
           video_path: event.video_path,
         };
