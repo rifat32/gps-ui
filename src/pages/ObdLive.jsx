@@ -87,9 +87,36 @@ export default function ObdLive({ theme }) {
   useEffect(() => {
     socketRef.current = io(OBD_WS_URL);
 
+    // Fetch initial state from the new "latest" API
+    const fetchInitialData = async () => {
+      try {
+        const response = await fetch(`${OBD_WS_URL}/api/logs/v1.0/${DEFAULT_DEVICE_ID}/latest`);
+        if (response.ok) {
+          const data = await response.json();
+          const lat = parseFloat(data.lat);
+          const lng = parseFloat(data.lon || data.lng);
+          
+          if (isFinite(lat) && isFinite(lng) && !(lat === 0 && lng === 0)) {
+            setDeviceData({ ...data, lat, lng });
+            // Don't set lastUpdateTime to Date.now() here, 
+            // the staleness monitor will naturally mark it offline 
+            // if it was more than 45s ago (compared to socket updates).
+            // Actually, we should check the timestamp from data
+            const pointTime = new Date(data.timestamp || data.time).getTime();
+            setLastUpdateTime(pointTime);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch initial OBD data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialData();
+
     socketRef.current.on("connect", () => {
       console.log("Connected to OBD Socket.io server");
-      setLoading(false);
       setIsOnline(true);
     });
 
