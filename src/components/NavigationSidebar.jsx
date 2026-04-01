@@ -12,20 +12,21 @@ import {
   ChevronRight,
   Bell,
   FileText,
+  Cpu,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
-  { path: "/", icon: MapIcon, label: "Live Map" },
+  { path: "/", icon: MapIcon, label: "Live Tracker" },
   { path: "/dashcam", icon: LayoutDashboard, label: "AI Dashcam" },
   { path: "/ai-notifications", icon: Bell, label: "AI Notifications" },
   { path: "/playback", icon: PlayCircle, label: "History Playback" },
   { path: "/obd-playback", icon: History, label: "OBD Playback" },
-  { path: "/obd-live", icon: MapIcon, label: "OBD Live" },
   { path: "/obd-status", icon: LayoutDashboard, label: "OBD Status" },
   { path: "/saved-videos", icon: History, label: "Media Center" },
   { path: "/video-settings", icon: Settings, label: "Configuration" },
+  { path: "/devices", icon: Cpu, label: "Device Management" },
   { path: "/logs", icon: FileText, label: "System Logs" },
 ];
 

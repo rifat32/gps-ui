@@ -90,8 +90,10 @@ function DeviceStatusCard({ device, theme }) {
     <div style={cardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
         <div>
-          <h3 style={{ fontSize: "1.125rem", fontWeight: "800", fontFamily: "monospace", margin: 0 }}>{device.vehicle_id}</h3>
-          <span style={{ fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>Device ID</span>
+          <h3 style={{ fontSize: "1.125rem", fontWeight: "800", margin: 0 }}>{device.name || device.vehicle_id}</h3>
+          <span style={{ fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {device.name ? device.vehicle_id : "Device ID"}
+          </span>
         </div>
         <div style={badgeStyle}>
           {isOnline ? <Signal size={14} /> : <WifiOff size={14} />}

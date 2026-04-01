@@ -34,16 +34,18 @@ const getPixelPositionOffset = (width, height) => ({
   y: -(height / 2),
 });
 
-export default function RealTimeMap() {
+export default function RealTimeMap({ deviceType = "DASHCAM" }) {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const mapRef = useRef(null);
   const socketRef = useRef(null);
+  const [error, setError] = useState(null);
 
   const fetchInitialPositions = async () => {
     try {
-      const response = await fetch(API_URL);
+      const urlWithFilter = `${API_URL}?type=${deviceType}`;
+      const response = await fetch(urlWithFilter);
       if (!response.ok) throw new Error("Failed to fetch initial data");
       const json = await response.json();
 
@@ -84,6 +86,8 @@ export default function RealTimeMap() {
   };
 
   useEffect(() => {
+    setLoading(true);
+    setVehicles([]);
     fetchInitialPositions();
 
     // Initialize Socket.io
@@ -134,7 +138,7 @@ export default function RealTimeMap() {
         socketRef.current.disconnect();
       }
     };
-  }, []);
+  }, [deviceType]);
 
   // Auto-center map on first load of vehicles
   useEffect(() => {
@@ -166,8 +170,8 @@ export default function RealTimeMap() {
       <div
         style={{
           position: "relative",
-          height: "100vh",
-          width: "100vw",
+          height: "100%",
+          width: "100%",
           backgroundColor: "#f8fafc", // Light gray background
           display: "flex",
           justifyContent: "center",

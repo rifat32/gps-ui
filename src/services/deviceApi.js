@@ -104,11 +104,50 @@ const deviceApi = {
     return response.json();
   },
 
-  getDevicesV2: async () => {
-    const response = await fetch(`${BASE_URL}/api/devices/v2`);
+  getDevicesV2: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const response = await fetch(`${BASE_URL}/api/devices/v2?${query}`);
     if (!response.ok) throw new Error("Failed to fetch devices V2");
     return response.json();
   },
+
+  createDevice: async (data) => {
+    const response = await fetch(`${BASE_URL}/api/devices`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to create device");
+    }
+    return response.json();
+  },
+
+  updateDevice: async (deviceId, data) => {
+    const response = await fetch(`${BASE_URL}/api/devices/${deviceId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to update device");
+    }
+    return response.json();
+  },
+
+  deleteDevice: async (deviceId) => {
+    const response = await fetch(`${BASE_URL}/api/devices/${deviceId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to delete device");
+    }
+    return response.json();
+  },
+
 };
 
 export default deviceApi;
