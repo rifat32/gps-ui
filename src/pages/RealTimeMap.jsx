@@ -57,10 +57,10 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
           if (lat === 0 && lng === 0) return null;
 
-          // Check if data is older than 5 minutes
+          // Check if data is older than 1 minute
           const gpsTime = new Date(v.gps_time);
           const now = new Date();
-          const isStale = (now - gpsTime) > 5 * 60 * 1000; // 5 minutes in ms
+          const isStale = (now - gpsTime) > 1 * 60 * 1000; // 1 minute in ms
 
           return {
             id: deviceId,
@@ -121,6 +121,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
           heading: Number(update.heading || 0),
           status: (Number(update.speed) || 0) > 0 ? "Moving" : "Stopped",
           timestamp: update.gpsTime,
+          lastUpdatedAt: Date.now(), // Track when we last got a live update
         };
 
         if (index !== -1) {
@@ -133,10 +134,26 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
       });
     });
 
+    // Periodically check if any vehicle has gone stale (no update in 1 minute)
+    const stalenessInterval = setInterval(() => {
+      const ONE_MINUTE = 1 * 60 * 1000;
+      setVehicles((prev) =>
+        prev.map((v) => {
+          const lastUpdate = v.lastUpdatedAt || new Date(v.timestamp).getTime();
+          const isStale = Date.now() - lastUpdate > ONE_MINUTE;
+          if (isStale && v.status !== "Offline") {
+            return { ...v, status: "Offline" };
+          }
+          return v;
+        })
+      );
+    }, 30000); // Check every 30 seconds
+
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
+      clearInterval(stalenessInterval);
     };
   }, [deviceType]);
 
