@@ -12,6 +12,7 @@ const Logs = lazy(() => import("./pages/Logs"));
 const DeviceManagement = lazy(() => import("./pages/DeviceManagement"));
 const ObdPlayback = lazy(() => import("./pages/ObdPlayback"));
 const ObdStatus = lazy(() => import("./pages/ObdStatus"));
+const MediaLogs = lazy(() => import("./pages/MediaLogs"));
 
 function App() {
   const [theme, setTheme] = useState(() => {
@@ -59,6 +60,10 @@ function App() {
             <Route
               path="/devices"
               element={<DeviceManagement theme={theme} toggleTheme={toggleTheme} />}
+            />
+            <Route
+              path="/media-logs"
+              element={<MediaLogs theme={theme} toggleTheme={toggleTheme} />}
             />
 
             <Route

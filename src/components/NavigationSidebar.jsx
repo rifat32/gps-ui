@@ -28,6 +28,7 @@ const NAV_ITEMS = [
   { path: "/video-settings", icon: Settings, label: "Configuration" },
   { path: "/devices", icon: Cpu, label: "Device Management" },
   { path: "/logs", icon: FileText, label: "System Logs" },
+  { path: "/media-logs", icon: FileText, label: "Media Logs" },
 ];
 
 export default function NavigationSidebar({ theme, toggleTheme }) {
