@@ -89,6 +89,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeChannel, setActiveChannel] = useState(2);
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
+  const [filterDeviceId, setFilterDeviceId] = useState(""); // For filtering the table
   const [pagination, setPagination] = useState({
     page: 1,
     perPage: 20,
@@ -103,16 +104,23 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const activeStreamsRef = useRef({});
   const socketRef = useRef(null);
   const paginationRef = useRef(pagination);
+  const filterDeviceIdRef = useRef(filterDeviceId);
 
-  // Sync ref with state
+  // Sync refs with state
   useEffect(() => {
     paginationRef.current = pagination;
   }, [pagination]);
 
-  // Fetch AI events with pagination
-  const fetchAlerts = async (page = 1) => {
+  useEffect(() => {
+    filterDeviceIdRef.current = filterDeviceId;
+  }, [filterDeviceId]);
+
+  // Fetch AI events with pagination and filter
+  const fetchAlerts = async (page = 1, deviceId = filterDeviceId) => {
     try {
-      const data = await deviceApi.getAiEvents({ page, perPage: 20 });
+      const params = { page, perPage: 20, type: "DASHCAM" };
+      if (deviceId) params.deviceId = deviceId;
+      const data = await deviceApi.getAiEvents(params);
       const formatted = (data.events || []).map((event) => {
         const date = new Date(event.event_time);
         const timeStr = date
@@ -143,8 +151,11 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const fetchDevices = async () => {
     try {
       const data = await deviceApi.getDevicesV2();
-      const activeDevices = data.data.filter((d) => d.status === "online");
-      const historicalDevices = data.data.filter((d) => d.status === "offline");
+      const allDevices = data.data || [];
+      const dashcamDevices = allDevices.filter(d => d.type === "DASHCAM");
+      
+      const activeDevices = dashcamDevices.filter((d) => d.status === "online");
+      const historicalDevices = dashcamDevices.filter((d) => d.status === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
       if (!selectedDevice && activeDevices.length > 0) {
         setSelectedDevice(activeDevices[0]);
@@ -166,6 +177,13 @@ export default function AiNotifications({ theme, toggleTheme }) {
       console.log("Real-time AI event:", event);
       // Only prepend if on first page
       if (paginationRef.current.page !== 1) return;
+
+      const eventDeviceId = event.deviceId || event.device_id;
+      // Respect filter if active
+      if (filterDeviceIdRef.current && eventDeviceId !== filterDeviceIdRef.current) {
+        console.log(`Skipping real-time event for ${eventDeviceId} due to filter ${filterDeviceIdRef.current}`);
+        return;
+      }
 
       setAlerts((prev) => {
         const newAlert = {
@@ -465,7 +483,13 @@ export default function AiNotifications({ theme, toggleTheme }) {
               alerts={alerts}
               onOpenMedia={setSelectedMedia}
               pagination={pagination}
-              onPageChange={fetchAlerts}
+              onPageChange={(page) => fetchAlerts(page)}
+              devices={[...devices.active, ...devices.historical]}
+              filterDeviceId={filterDeviceId}
+              onDeviceChange={(id) => {
+                setFilterDeviceId(id);
+                fetchAlerts(1, id);
+              }}
             />
           </div>
         </main>

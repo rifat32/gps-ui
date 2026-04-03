@@ -3,7 +3,15 @@ import { useState } from "react";
 
 const BASE_URL = "http://54.37.225.65:4020";
 
-export default function NotificationTable({ alerts, onOpenMedia, pagination, onPageChange }) {
+export default function NotificationTable({ 
+  alerts, 
+  onOpenMedia, 
+  pagination, 
+  onPageChange,
+  devices = [],
+  filterDeviceId = "",
+  onDeviceChange
+}) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
 
   const getProperUrl = (path) => {
@@ -52,18 +60,48 @@ export default function NotificationTable({ alerts, onOpenMedia, pagination, onP
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: "20px"
         }}
       >
-        <h3
-          style={{
-            margin: 0,
-            fontSize: "14px",
-            fontWeight: "700",
-            color: "var(--header-text)",
-          }}
-        >
-          AI Notifications
-        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: "14px",
+              fontWeight: "700",
+              color: "var(--header-text)",
+              whiteSpace: "nowrap"
+            }}
+          >
+            AI Notifications
+          </h3>
+
+          <select
+            value={filterDeviceId}
+            onChange={(e) => onDeviceChange && onDeviceChange(e.target.value)}
+            style={{
+              padding: "6px 12px",
+              borderRadius: "8px",
+              background: "var(--card-bg)",
+              border: "1px solid var(--surface-border)",
+              color: "var(--text-primary)",
+              fontSize: "12px",
+              fontWeight: "600",
+              outline: "none",
+              cursor: "pointer",
+              minWidth: "180px",
+              maxWidth: "250px"
+            }}
+          >
+            <option value="">-- All Dashcams --</option>
+            {devices.map(dev => (
+              <option key={dev.device_id || dev.id} value={dev.device_id || dev.id}>
+                {dev.device_id || dev.id} {dev.status === 'online' ? '(Online)' : '(Offline)'}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <span
           style={{
             fontSize: "11px",
