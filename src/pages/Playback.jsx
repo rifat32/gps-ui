@@ -20,6 +20,7 @@ import {
   Wind,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import "./Playback.css";
 
 // =========================================================================
 // 1. CONFIGURATION
@@ -235,18 +236,16 @@ export default function Playback({ theme }) {
 
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAP_API_KEY}>
-      <div className={`obd-page-wrapper obd-playback-container ${theme}`} style={{ backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
+      <div className={`obd-playback-container ${theme}`} style={{ backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
         
         {/* Sidebar */}
-        <div className="obd-sidebar" style={{
-            width: isSidebarOpen ? (window.innerWidth > 1024 ? "350px" : "100%") : "0",
+        <div className={`obd-sidebar ${isSidebarOpen ? "open" : ""}`} style={{
             backgroundColor: theme === "dark" ? "#1e293b" : "white",
             borderRight: "1px solid #e2e8f0",
             display: "flex",
             flexDirection: "column",
             boxShadow: "10px 0 15px -3px rgba(0,0,0,0.05)",
-            overflowX: "hidden",
-            transition: "width 0.3s ease"
+            overflowX: "hidden"
         }}>
             <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "24px", minWidth: "350px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "space-between" }}>
@@ -531,62 +530,50 @@ export default function Playback({ theme }) {
 
             {/* Playback Controls Overlay */}
             {points.length > 0 && (
-                <div style={{
-                    position: "absolute",
-                    bottom: "24px",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: "80%",
-                    maxWidth: "800px",
-                    padding: "16px 24px",
-                    borderRadius: "20px",
-                    backgroundColor: theme === "dark" ? "rgba(30, 41, 59, 0.95)" : "rgba(255, 255, 255, 0.95)",
-                    backdropFilter: "blur(10px)",
-                    boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
-                    zIndex: 50
+                <div className="playback-controls-overlay" style={{
+                    backgroundColor: theme === "dark" ? "rgba(30, 41, 59, 0.95)" : "rgba(255, 255, 255, 0.95)"
                 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                        <button 
-                            onClick={() => setIsPlaying(!isPlaying)}
-                            style={{
-                                width: "48px",
-                                height: "48px",
-                                borderRadius: "14px",
-                                backgroundColor: "#3b82f6",
-                                color: "white",
-                                border: "none",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                cursor: "pointer",
-                                transition: "all 0.2s"
-                            }}
-                        >
-                            {isPlaying ? <Pause size={24} /> : <Play size={24} />}
-                        </button>
+                    <div className="playback-main-row">
+                        <div className="control-btns" style={{ display: "flex", gap: "10px" }}>
+                            <button 
+                                onClick={() => setIsPlaying(!isPlaying)}
+                                style={{
+                                    width: "48px",
+                                    height: "48px",
+                                    borderRadius: "14px",
+                                    backgroundColor: "#3b82f6",
+                                    color: "white",
+                                    border: "none",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s"
+                                }}
+                            >
+                                {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+                            </button>
 
-                        <button 
-                            onClick={() => setCurrentIndex(0)}
-                            style={{
-                                width: "40px",
-                                height: "40px",
-                                borderRadius: "12px",
-                                backgroundColor: "transparent",
-                                color: "#64748b",
-                                border: "2px solid #e2e8f0",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                cursor: "pointer"
-                            }}
-                        >
-                            <RotateCcw size={20} />
-                        </button>
+                            <button 
+                                onClick={() => setCurrentIndex(0)}
+                                style={{
+                                    width: "40px",
+                                    height: "40px",
+                                    borderRadius: "12px",
+                                    backgroundColor: "transparent",
+                                    color: "#64748b",
+                                    border: "2px solid #e2e8f0",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer"
+                                }}
+                            >
+                                <RotateCcw size={20} />
+                            </button>
+                        </div>
 
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div className="progress-container" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
                             <input 
                                 type="range" 
                                 min="0" 
@@ -611,6 +598,7 @@ export default function Playback({ theme }) {
                         </div>
 
                         <select 
+                            className="speed-select"
                             value={playbackSpeed}
                             onChange={(e) => setPlaybackSpeed(parseInt(e.target.value))}
                             style={{
