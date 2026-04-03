@@ -13,6 +13,7 @@ import {
   Bell,
   FileText,
   Cpu,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { path: "/devices", icon: Cpu, label: "Device Management" },
   { path: "/logs", icon: FileText, label: "System Logs" },
   { path: "/media-logs", icon: FileText, label: "Media Logs" },
+  { path: "/media-gallery", icon: ImageIcon, label: "Media Gallery" },
 ];
 
 export default function NavigationSidebar({ theme, toggleTheme }) {
