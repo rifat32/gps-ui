@@ -1,7 +1,7 @@
 import { Image, PlaySquare, Copy, Check, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
-const BASE_URL = "http://54.37.225.65:4020";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function NotificationTable({ 
   alerts, 

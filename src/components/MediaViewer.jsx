@@ -4,7 +4,7 @@ export default function MediaViewer({ media, onClose }) {
   if (!media) return null;
 
   const isVideo = media.url.toLowerCase().endsWith(".mp4") || media.url.toLowerCase().endsWith(".avi");
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://54.37.225.65:4020";
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
   const fullUrl = media.url.startsWith("http") ? media.url : `${baseUrl}/${media.url}`;
 
   return (

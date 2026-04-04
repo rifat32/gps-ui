@@ -22,9 +22,11 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
 
   const videoContainerRef = useRef(null);
   const playerRef = useRef(null);
+  const pcRef = useRef(null);
   const stallTimeoutRef = useRef(null);
 
   const streamUrl = streamState?.url;
+  const webrtcUrl = streamState?.webrtcUrl;
   const backendStatus = streamState?.status || "idle";
   const backendError = streamState?.error;
 
@@ -45,7 +47,77 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
   const displayError = internalError || backendError;
   const isEffectivelyLoading = backendStatus === "loading" || isBuffering;
 
-  // --- Watchdog Timer for Stalled Streams ---
+  // --- WebRTC/WHEP Implementation ---
+  const startWebRTC = async (url, videoElement) => {
+    console.log(`[WebRTC] Starting connection to ${url}`);
+    
+    if (pcRef.current) pcRef.current.close();
+
+    const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
+    pcRef.current = pc;
+
+    pc.addTransceiver("video", { direction: "recvonly" });
+    pc.addTransceiver("audio", { direction: "recvonly" });
+
+    pc.ontrack = (event) => {
+        console.log(`[WebRTC] Received track:`, event.track.kind);
+        if (videoElement) {
+            // Use existing stream or create new one from track
+            const stream = event.streams[0] || new MediaStream([event.track]);
+            videoElement.srcObject = stream;
+            
+            // Ensure video starts playing
+            videoElement.play().catch(e => console.warn("[WebRTC] Play failed:", e));
+
+            // Sync watchdog with actual video playback
+            videoElement.onwaiting = () => { setIsBuffering(true); startWatchdog(); };
+            videoElement.onplaying = () => { setIsBuffering(false); clearWatchdog(); };
+        }
+        setIsBuffering(false);
+        setInternalError(null);
+        clearWatchdog(); // CRITICAL: Stop the disconnect watchdog!
+    };
+
+    pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === "failed") setInternalError("WebRTC connection failed.");
+    };
+
+    try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        const response = await fetch(url, {
+            method: "POST",
+            body: offer.sdp,
+            headers: { "Content-Type": "application/sdp" }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                 console.warn(`[WebRTC] Stream path not found (404), retrying in 2s...`);
+                 setTimeout(() => {
+                     if (pcRef.current === pc) startWebRTC(url, videoElement);
+                 }, 2000);
+                 return;
+            }
+            throw new Error(`WHEP HTTP error: ${response.status}`);
+        }
+        
+        const answerSdp = await response.text();
+        if (pcRef.current !== pc) return; // Cleanup check
+        await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+        console.log(`[WebRTC] Connected successfully`);
+        
+    } catch (err) {
+        if (pcRef.current !== pc) return;
+        console.error(`[WebRTC] Error:`, err);
+        setInternalError(`WebRTC Error: ${err.message}`);
+    }
+  };
+
+  // --- Watchdog / Reconnect Helpers ---
   const clearWatchdog = () => {
     if (stallTimeoutRef.current) {
       clearTimeout(stallTimeoutRef.current);
@@ -55,126 +127,73 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
 
   const startWatchdog = () => {
     clearWatchdog();
-    // If stalled for 12 seconds, force a hard reconnect
     stallTimeoutRef.current = setTimeout(() => {
-      console.warn(`[Device ${device?.id}] Stream stalled indefinitely. Forcing reconnect...`);
-      setInternalError("Stream stalled due to poor connectivity.");
+      console.warn(`[Device ${device?.id}] Stream stalled. Forcing reconnect...`);
+      setInternalError("Stream stalled. Retrying...");
       if (onRetry) onRetry();
-    }, 12000);
+    }, 30000);
   };
 
   useEffect(() => {
-    // Teardown if the backend says we are no longer live
-    if (backendStatus !== "live" || !streamUrl) {
+    // Teardown
+    if (backendStatus !== "live" || (!streamUrl && !webrtcUrl)) {
       if (playerRef.current) {
         playerRef.current.dispose();
         playerRef.current = null;
-        setIsBuffering(false);
       }
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+      setIsBuffering(false);
+      clearWatchdog();
       return;
     }
 
-    // Initialize player
-    if (!playerRef.current && videoContainerRef.current) {
+    if (videoContainerRef.current) {
       setInternalError(null);
       setIsBuffering(true);
+      videoContainerRef.current.innerHTML = "";
 
-      // Dynamically create the video element so React doesn't lose track of the DOM
-      const videoElement = document.createElement("video-js");
-      videoElement.classList.add("vjs-big-play-centered");
+      const videoElement = document.createElement("video");
+      videoElement.style.width = "100%";
+      videoElement.style.height = "100%";
+      videoElement.style.backgroundColor = "black";
       videoElement.setAttribute("playsinline", "true");
+      videoElement.setAttribute("autoplay", "true");
+      videoElement.muted = true;
       videoContainerRef.current.appendChild(videoElement);
 
-      const player = (playerRef.current = videojs(videoElement, {
-        autoplay: true,
-        muted: true,
-        controls: true,
-        responsive: true,
-        fluid: true,
-        liveui: true,
-        // Crucial tuning for dashcam 4G/5G streams
-        html5: {
-          vhs: {
-            overrideNative: true,
-            fastQualityChange: true,
-            handlePartialData: true, // Don't crash on dropped packets
-            limitRenditionByPlayerDimensions: false,
-            GOAL_BUFFER_LENGTH: 5, // Keep buffer small for low latency
-            MAX_GOAL_BUFFER_LENGTH: 10,
-          },
-        },
-      }));
-
-      // --- Event Listeners for robust UI feedback ---
-      player.on("ready", () => {
-        player.src({ src: streamUrl, type: "application/x-mpegURL" });
-      });
-
-      player.on("playing", () => {
-        console.log(`[Device ${device?.id}] Event: playing`);
-        setIsBuffering(false);
-        clearWatchdog();
-      });
-
-      player.on("waiting", () => {
-        console.warn(`[Device ${device?.id}] Event: waiting (buffering)`);
-        setIsBuffering(true);
-        startWatchdog();
-      });
-
-      player.on("stalled", () => {
-        console.warn(`[Device ${device?.id}] Event: stalled`);
-        setIsBuffering(true);
-        startWatchdog();
-      });
-
-      player.on("suspend", () => {
-        console.warn(`[Device ${device?.id}] Event: suspend`);
-        setIsBuffering(true);
-        startWatchdog();
-      });
-
-      player.on("error", () => {
-        clearWatchdog();
-        const errorObj = player.error();
-        console.error(`[Device ${device?.id}] CRITICAL Video.js Error:`, {
-          code: errorObj?.code,
-          message: errorObj?.message,
-          vhsError: player.vhs?.error,
-          responseTime: player.vhs?.stats?.lastResponseTime,
-          bandwidth: player.vhs?.systemBandwidth
-        });
-        
-        // Code 3 = MEDIA_ERR_DECODE, Code 4 = MEDIA_ERR_SRC_NOT_SUPPORTED (usually 404/network drop)
-        if (errorObj && (errorObj.code === 3 || errorObj.code === 4)) {
-          setInternalError("Network interruption detected. Reconnecting...");
+      if (webrtcUrl) {
+          startWebRTC(webrtcUrl, videoElement);
+          startWatchdog(); 
+      } else if (streamUrl) {
+          videoElement.classList.add("video-js", "vjs-big-play-centered");
+          const player = (playerRef.current = videojs(videoElement, {
+            autoplay: true, muted: true, controls: true, responsive: true, fluid: true, liveui: true,
+            html5: { vhs: { overrideNative: true, fastQualityChange: true, handlePartialData: true } }
+          }));
           
-          // Auto-recover after a brief pause
-          setTimeout(() => {
-            if (playerRef.current) {
-              playerRef.current.dispose();
-              playerRef.current = null;
-            }
-            if (onRetry) onRetry();
-          }, 3000);
-        } else {
-          setInternalError(errorObj?.message || "An unexpected playback error occurred.");
-        }
-      });
+          player.src({ src: streamUrl, type: "application/x-mpegURL" });
+          player.on("playing", () => { setIsBuffering(false); setInternalError(null); clearWatchdog(); });
+          player.on("waiting", () => { setIsBuffering(true); startWatchdog(); });
+          player.on("error", () => { setInternalError("HLS Playback Error"); clearWatchdog(); });
+          startWatchdog();
+      }
     }
 
-    // Cleanup on unmount or URL change
     return () => {
-      clearWatchdog();
-      if (playerRef.current) {
-        playerRef.current.dispose();
-        playerRef.current = null;
-      }
-      if (videoContainerRef.current) {
-        videoContainerRef.current.innerHTML = "";
-      }
+        clearWatchdog();
+        if (playerRef.current) {
+            playerRef.current.dispose();
+            playerRef.current = null;
+        }
+        if (pcRef.current) {
+            pcRef.current.close();
+            pcRef.current = null;
+        }
     };
-  }, [backendStatus, streamUrl, device?.id]);
+  }, [backendStatus, streamUrl, webrtcUrl]);
 
   return (
     <div

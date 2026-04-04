@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle, RefreshCw, ChevronDown, Activity, ShieldAlert } from "lucide-react";
 import "./VehicleHealth.css";
 
-const OBD_API = import.meta.env.VITE_OBD_API_URL || "http://54.37.225.65:4031";
+const OBD_API = import.meta.env.VITE_OBD_API_URL || "";
 
 const VehicleHealth = () => {
     const [devices, setDevices] = useState([]);

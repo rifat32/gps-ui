@@ -91,7 +91,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   const [activeChannel, setActiveChannel] = useState(2);
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
 
-  // Live stream state: { [deviceId]: { url, channel, status: 'idle'|'loading'|'live'|'error', error } }
+  // Live stream state: { [deviceId]: { url, webrtcUrl, channel, status: 'idle'|'loading'|'live'|'error', error } }
   const [liveStreams, setLiveStreams] = useState({});
   const activeStreamsRef = useRef({});
   const socketRef = useRef(null);
@@ -125,7 +125,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   // Fetch devices
   const fetchDevices = async () => {
     try {
-      const data = await deviceApi.getDevicesV2();
+      const data = await deviceApi.getDevicesV2({ type: 'DASHCAM' });
       const activeDevices = data.data.filter((d) => d.status === "online");
       const historicalDevices = data.data.filter((d) => d.status === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
@@ -198,21 +198,42 @@ export default function Dashcam({ theme, toggleTheme }) {
       );
     });
 
-    return () => {
-      if (socketRef.current) socketRef.current.disconnect();
-    };
-  }, []);
+      // Log incoming stream_ready events
+      socketRef.current.onAny((event, ...args) => {
+        if (event.startsWith('stream_ready_')) {
+          const { deviceId, channel, webrtcUrl } = args[0];
+          const key = `${deviceId}_ch${channel}`;
+          console.log(`📡 [Socket.io] Stream ready for ${key}:`, webrtcUrl);
+          
+          setLiveStreams((prev) => ({
+            ...prev,
+            [key]: { 
+              url: prev[key]?.url, // Keep HLS fallback if needed
+              webrtcUrl, 
+              channel, 
+              status: "live", 
+              error: null 
+            },
+          }));
+          activeStreamsRef.current[key] = "live";
+        }
+      });
+
+      return () => {
+        if (socketRef.current) socketRef.current.disconnect();
+      };
+    }, []);
 
   // Start live stream for a device
-  const startLiveStream = async (device, channel) => {
+  const startLiveStream = async (device, channel, force = false) => {
     const key = `${device.id}_ch${channel}`;
-    console.log({ key });
-    // Skip if already loading or live
-    if (
+    console.log({ key, force });
+    
+    // Skip if already loading or live (unless forced by retry)
+    if (!force && (
       activeStreamsRef.current[key] === "loading" ||
       activeStreamsRef.current[key] === "live"
-    )
-      return;
+    )) return;
 
     if (device.status !== "online") return;
 
@@ -223,14 +244,17 @@ export default function Dashcam({ theme, toggleTheme }) {
     }));
 
     try {
-      await deviceApi.startLive(device.id, channel);
-      const url = deviceApi.getLiveUrl(device.id, channel);
-      console.log({ url });
-      activeStreamsRef.current[key] = "live";
+      const response = await deviceApi.startLive(device.id, channel);
+      const hlsUrl = response.streamUrl;
+      const initialWebrtcUrl = response.webrtcUrl;
+      
+      console.log(`📡 [START_LIVE] API Response:`, response);
+
       setLiveStreams((prev) => ({
         ...prev,
-        [key]: { url, channel, status: "live", error: null },
+        [key]: { url: hlsUrl, webrtcUrl: initialWebrtcUrl, channel, status: "loading", error: null },
       }));
+
     } catch (err) {
       console.error(`Failed to start live stream for ${device.id}:`, err);
       activeStreamsRef.current[key] = "error";
@@ -238,6 +262,7 @@ export default function Dashcam({ theme, toggleTheme }) {
         ...prev,
         [key]: {
           url: null,
+          webrtcUrl: null,
           channel,
           status: "error",
           error: err.message || "Failed to start stream",
@@ -308,7 +333,7 @@ export default function Dashcam({ theme, toggleTheme }) {
               setSelectedDevice={setSelectedDevice}
               devices={devices}
               streamState={stream}
-              onRetry={() => device && startLiveStream(device, activeChannel)}
+              onRetry={() => device && startLiveStream(device, activeChannel, true)}
             />
           );
         })}
@@ -656,7 +681,7 @@ export default function Dashcam({ theme, toggleTheme }) {
                 dev={dev}
                 selectedDevice={selectedDevice}
                 setSelectedDevice={handleDeviceSelect}
-                streamStatus={liveStreams[`${dev.id}_ch1`]?.status || "idle"}
+                streamStatus={liveStreams[`${dev.id}_ch${activeChannel}`]?.status || "idle"}
               />
             ))}
           </div>

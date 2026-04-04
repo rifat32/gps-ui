@@ -1,4 +1,4 @@
-const BASE_URL = "http://54.37.225.65:4020";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 const deviceApi = {
   checkStatus: async () => {
@@ -42,8 +42,6 @@ const deviceApi = {
       deviceId,
       commandType: "START_LIVE",
       parameters: {
-        serverIP: "54.37.225.65",
-        port: 3377,
         channel,
       },
     });

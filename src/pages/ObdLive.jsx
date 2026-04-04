@@ -10,7 +10,7 @@ import { io } from "socket.io-client";
 
 // Configuration
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const OBD_WS_URL = "http://54.37.225.65:4031"; // Direct to OBD Server Port
+const OBD_WS_URL = import.meta.env.VITE_OBD_API_URL || ""; // Direct to OBD Server Port
 const DEFAULT_DEVICE_ID = "069252500651";
 
 const mapContainerStyle = { width: "100%", height: "100%" };

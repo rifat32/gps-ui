@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Activity, Battery, Gauge, Signal, WifiOff, Zap } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_OBD_API_URL || "http://54.37.225.65:4031";
+const API_BASE_URL = import.meta.env.VITE_OBD_API_URL || "";
 
 export default function ObdStatus({ theme }) {
   const [devices, setDevices] = useState([]);
