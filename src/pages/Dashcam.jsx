@@ -275,7 +275,8 @@ export default function Dashcam({ theme, toggleTheme }) {
 
     try {
       activeStreamsRef.current[key] = "loading";
-      const response = await deviceApi.startLive(device.id, channel);
+      const socketId = socketRef.current?.id;
+      const response = await deviceApi.startLive(device.id, channel, socketId);
       const hlsUrl = response.streamUrl;
       
       console.log(`📡 [START_LIVE] API Response:`, response);

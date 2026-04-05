@@ -37,12 +37,13 @@ const deviceApi = {
   },
 
   // Helper to start live stream
-  startLive: async (deviceId, channel = 1) => {
+  startLive: async (deviceId, channel = 1, socketId = null) => {
     return deviceApi.sendCommand({
       deviceId,
       commandType: "START_LIVE",
       parameters: {
         channel,
+        socketId,
       },
     });
   },
