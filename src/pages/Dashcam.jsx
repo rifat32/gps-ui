@@ -229,11 +229,9 @@ export default function Dashcam({ theme, toggleTheme }) {
     const key = `${device.id}_ch${channel}`;
     console.log({ key, force });
     
-    // Skip if already loading or live (unless forced by retry)
-    if (!force && (
-      activeStreamsRef.current[key] === "loading" ||
-      activeStreamsRef.current[key] === "live"
-    )) return;
+    // Allow retrying if 'loading' (stuck) or 'error'. 
+    // Only skip if already 'live' (and not forcing).
+    if (!force && activeStreamsRef.current[key] === "live") return;
 
     if (device.status !== "online") return;
 
