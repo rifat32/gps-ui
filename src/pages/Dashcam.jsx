@@ -88,7 +88,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isFilterOpen, setFilterOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("live");
-  const [activeChannel, setActiveChannel] = useState(2);
+  const [activeChannel, setActiveChannel] = useState(1);
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
 
   // Live stream state: { [deviceId]: { url, webrtcUrl, channel, status: 'idle'|'loading'|'live'|'error', error } }
