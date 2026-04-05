@@ -235,23 +235,36 @@ export default function Dashcam({ theme, toggleTheme }) {
 
     if (device.status !== "online") return;
 
-    activeStreamsRef.current[key] = "loading";
-    setLiveStreams((prev) => ({
-      ...prev,
-      [key]: { url: null, channel, status: "loading", error: null },
-    }));
+    // Clear all other channels for this device since the simulator/device 
+    // usually only supports one active stream at a time or we want a fresh start.
+    Object.keys(activeStreamsRef.current).forEach(k => {
+        if (k.startsWith(`${device.id}_ch`)) {
+            delete activeStreamsRef.current[k];
+        }
+    });
+
+    setLiveStreams((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach(k => {
+            if (k.startsWith(`${device.id}_ch`)) {
+                delete next[k];
+            }
+        });
+        next[key] = { url: null, webrtcUrl: null, channel, status: "loading", error: null };
+        return next;
+    });
 
     try {
+      activeStreamsRef.current[key] = "loading";
       const response = await deviceApi.startLive(device.id, channel);
       const hlsUrl = response.streamUrl;
-      const initialWebrtcUrl = response.webrtcUrl;
       
       console.log(`📡 [START_LIVE] API Response:`, response);
 
-      setLiveStreams((prev) => ({
-        ...prev,
-        [key]: { url: hlsUrl, webrtcUrl: initialWebrtcUrl, channel, status: "loading", error: null },
-      }));
+      setLiveStreams((prev) => (prev[key]?.status === "loading" ? {
+          ...prev,
+          [key]: { ...prev[key], url: hlsUrl, status: "loading" }
+      } : prev));
 
     } catch (err) {
       console.error(`Failed to start live stream for ${device.id}:`, err);

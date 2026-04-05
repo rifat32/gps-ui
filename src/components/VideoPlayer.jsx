@@ -48,10 +48,13 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
   const isEffectivelyLoading = backendStatus === "loading" || isBuffering;
 
   // --- WebRTC/WHEP Implementation ---
-  const startWebRTC = async (url, videoElement) => {
+  const startWebRTC = async (url, videoElement, signal) => {
+    if (signal?.aborted) return;
     console.log(`[WebRTC] Starting connection to ${url}`);
     
-    if (pcRef.current) pcRef.current.close();
+    if (pcRef.current) {
+        try { pcRef.current.close(); } catch (e) {}
+    }
 
     const pc = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -62,6 +65,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
     pc.addTransceiver("audio", { direction: "recvonly" });
 
     pc.ontrack = (event) => {
+        if (signal?.aborted) return;
         console.log(`[WebRTC] Received track:`, event.track.kind);
         if (videoElement) {
             // Use existing stream or create new one from track
@@ -135,18 +139,25 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
   };
 
   useEffect(() => {
-    // Teardown
+    const abortController = new AbortController();
+
+    // Teardown logic
+    const cleanup = () => {
+        abortController.abort();
+        clearWatchdog();
+        if (playerRef.current) {
+            playerRef.current.dispose();
+            playerRef.current = null;
+        }
+        if (pcRef.current) {
+            try { pcRef.current.close(); } catch (e) {}
+            pcRef.current = null;
+        }
+    };
+
     if (backendStatus !== "live" || (!streamUrl && !webrtcUrl)) {
-      if (playerRef.current) {
-        playerRef.current.dispose();
-        playerRef.current = null;
-      }
-      if (pcRef.current) {
-        pcRef.current.close();
-        pcRef.current = null;
-      }
+      cleanup();
       setIsBuffering(false);
-      clearWatchdog();
       return;
     }
 
@@ -165,7 +176,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
       videoContainerRef.current.appendChild(videoElement);
 
       if (webrtcUrl) {
-          startWebRTC(webrtcUrl, videoElement);
+          startWebRTC(webrtcUrl, videoElement, abortController.signal);
           startWatchdog(); 
       } else if (streamUrl) {
           videoElement.classList.add("video-js", "vjs-big-play-centered");
@@ -182,17 +193,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
       }
     }
 
-    return () => {
-        clearWatchdog();
-        if (playerRef.current) {
-            playerRef.current.dispose();
-            playerRef.current = null;
-        }
-        if (pcRef.current) {
-            pcRef.current.close();
-            pcRef.current = null;
-        }
-    };
+    return cleanup;
   }, [backendStatus, streamUrl, webrtcUrl]);
 
   return (
