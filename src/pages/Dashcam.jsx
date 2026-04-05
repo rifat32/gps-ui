@@ -94,6 +94,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   // Live stream state: { [deviceId]: { url, webrtcUrl, channel, status: 'idle'|'loading'|'live'|'error', error } }
   const [liveStreams, setLiveStreams] = useState({});
   const activeStreamsRef = useRef({});
+  const lastRequestTimesRef = useRef({}); // { [key]: timestamp }
   const socketRef = useRef(null);
 
   // Fetch initial AI events
@@ -201,20 +202,28 @@ export default function Dashcam({ theme, toggleTheme }) {
       // Log incoming stream_ready events
       socketRef.current.onAny((event, ...args) => {
         if (event.startsWith('stream_ready_')) {
-          const { deviceId, channel, webrtcUrl } = args[0];
+          const { deviceId, channel, webrtcUrl, hlsUrl } = args[0];
           const key = `${deviceId}_ch${channel}`;
-          console.log(`📡 [Socket.io] Stream ready for ${key}:`, webrtcUrl);
-          
-          setLiveStreams((prev) => ({
-            ...prev,
-            [key]: { 
-              url: prev[key]?.url, // Keep HLS fallback if needed
-              webrtcUrl, 
-              channel, 
-              status: "live", 
-              error: null 
-            },
-          }));
+
+          setLiveStreams((prev) => {
+            const existing = prev[key];
+            // Harden: Only update if not already live OR if URL changed
+            if (existing && existing.status === "live" && existing.webrtcUrl === webrtcUrl) {
+                return prev;
+            }
+            
+            console.log(`📡 [Socket.io] Stream ready for ${key}:`, webrtcUrl);
+            return {
+              ...prev,
+              [key]: { 
+                url: hlsUrl || (existing ? existing.url : "null"), 
+                webrtcUrl, 
+                channel, 
+                status: "live", 
+                error: null 
+              },
+            };
+          });
           activeStreamsRef.current[key] = "live";
         }
       });
@@ -227,6 +236,16 @@ export default function Dashcam({ theme, toggleTheme }) {
   // Start live stream for a device
   const startLiveStream = async (device, channel, force = false) => {
     const key = `${device.id}_ch${channel}`;
+    const now = Date.now();
+    const lastRequest = lastRequestTimesRef.current[key] || 0;
+    
+    // Debounce: ignore multiple requests for the same stream within 2 seconds
+    if (!force && now - lastRequest < 2000) {
+        console.log(`⏳ [START_LIVE] Debounced request for ${key}`);
+        return;
+    }
+    lastRequestTimesRef.current[key] = now;
+
     console.log({ key, force });
     
     // Allow retrying if 'loading' (stuck) or 'error'. 
