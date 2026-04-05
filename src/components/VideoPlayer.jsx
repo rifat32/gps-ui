@@ -364,13 +364,12 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
           bottom: 0,
           left: 0,
           right: 0,
-          background: "linear-gradient(transparent, rgba(2, 6, 23, 0.95))",
-          padding: "15px",
+          background: "linear-gradient(transparent, rgba(2, 6, 23, 0.3))",
+          padding: "15px 24px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           fontSize: "12px",
-          borderTop: "1px solid rgba(255,255,255,0.03)",
           zIndex: 20,
         }}
       >

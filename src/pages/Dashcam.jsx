@@ -81,7 +81,7 @@ const MOCK_RECORDINGS = [
 ];
 
 export default function Dashcam({ theme, toggleTheme }) {
-  const [gridSize, setGridSize] = useState(4); // Default 2x2
+  const [gridSize, setGridSize] = useState(1); // Default to one large camera
   const [alerts, setAlerts] = useState([]);
   const [devices, setDevices] = useState({ active: [], historical: [] });
   const [selectedDevice, setSelectedDevice] = useState(null);
@@ -345,9 +345,9 @@ export default function Dashcam({ theme, toggleTheme }) {
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-          gap: "12px",
+          gap: "0px",
           height: "100%",
-          padding: "12px",
+          padding: "0px",
           background: "var(--bg-color)",
         }}
       >
@@ -472,57 +472,7 @@ export default function Dashcam({ theme, toggleTheme }) {
           >
             {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-          <div
-            style={{
-              display: "flex",
-              background: "#1e293b",
-              borderRadius: "10px",
-              padding: "4px",
-            }}
-          >
-            <button
-              onClick={() => setGridSize(1)}
-              style={{
-                background: gridSize === 1 ? "#3b82f6" : "transparent",
-                border: "none",
-                color: gridSize === 1 ? "white" : "#64748b",
-                padding: "6px 14px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              <LayoutGrid size={18} />
-            </button>
-            <button
-              onClick={() => setGridSize(4)}
-              style={{
-                background: gridSize === 4 ? "#3b82f6" : "transparent",
-                border: "none",
-                color: gridSize === 4 ? "white" : "#64748b",
-                padding: "6px 14px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              <Grid2X2 size={18} />
-            </button>
-            <button
-              onClick={() => setGridSize(9)}
-              style={{
-                background: gridSize === 9 ? "#3b82f6" : "transparent",
-                border: "none",
-                color: gridSize === 9 ? "white" : "#64748b",
-                padding: "6px 14px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              <Grid3X3 size={18} />
-            </button>
-          </div>
+          {/* Grid selection removed to satisfy 'remove other boxes' request */}
 
           <div
             style={{
@@ -732,7 +682,6 @@ export default function Dashcam({ theme, toggleTheme }) {
             style={{
               flex: 1,
               overflow: "hidden",
-              paddingBottom: "20px",
             }}
           >
             {renderVideoGrid()}
