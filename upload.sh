@@ -6,7 +6,6 @@ set -e
 # Configuration
 REMOTE_USER="ubuntu"
 REMOTE_HOST="54.37.225.65"
-REMOTE_DIR="/home/ubuntu/gps-ui"
 LOCAL_DIR="."
 
 # Load .env file (for SERVER_PASSWORD, PORT, SERVICE_NAME)
@@ -20,9 +19,10 @@ fi
 # Set SSHPASS for sshpass tool
 export SSHPASS=$SERVER_PASSWORD
 
-# Set default PORT and SERVICE_NAME if not defined
-PORT=${PORT:-4173}
+# Set default PM2_PORT, SERVICE_NAME, and REMOTE_DIR if not defined
+PM2_PORT=${PM2_PORT:-4173}
 SERVICE_NAME=${SERVICE_NAME:-gps-ui}
+REMOTE_DIR=${REMOTE_DIR:-/home/ubuntu/gps-ui}
 
 echo "🔄 Syncing files to ${REMOTE_HOST}..."
 
@@ -44,7 +44,7 @@ sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && npm install &&
 
 echo "🔄 Starting UI service with PM2..."
 # Using 'vite preview' to serve the build on configured port
-sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run preview -- --host 0.0.0.0 --port ${PORT}' --name ${SERVICE_NAME}"
+sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run preview -- --host 0.0.0.0 --port ${PM2_PORT}' --name ${SERVICE_NAME}"
 
 echo "🚀 Deployment successful!"
-echo "🔗 UI should be accessible at: http://${REMOTE_HOST}:${PORT}"
+echo "🔗 UI should be accessible at: http://${REMOTE_HOST}:${PM2_PORT}"
