@@ -157,9 +157,10 @@ export default function AiNotifications({ theme, toggleTheme }) {
       const activeDevices = dashcamDevices.filter((d) => d.status === "online");
       const historicalDevices = dashcamDevices.filter((d) => d.status === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
-      if (!selectedDevice && activeDevices.length > 0) {
-        setSelectedDevice(activeDevices[0]);
-      }
+      // COMMENTED OUT: Stop "ghost" live stream requests on page load
+      // if (!selectedDevice && activeDevices.length > 0) {
+      //   setSelectedDevice(activeDevices[0]);
+      // }
     } catch (err) {
       console.error("Failed to fetch devices:", err);
     }
