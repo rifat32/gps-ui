@@ -15,6 +15,7 @@ const ObdStatus = lazy(() => import("./pages/ObdStatus"));
 const MediaLogs = lazy(() => import("./pages/MediaLogs"));
 const MediaGallery = lazy(() => import("./pages/MediaGallery"));
 const VehicleHealth = lazy(() => import("./pages/VehicleHealth"));
+const Pm2Logs = lazy(() => import("./pages/Pm2Logs"));
 
 function App() {
   const [theme, setTheme] = useState(() => {
@@ -74,6 +75,10 @@ function App() {
             <Route
               path="/vehicle-health"
               element={<VehicleHealth theme={theme} toggleTheme={toggleTheme} />}
+            />
+            <Route
+              path="/pm2-logs"
+              element={<Pm2Logs theme={theme} toggleTheme={toggleTheme} />}
             />
 
             <Route

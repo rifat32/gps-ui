@@ -15,6 +15,7 @@ import {
   Cpu,
   Image as ImageIcon,
   ShieldAlert,
+  Terminal,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { path: "/media-logs", icon: FileText, label: "Media Logs" },
   { path: "/media-gallery", icon: ImageIcon, label: "Media Gallery" },
   { path: "/vehicle-health", icon: ShieldAlert, label: "Vehicle Health" },
+  { path: "/pm2-logs", icon: Terminal, label: "Server Logs" },
 ];
 
 export default function NavigationSidebar({ theme, toggleTheme }) {
