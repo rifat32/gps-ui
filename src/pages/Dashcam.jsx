@@ -199,6 +199,19 @@ export default function Dashcam({ theme, toggleTheme }) {
       );
     });
 
+      // Re-register active streams on reconnect
+      socketRef.current.on("connect", () => {
+        console.log("🔌 [Socket.io] Connected/Reconnected. Syncing viewer state...");
+        Object.entries(activeStreamsRef.current).forEach(([key, status]) => {
+            if (status === "loading" || status === "live") {
+                const [deviceId, chPart] = key.split("_ch");
+                const channel = parseInt(chPart) || 1;
+                socketRef.current.emit("register_viewer", { deviceId, channel });
+                console.log(`📡 [Socket.io] Re-registered viewer for ${key}`);
+            }
+        });
+      });
+
       // Log incoming stream_ready events
       socketRef.current.onAny((event, ...args) => {
         if (event.startsWith('stream_ready_')) {
@@ -275,11 +288,29 @@ export default function Dashcam({ theme, toggleTheme }) {
 
     try {
       activeStreamsRef.current[key] = "loading";
-      const socketId = socketRef.current?.id;
+      
+      // ⏳ WAIT FOR SOCKET: Wait up to 3s for the socket to connect if it hasn't yet
+      let socket = socketRef.current;
+      if (socket && !socket.connected) {
+          console.log(`⏳ [START_LIVE] Socket connecting for ${key}...`);
+          await new Promise((resolve) => {
+              const timeout = setTimeout(resolve, 3000);
+              socket.once("connect", () => {
+                  clearTimeout(timeout);
+                  resolve();
+              });
+          });
+      }
+
+      if (!socket || !socket.connected) {
+          console.warn(`⚠️ [START_LIVE] Proceeding without stable socket for ${key}. Registration might fail.`);
+      }
+      
+      const socketId = socket?.id;
       const response = await deviceApi.startLive(device.id, channel, socketId);
       const hlsUrl = response.streamUrl;
       
-      console.log(`📡 [START_LIVE] API Response:`, response);
+      console.log(`📡 [START_LIVE] API Response (socketId: ${socketId}):`, response);
 
       setLiveStreams((prev) => (prev[key]?.status === "loading" ? {
           ...prev,
