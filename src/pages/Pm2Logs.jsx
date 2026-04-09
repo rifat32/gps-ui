@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FileText, Terminal, RefreshCw, Download, Search, AlertCircle, ChevronDown, Clock } from "lucide-react";
 import "./Logs.css";
 
@@ -17,6 +17,9 @@ const Pm2Logs = ({ theme }) => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(false);
+  
+  // Ref to track and cancel pending requests
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     fetchApps();
@@ -37,7 +40,19 @@ const Pm2Logs = ({ theme }) => {
     }
   };
 
+  // Immediate cleanup when app or type changes
   useEffect(() => {
+    // 1. Cancel any pending fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 2. Clear current view state to prevent stale data display
+    setLogContent("");
+    setMetadata(null);
+    setSelectedFile("");
+    setLogFiles([]);
+    
     if (selectedApp) {
       fetchLogFiles();
     }
@@ -55,8 +70,6 @@ const Pm2Logs = ({ theme }) => {
           setSelectedFile(current.name);
         } else if (data.files.length > 0) {
           setSelectedFile(data.files[0].name);
-        } else {
-          setSelectedFile("");
         }
       }
     } catch (err) {
@@ -67,16 +80,12 @@ const Pm2Logs = ({ theme }) => {
   useEffect(() => {
     if (selectedApp && selectedFile) {
       fetchLogs();
-    } else if (selectedApp && !selectedFile && logFiles.length === 0) {
-       // Only clear if we really have nothing
-       setLogContent("");
     }
   }, [selectedApp, logType, selectedFile]);
 
   useEffect(() => {
     let interval;
     if (autoRefresh && selectedApp && selectedFile) {
-      // Only auto-refresh "current" logs
       const current = logFiles.find(f => f.name === selectedFile && f.isCurrent);
       if (current) {
         interval = setInterval(fetchLogs, 5000);
@@ -86,12 +95,22 @@ const Pm2Logs = ({ theme }) => {
   }, [autoRefresh, selectedApp, logType, selectedFile, logFiles]);
 
   const fetchLogs = async () => {
+    // Cancel previous request if still running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       setLoading(true);
       setError("");
       const url = `${API_BASE}/logs/pm2/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
-      const response = await fetch(url);
+      
+      const response = await fetch(url, { signal: controller.signal });
       const data = await response.json();
+      
       if (data.success) {
         setLogContent(data.content);
         setMetadata({
@@ -105,31 +124,46 @@ const Pm2Logs = ({ theme }) => {
         setMetadata(null);
       }
     } catch (err) {
-      setError("Failed to connect to the server");
-      setLogContent("");
-      setMetadata(null);
+      if (err.name !== 'AbortError') {
+        setError("Failed to connect to the server");
+        setLogContent("");
+        setMetadata(null);
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
   const downloadLogs = () => {
-    // Navigate to download endpoint for true streaming download
     const url = `${API_BASE}/logs/pm2-download/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
     window.open(url, '_blank');
   };
 
   const formatSize = (bytes) => {
     if (bytes === 0) return '0 B';
+    if (bytes === undefined || bytes === null) return 'N/A';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const filteredLines = logContent.split("\n").filter((line) => 
-    line.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Improved sanitization for binary-heavy logs while preserving structure
+  const sanitizeForDisplay = (str) => {
+    if (!str) return "";
+    // Replace non-printable ASCII chars (except common whitespace) with placeholders 
+    // to avoid invisible lines or browser rendering issues with binary blobs
+    return str.replace(/[^\x20-\x7E\n\t]/g, (match) => {
+      if (match === "\r") return ""; // Normalize line endings
+      return ""; // Unicode replacement character for binary/invalid chars
+    });
+  };
+
+  const filteredLines = sanitizeForDisplay(logContent)
+    .split("\n")
+    .filter((line) => line.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="logs-page">
@@ -249,7 +283,7 @@ const Pm2Logs = ({ theme }) => {
                 {metadata.isTruncated && <span className="trunc-warn"> (Previewing last 10MB)</span>}
               </span>
             )}
-            {logContent && <span>Lines: {logContent.split('\n').length}</span>}
+            {logContent && <span>Lines: {filteredLines.length}</span>}
           </div>
         </div>
         <div className="logs-viewport dark-mode-viewer">
