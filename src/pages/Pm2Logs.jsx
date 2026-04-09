@@ -1,71 +1,130 @@
 import React, { useState, useEffect } from "react";
-import { FileText, Terminal, RefreshCw, Download, Search, AlertCircle, ChevronDown } from "lucide-react";
+import { FileText, Terminal, RefreshCw, Download, Search, AlertCircle, ChevronDown, Clock } from "lucide-react";
 import "./Logs.css";
 
 const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
 const API_BASE = `${API_BASE_URL}/api`;
 
 const Pm2Logs = ({ theme }) => {
-  const [selectedApp, setSelectedApp] = useState("fleet-management-backend-dashcam-server");
+  const [apps, setApps] = useState([]);
+  const [selectedApp, setSelectedApp] = useState("");
   const [logType, setLogType] = useState("out");
+  const [logFiles, setLogFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState("");
   const [logContent, setLogContent] = useState("");
+  const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const apps = [
-    { id: "fleet-management-backend-api-server", name: "API Server" },
-    { id: "fleet-management-backend-dashcam-server", name: "Dashcam Server" },
-    { id: "fleet-management-backend-dashcam-worker", name: "Dashcam Worker" },
-    { id: "fleet-management-backend-obd-server", name: "OBD Server" },
-    { id: "fleet-management-backend-obd-worker", name: "OBD Worker" },
-    { id: "fleet-management-backend-j42-server", name: "J42 Server" },
-    { id: "fleet-management-backend-j42-worker", name: "J42 Worker" },
-    { id: "fleet-management-backend-monitoring-server", name: "Monitoring Server" },
-    { id: "fleet-management-backend-worker-service", name: "Main Worker" },
-    { id: "gps-ui-v0", name: "GPS UI" },
-  ];
+  useEffect(() => {
+    fetchApps();
+  }, []);
+
+  const fetchApps = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/logs/pm2-list`);
+      const data = await response.json();
+      if (data.success) {
+        setApps(data.apps);
+        if (data.apps.length > 0 && !selectedApp) {
+          setSelectedApp(data.apps[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch apps", err);
+    }
+  };
 
   useEffect(() => {
-    fetchLogs();
+    if (selectedApp) {
+      fetchLogFiles();
+    }
   }, [selectedApp, logType]);
+
+  const fetchLogFiles = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/logs/pm2-files/${selectedApp}?type=${logType}`);
+      const data = await response.json();
+      if (data.success) {
+        setLogFiles(data.files);
+        // Find current log or default to first one
+        const current = data.files.find(f => f.isCurrent);
+        if (current) {
+          setSelectedFile(current.name);
+        } else if (data.files.length > 0) {
+          setSelectedFile(data.files[0].name);
+        } else {
+          setSelectedFile("");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch log files", err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedApp && selectedFile) {
+      fetchLogs();
+    } else if (selectedApp && !selectedFile && logFiles.length === 0) {
+       // Only clear if we really have nothing
+       setLogContent("");
+    }
+  }, [selectedApp, logType, selectedFile]);
 
   useEffect(() => {
     let interval;
-    if (autoRefresh) {
-      interval = setInterval(fetchLogs, 5000);
+    if (autoRefresh && selectedApp && selectedFile) {
+      // Only auto-refresh "current" logs
+      const current = logFiles.find(f => f.name === selectedFile && f.isCurrent);
+      if (current) {
+        interval = setInterval(fetchLogs, 5000);
+      }
     }
     return () => clearInterval(interval);
-  }, [autoRefresh, selectedApp, logType]);
+  }, [autoRefresh, selectedApp, logType, selectedFile, logFiles]);
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch(`${API_BASE}/logs/pm2/${selectedApp}?type=${logType}`);
+      const url = `${API_BASE}/logs/pm2/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
+      const response = await fetch(url);
       const data = await response.json();
       if (data.success) {
         setLogContent(data.content);
+        setMetadata({
+          fileSize: data.fileSize,
+          isTruncated: data.isTruncated,
+          fileName: data.fileName
+        });
       } else {
         setError(data.message || "Failed to fetch logs");
         setLogContent("");
+        setMetadata(null);
       }
     } catch (err) {
       setError("Failed to connect to the server");
       setLogContent("");
+      setMetadata(null);
     } finally {
       setLoading(false);
     }
   };
 
   const downloadLogs = () => {
-    const blob = new Blob([logContent], { type: "text/plain" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pm2_${selectedApp}_${logType}.log`;
-    a.click();
+    // Navigate to download endpoint for true streaming download
+    const url = `${API_BASE}/logs/pm2-download/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
+    window.open(url, '_blank');
+  };
+
+  const formatSize = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const filteredLines = logContent.split("\n").filter((line) => 
@@ -88,6 +147,7 @@ const Pm2Logs = ({ theme }) => {
           <button 
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`refresh-btn ${autoRefresh ? "active" : ""}`}
+            title="Only available for current (non-rotated) logs"
           >
             <RefreshCw size={18} className={autoRefresh || loading ? "animate-spin" : ""} />
             {autoRefresh ? "Auto-refresh On" : "Auto-refresh Off"}
@@ -138,6 +198,22 @@ const Pm2Logs = ({ theme }) => {
                 <option value="err">Error Log (err)</option>
               </select>
             </div>
+            
+            <div className="form-group flex-1">
+              <label><Clock size={14} /> Log Version</label>
+              <select 
+                value={selectedFile} 
+                onChange={(e) => setSelectedFile(e.target.value)}
+                className="logs-select"
+              >
+                {logFiles.map(file => (
+                  <option key={file.name} value={file.name}>
+                    {file.isCurrent ? "Current Log" : file.name} ({formatSize(file.size)})
+                  </option>
+                ))}
+                {logFiles.length === 0 && <option value="">No logs found</option>}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -158,15 +234,23 @@ const Pm2Logs = ({ theme }) => {
             className="download-btn"
           >
             <Download size={18} />
-            Download
+            Download Full Log
           </button>
         </div>
       </div>
 
       <div className="logs-viewer-container pm2-viewer">
         <div className="logs-viewer-header">
-          <span>{selectedApp} - {logType === 'out' ? 'standard output' : 'error log'}</span>
-          {logContent && <span>Lines: {logContent.split('\n').length}</span>}
+          <span>{selectedApp} - {metadata?.fileName || (logType === 'out' ? 'standard output' : 'error log')}</span>
+          <div className="viewer-meta">
+            {metadata && (
+              <span className="file-info">
+                Size: {formatSize(metadata.fileSize)}
+                {metadata.isTruncated && <span className="trunc-warn"> (Previewing last 10MB)</span>}
+              </span>
+            )}
+            {logContent && <span>Lines: {logContent.split('\n').length}</span>}
+          </div>
         </div>
         <div className="logs-viewport dark-mode-viewer">
           {logContent ? (
@@ -178,6 +262,12 @@ const Pm2Logs = ({ theme }) => {
               {loading ? "Loading logs..." : "No logs available for this application"}
             </div>
           )}
+        </div>
+        <div className="logs-viewer-footer">
+          <Terminal size={14} />
+          <span>System Status: {metadata?.isTruncated 
+            ? "Showing last 10MB. Download for full unmodified file." 
+            : `Showing full content of ${metadata?.fileName || "log"}.`}</span>
         </div>
       </div>
     </div>
