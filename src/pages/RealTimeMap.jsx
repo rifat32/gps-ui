@@ -44,7 +44,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
   const fetchInitialPositions = async () => {
     try {
-      const urlWithFilter = `${API_URL}?type=${deviceType}`;
+      const urlWithFilter = `${API_URL}?device_type=${deviceType}`;
       const response = await fetch(urlWithFilter);
       if (!response.ok) throw new Error("Failed to fetch initial data");
       const json = await response.json();

@@ -126,7 +126,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   // Fetch devices
   const fetchDevices = async () => {
     try {
-      const data = await deviceApi.getDevicesV2({ type: 'DASHCAM' });
+      const data = await deviceApi.getDevicesV2({ device_type: 'DASHCAM' });
       const activeDevices = data.data.filter((d) => d.status === "online");
       const historicalDevices = data.data.filter((d) => d.status === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });

@@ -26,7 +26,7 @@ const DeviceManagement = ({ theme }) => {
     deviceId: "",
     name: "",
     imei: "",
-    type: "DASHCAM",
+    device_type: "DASHCAM",
     model: ""
   });
 
@@ -57,7 +57,7 @@ const DeviceManagement = ({ theme }) => {
         deviceId: device.id,
         name: device.name || "",
         imei: device.imei || "",
-        type: device.type || "DASHCAM",
+        device_type: device.device_type || "DASHCAM",
         model: device.model || ""
       });
     } else {
@@ -66,7 +66,7 @@ const DeviceManagement = ({ theme }) => {
         deviceId: "",
         name: "",
         imei: "",
-        type: "DASHCAM",
+        device_type: "DASHCAM",
         model: ""
       });
     }
@@ -115,7 +115,7 @@ const DeviceManagement = ({ theme }) => {
       (device.name && device.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (device.imei && device.imei.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesType = filterType === "ALL" || device.type === filterType;
+    const matchesType = filterType === "ALL" || device.device_type === filterType;
     
     return matchesSearch && matchesType;
   });
@@ -179,7 +179,7 @@ const DeviceManagement = ({ theme }) => {
                   {device.status === "online" ? <CheckCircle size={12} /> : <XCircle size={12} />}
                   <span>{device.status}</span>
                 </div>
-                <div className="device-type-tag">{device.type}</div>
+                <div className="device-type-tag">{device.device_type}</div>
               </div>
               
               <div className="device-info">
@@ -258,7 +258,7 @@ const DeviceManagement = ({ theme }) => {
                 </div>
                 <div className="form-group">
                   <label>Device Type</label>
-                  <select name="type" value={formData.type} onChange={handleInputChange}>
+                  <select name="device_type" value={formData.device_type} onChange={handleInputChange}>
                     <option value="DASHCAM">Dashcam</option>
                     <option value="OBD">OBD Tracker</option>
                     <option value="J42">J42 Device</option>

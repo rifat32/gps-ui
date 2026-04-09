@@ -118,7 +118,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   // Fetch AI events with pagination and filter
   const fetchAlerts = async (page = 1, deviceId = filterDeviceId) => {
     try {
-      const params = { page, perPage: 20, type: "DASHCAM" };
+      const params = { page, perPage: 20, device_type: "DASHCAM" };
       if (deviceId) params.deviceId = deviceId;
       const data = await deviceApi.getAiEvents(params);
       const formatted = (data.events || []).map((event) => {
@@ -152,7 +152,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
     try {
       const data = await deviceApi.getDevicesV2();
       const allDevices = data.data || [];
-      const dashcamDevices = allDevices.filter(d => d.type === "DASHCAM");
+      const dashcamDevices = allDevices.filter(d => d.device_type === "DASHCAM");
       
       const activeDevices = dashcamDevices.filter((d) => d.status === "online");
       const historicalDevices = dashcamDevices.filter((d) => d.status === "offline");
