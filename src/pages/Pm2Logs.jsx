@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000
 const API_BASE = `${API_BASE_URL}/api`;
 
 const Pm2Logs = ({ theme }) => {
-  const [selectedApp, setSelectedApp] = useState("fleet-v0-dashcam-server");
+  const [selectedApp, setSelectedApp] = useState("fleet-management-backend-dashcam-server");
   const [logType, setLogType] = useState("out");
   const [logContent, setLogContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,12 +15,16 @@ const Pm2Logs = ({ theme }) => {
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   const apps = [
-    { id: "fleet-v0-dashcam-server", name: "Dashcam Server" },
-    { id: "fleet-v0-dashcam-worker", name: "Dashcam Worker" },
-    { id: "fleet-v0-obd-server", name: "OBD Server" },
-    { id: "fleet-v0-obd-worker", name: "OBD Worker" },
-    { id: "fleet-v0-j42-server", name: "J42 Server" },
-    { id: "fleet-v0-j42-worker", name: "J42 Worker" },
+    { id: "fleet-management-backend-api-server", name: "API Server" },
+    { id: "fleet-management-backend-dashcam-server", name: "Dashcam Server" },
+    { id: "fleet-management-backend-dashcam-worker", name: "Dashcam Worker" },
+    { id: "fleet-management-backend-obd-server", name: "OBD Server" },
+    { id: "fleet-management-backend-obd-worker", name: "OBD Worker" },
+    { id: "fleet-management-backend-j42-server", name: "J42 Server" },
+    { id: "fleet-management-backend-j42-worker", name: "J42 Worker" },
+    { id: "fleet-management-backend-monitoring-server", name: "Monitoring Server" },
+    { id: "fleet-management-backend-worker-service", name: "Main Worker" },
+    { id: "gps-ui-v0", name: "GPS UI" },
   ];
 
   useEffect(() => {
