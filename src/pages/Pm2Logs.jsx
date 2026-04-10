@@ -176,7 +176,7 @@ const Pm2Logs = ({ theme }) => {
     }
     
     // Limit displayed lines to prevent DOM bloat and browser crashes (last 2000 lines)
-    const MAX_DISPLAY_LINES = 2000;
+    const MAX_DISPLAY_LINES = 5000;
     const truncated = filtered.length > MAX_DISPLAY_LINES 
       ? filtered.slice(-MAX_DISPLAY_LINES) 
       : filtered;
