@@ -78,7 +78,7 @@ const Pm2Logs = ({ theme }) => {
   };
 
   useEffect(() => {
-    if (selectedApp && selectedFile) {
+    if (selectedApp && selectedFile && selectedFile.toLowerCase().startsWith(selectedApp.toLowerCase())) {
       fetchLogs();
     }
   }, [selectedApp, logType, selectedFile]);
@@ -161,9 +161,62 @@ const Pm2Logs = ({ theme }) => {
     });
   };
 
-  const filteredLines = sanitizeForDisplay(logContent)
-    .split("\n")
-    .filter((line) => line.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Memoized log processing to prevent UI thread blocking on every render
+  const { filteredLines, totalLines } = React.useMemo(() => {
+    if (!logContent) return { filteredLines: [], totalLines: 0 };
+    
+    const sanitized = sanitizeForDisplay(logContent);
+    const allLines = sanitized.split("\n");
+    const total = allLines.length;
+    
+    let filtered = allLines;
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      filtered = allLines.filter((line) => line.toLowerCase().includes(lowerSearch));
+    }
+    
+    // Limit displayed lines to prevent DOM bloat and browser crashes (last 2000 lines)
+    const MAX_DISPLAY_LINES = 2000;
+    const truncated = filtered.length > MAX_DISPLAY_LINES 
+      ? filtered.slice(-MAX_DISPLAY_LINES) 
+      : filtered;
+      
+    return { 
+      filteredLines: truncated, 
+      totalLines: filtered.length,
+      isShowingAll: filtered.length <= MAX_DISPLAY_LINES
+    };
+  }, [logContent, searchTerm]);
+
+  const clearLogs = async () => {
+    if (!selectedApp) return;
+    
+    const confirmClear = window.confirm(
+      `Are you sure you want to PERMANENTLY clear the ${logType} logs for ${selectedApp}? This cannot be undone.`
+    );
+    
+    if (!confirmClear) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/logs/pm2-clear/${selectedApp}?type=${logType}`, {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setLogContent("");
+        setMetadata(prev => prev ? { ...prev, fileSize: 0 } : null);
+        fetchLogs(); // Refresh view
+      } else {
+        setError(data.message || "Failed to clear logs");
+      }
+    } catch (err) {
+      setError("Failed to connect to the server for clearing logs");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="logs-page">
@@ -185,6 +238,15 @@ const Pm2Logs = ({ theme }) => {
           >
             <RefreshCw size={18} className={autoRefresh || loading ? "animate-spin" : ""} />
             {autoRefresh ? "Auto-refresh On" : "Auto-refresh Off"}
+          </button>
+          <button 
+            onClick={clearLogs}
+            disabled={loading || !logContent}
+            className="clear-btn"
+            title="Permanently truncate this log file"
+          >
+            <RefreshCw size={18} />
+            Clear Logs
           </button>
           <button 
             onClick={fetchLogs}
@@ -283,7 +345,7 @@ const Pm2Logs = ({ theme }) => {
                 {metadata.isTruncated && <span className="trunc-warn"> (Previewing last 10MB)</span>}
               </span>
             )}
-            {logContent && <span>Lines: {filteredLines.length}</span>}
+            {logContent && <span>Lines: {totalLines}{totalLines > filteredLines.length && ` (Showing last ${filteredLines.length})`}</span>}
           </div>
         </div>
         <div className="logs-viewport dark-mode-viewer">
