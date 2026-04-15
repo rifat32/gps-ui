@@ -11,6 +11,9 @@ export default function ObdStatus({ theme }) {
   const fetchStatuses = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1.0/devices/status`);
+      // const response = await fetch(
+      //   `${API_BASE_URL}/api/logs/v1.0/devices/status`,
+      // );
       if (!response.ok) throw new Error("Failed to fetch device statuses");
       const data = await response.json();
       setDevices(data.devices || []);
