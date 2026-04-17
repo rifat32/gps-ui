@@ -90,10 +90,10 @@ export default function Playback({ theme }) {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const response = await fetch(`${DASHCAM_API_BASE_URL}/api/devices/logs`);
+        const response = await fetch(`${DASHCAM_API_BASE_URL}/api/devices/logs?service=dashcam`);
         if (!response.ok) throw new Error("Failed to fetch devices");
         const data = await response.json();
-        setDeviceList(Array.isArray(data) ? data : (data.data || []));
+        setDeviceList(Array.isArray(data) ? data : (data.devices || data.data || []));
       } catch (err) {
         console.error("Device fetch error:", err);
       }
