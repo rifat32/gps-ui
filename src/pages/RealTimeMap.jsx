@@ -12,8 +12,10 @@ import { io } from "socket.io-client";
 
 // Configuration
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
-const WS_URL = import.meta.env.VITE_WS_URL;
+const API_URL_DASHCAM = `${import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
+const WS_URL_DASHCAM = import.meta.env.VITE_WS_URL;
+const API_URL_OBD = `${import.meta.env.VITE_OBD_API_URL}/api/live/gps`;
+const WS_URL_OBD = import.meta.env.VITE_OBD_API_URL;
 
 const mapContainerStyle = { width: "100%", height: "100vh" };
 const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
@@ -35,6 +37,9 @@ const getPixelPositionOffset = (width, height) => ({
 });
 
 export default function RealTimeMap({ deviceType = "DASHCAM" }) {
+  const currentApiUrl = deviceType === "OBD" ? API_URL_OBD : API_URL_DASHCAM;
+  const currentWsUrl = deviceType === "OBD" ? WS_URL_OBD : WS_URL_DASHCAM;
+
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +49,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
   const fetchInitialPositions = async () => {
     try {
-      const urlWithFilter = `${API_URL}?device_type=${deviceType}`;
+      const urlWithFilter = `${currentApiUrl}?device_type=${deviceType}`;
       const response = await fetch(urlWithFilter);
       if (!response.ok) throw new Error("Failed to fetch initial data");
       const json = await response.json();
@@ -91,7 +96,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
     fetchInitialPositions();
 
     // Initialize Socket.io
-    socketRef.current = io(WS_URL);
+    socketRef.current = io(currentWsUrl);
 
     socketRef.current.on("connect", () => {
       console.log("Connected to Socket.io server");

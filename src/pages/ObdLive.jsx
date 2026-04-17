@@ -11,7 +11,7 @@ import { io } from "socket.io-client";
 // Configuration
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
 const OBD_WS_URL = import.meta.env.VITE_OBD_API_URL || ""; // Direct to OBD Server Port
-const DEFAULT_DEVICE_ID = "069252500651";
+// Removed hardcoded DEFAULT_DEVICE_ID to make UI dynamic
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 const defaultCenter = { lat: 51.5074, lng: -0.1278 };
@@ -74,6 +74,7 @@ const VehicleMarker = ({ size = 48, status = "ONLINE", theme = "light" }) => {
 };
 
 export default function ObdLive({ theme }) {
+  const [activeDeviceId, setActiveDeviceId] = useState(null);
   const [deviceData, setDeviceData] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
@@ -87,21 +88,18 @@ export default function ObdLive({ theme }) {
   useEffect(() => {
     socketRef.current = io(OBD_WS_URL);
 
-    // Fetch initial state from the new "latest" API
-    const fetchInitialData = async () => {
+    // Fetch initial state only if we have a deviceId (or skip and wait for live)
+    const fetchInitialData = async (devId) => {
+      if (!devId) return;
       try {
-        const response = await fetch(`${OBD_WS_URL}/api/logs/v1.0/${DEFAULT_DEVICE_ID}/latest`);
+        const response = await fetch(`${OBD_WS_URL}/api/logs/v1.0/${devId}/latest`);
         if (response.ok) {
           const data = await response.json();
-          const lat = parseFloat(data.lat);
-          const lng = parseFloat(data.lon || data.lng);
+          const lat = parseFloat(data.lat || data.latitude);
+          const lng = parseFloat(data.lon || data.lng || data.longitude);
           
           if (isFinite(lat) && isFinite(lng) && !(lat === 0 && lng === 0)) {
             setDeviceData({ ...data, lat, lng });
-            // Don't set lastUpdateTime to Date.now() here, 
-            // the staleness monitor will naturally mark it offline 
-            // if it was more than 45s ago (compared to socket updates).
-            // Actually, we should check the timestamp from data
             const pointTime = new Date(data.timestamp || data.time).getTime();
             setLastUpdateTime(pointTime);
           }
@@ -116,42 +114,68 @@ export default function ObdLive({ theme }) {
     fetchInitialData();
 
     socketRef.current.on("connect", () => {
-      console.log("Connected to OBD Socket.io server");
+      console.log("Connected to OBD Socket.io server - Version 1.1 (Dynamic)");
       setIsOnline(true);
+      if (activeDeviceId) {
+        socketRef.current.emit("join:device", activeDeviceId);
+      }
     });
 
     socketRef.current.on("disconnect", () => {
+      console.log("Disconnected from OBD Socket.io server");
       setIsOnline(false);
     });
 
-    socketRef.current.on(`live-location-${DEFAULT_DEVICE_ID}`, (data) => {
-      console.log("Received OBD Live Update:", data);
-      
-      const lat = parseFloat(data.lat);
-      const lng = parseFloat(data.lon || data.lng);
+    // Listen to universal gps_update (global) and specific telemetry events
+    const handleUpdate = (data) => {
+      const devId = data.deviceId || data.device_id;
+      if (!devId) return;
 
-      // Robust Validation: Skip if not a valid number or out of bounds
-      if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) {
-        console.warn("Discarding invalid coordinates:", { lat, lng });
+      // If we don't have a focus device yet, lock onto the first one that moves
+      if (!activeDeviceId) {
+          console.log("🔍 Auto-selecting first active device:", devId);
+          setActiveDeviceId(devId);
+          socketRef.current.emit("join:device", devId);
+          fetchInitialData(devId);
+      } else if (devId !== activeDeviceId) {
+          return;
+      }
+
+      const lat = parseFloat(data.lat || data.latitude);
+      const lng = parseFloat(data.lon || data.lng || data.longitude);
+
+      if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
         return;
       }
 
-      // Map 'lon' to 'lng' for internal consistency
-      const validatedData = {
+      // Ignore 0,0 early GPS jumps
+      if (lat === 0 && lng === 0) return;
+
+      console.log(`📍 Received update for ${devId}:`, { lat, lng, speed: data.speed });
+
+      setDeviceData({
         ...data,
         lat,
-        lng
-      };
-
-      setDeviceData(validatedData);
+        lng,
+        vehicleCondition: data.vehicleCondition || data.obd || {}
+      });
       setLastUpdateTime(Date.now());
       setIsOnline(true);
-    });
+      setLoading(false);
+    };
+
+    socketRef.current.on("gps_update", handleUpdate);
+    socketRef.current.on("telemetry", handleUpdate);
+    
+    // Legacy support
+    if (activeDeviceId) {
+        socketRef.current.on(`live-location-${activeDeviceId}`, handleUpdate);
+    }
 
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
     };
-  }, []);
+  }, [activeDeviceId]);
 
   // Monitor for staleness (e.g. if we don't get data for 45s, consider it offline)
   useEffect(() => {
@@ -290,8 +314,8 @@ export default function ObdLive({ theme }) {
                                 onCloseClick={() => setSelected(false)}
                             >
                                 <div style={{ padding: "5px" }}>
-                                    <strong>Device ID:</strong> {DEFAULT_DEVICE_ID}<br/>
-                                    <strong>Speed:</strong> {Math.round(deviceData.speed * 0.621371)} mph
+                                    <strong>Device ID:</strong> {activeDeviceId}<br/>
+                                    <strong>Speed:</strong> {Math.round((deviceData.speed || 0) * 0.621371)} mph
                                 </div>
                             </InfoWindow>
                         )}
