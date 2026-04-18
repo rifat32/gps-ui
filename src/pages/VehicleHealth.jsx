@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AlertTriangle, CheckCircle, RefreshCw, ChevronDown, Activity, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CheckCircle, RefreshCw, ChevronDown, Activity, ShieldAlert, Search } from "lucide-react";
 import "./VehicleHealth.css";
 
 const OBD_API = import.meta.env.VITE_OBD_API_URL || "";
@@ -11,9 +11,20 @@ const VehicleHealth = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     useEffect(() => {
         fetchDevices();
+        
+        // Close dropdown when clicking outside
+        const handleClickOutside = (event) => {
+            if (!event.target.closest(".vh-custom-select")) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     const fetchDevices = async () => {
@@ -48,16 +59,21 @@ const VehicleHealth = () => {
         }
     };
 
-    const handleDeviceChange = (e) => {
-        const val = e.target.value;
-        setSelectedDevice(val);
-        fetchFaults(val, statusFilter);
+    const handleDeviceSelect = (deviceId) => {
+        setSelectedDevice(deviceId);
+        setIsDropdownOpen(false);
+        setSearchTerm("");
+        fetchFaults(deviceId, statusFilter);
     };
 
     const handleStatusFilter = (val) => {
         setStatusFilter(val);
         fetchFaults(selectedDevice, val);
     };
+
+    const filteredDevices = devices.filter(d => 
+        d.device_id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
 
@@ -91,14 +107,47 @@ const VehicleHealth = () => {
             <div className="vh-controls">
                 <div className="vh-control-group">
                     <label>OBD Device</label>
-                    <div className="vh-select-wrap">
-                        <select value={selectedDevice} onChange={handleDeviceChange}>
-                            <option value="">-- Select Device --</option>
-                            {devices.map(d => (
-                                <option key={d} value={d}>{d}</option>
-                            ))}
-                        </select>
-                        <ChevronDown size={16} className="select-arrow" />
+                    <div className="vh-custom-select">
+                        <div 
+                            className={`vh-select-trigger ${isDropdownOpen ? "open" : ""}`}
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        >
+                            <Activity size={16} className="trigger-icon" />
+                            <span>{selectedDevice || "-- Select Device --"}</span>
+                            <ChevronDown size={16} className={`chevron ${isDropdownOpen ? "rotated" : ""}`} />
+                        </div>
+
+                        {isDropdownOpen && (
+                            <div className="vh-dropdown-menu">
+                                <div className="vh-dropdown-search">
+                                    <Search size={14} className="search-icon" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search Device..." 
+                                        autoFocus
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                </div>
+                                <div className="vh-options-list">
+                                    {filteredDevices.length > 0 ? (
+                                        filteredDevices.map(d => (
+                                            <div 
+                                                key={d.device_id}
+                                                className={`vh-option ${selectedDevice === d.device_id ? "selected" : ""}`}
+                                                onClick={() => handleDeviceSelect(d.device_id)}
+                                            >
+                                                <CheckCircle size={14} className="check-icon" />
+                                                {d.device_id}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="vh-no-options">No devices found</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -162,7 +211,10 @@ const VehicleHealth = () => {
                         <thead>
                             <tr>
                                 <th>Fault Code</th>
+                                <th>Category</th>
                                 <th>Description</th>
+                                <th>Severity</th>
+                                <th>Priority</th>
                                 <th>Status</th>
                                 <th>Detected At</th>
                             </tr>
@@ -175,7 +227,21 @@ const VehicleHealth = () => {
                                             {fault.fault_code}
                                         </span>
                                     </td>
-                                    <td className="fault-desc">{fault.description}</td>
+                                    <td className="fault-cat">{fault.category || "General"}</td>
+                                    <td className="fault-desc">
+                                        {fault.description}
+                                        {!fault.drivable && <span className="drivable-warning">⚠️ Non-Drivable</span>}
+                                    </td>
+                                    <td>
+                                        <span className={`severity-badge sev-${(fault.severity || "medium").toLowerCase()}`}>
+                                            {fault.severity || "Medium"}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className={`priority-badge prio-${(fault.priority || "none").toLowerCase()}`}>
+                                            {fault.priority || "None"}
+                                        </span>
+                                    </td>
                                     <td>
                                         <span className={`status-badge ${fault.status === "ACTIVE" ? "status-active" : "status-cleared"}`}>
                                             {fault.status === "ACTIVE" ? <AlertTriangle size={12} /> : <CheckCircle size={12} />}
