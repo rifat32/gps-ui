@@ -44,7 +44,7 @@ sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && npm install &&
 
 echo "🔄 Starting UI service with PM2..."
 # Using 'vite preview' to serve the build on configured port
-sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run preview -- --host 0.0.0.0 --port ${PM2_PORT}' --name ${SERVICE_NAME}"
+sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run serve -- -l ${PM2_PORT}' --name ${SERVICE_NAME}"
 
 echo "🚀 Deployment successful!"
 echo "🔗 UI should be accessible at: http://${REMOTE_HOST}:${PM2_PORT}"

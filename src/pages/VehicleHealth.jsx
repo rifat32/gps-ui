@@ -216,7 +216,8 @@ const VehicleHealth = () => {
                                 <th>Severity</th>
                                 <th>Priority</th>
                                 <th>Status</th>
-                                <th>Detected At</th>
+                                <th>First Occurred</th>
+                                <th>Last Active</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -248,7 +249,10 @@ const VehicleHealth = () => {
                                             {fault.status}
                                         </span>
                                     </td>
-                                    <td className="fault-date">{formatDate(fault.detected_at)}</td>
+                                    <td className="fault-date">{formatDate(fault.first_occurrence)}</td>
+                                    <td className="fault-date">
+                                        {fault.last_occurrence ? formatDate(fault.last_occurrence) : "--"}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
