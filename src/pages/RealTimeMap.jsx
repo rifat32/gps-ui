@@ -164,6 +164,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
   // Auto-center map on first load of vehicles
   useEffect(() => {
+    console.log(`📊 Total vehicles in state: ${vehicles.length}`, vehicles);
     if (vehicles.length > 0 && mapRef.current && window.google) {
       const bounds = new window.google.maps.LatLngBounds();
       let hasValidCoords = false;
@@ -245,46 +246,21 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
             }}
           >
             {vehicles.map((vehicle) => (
-              <Fragment key={vehicle.id}>
-                <OverlayView
-                  position={{ lat: vehicle.lat, lng: vehicle.lng }}
-                  mapPaneName="overlayMouseTarget"
-                  getPixelPositionOffset={() => getPixelPositionOffset(44, 44)}
-                >
-                    <div
-                      style={{
-                        transform: `rotate(${vehicle.heading}deg)`,
-                        width: "44px",
-                        height: "44px",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "all 0.5s ease-out",
-                        position: "relative"
-                      }}
-                      onClick={() => setSelectedVehicle(vehicle)}
-                    >
-                      <VehicleMarker size={44} status={vehicle.status === "Offline" ? "OFFLINE" : "ONLINE"} />
-                      {vehicle.status === "Offline" && (
-                        <div style={{
-                          position: "absolute",
-                          top: -5,
-                          right: -10,
-                          backgroundColor: "#f1f5f9",
-                          border: "1px solid #e2e8f0",
-                          borderRadius: "4px",
-                          padding: "1px 4px",
-                          fontSize: "9px",
-                          fontWeight: "800",
-                          color: "#64748b",
-                          whiteSpace: "nowrap",
-                          zIndex: 10
-                        }}>OFFLINE</div>
-                      )}
-                    </div>
-                </OverlayView>
-              </Fragment>
+              <Marker
+                key={vehicle.id}
+                position={{ lat: vehicle.lat, lng: vehicle.lng }}
+                onClick={() => setSelectedVehicle(vehicle)}
+                icon={window.google ? {
+                  path: "M50 5 L15 85 L50 70 L85 85 Z",
+                  fillColor: vehicle.status === "Offline" ? "#94a3b8" : "#3b82f6",
+                  fillOpacity: 1,
+                  strokeColor: "white",
+                  strokeWeight: 2,
+                  scale: 0.4,
+                  rotation: vehicle.heading || 0,
+                  anchor: new window.google.maps.Point(50, 50),
+                } : null}
+              />
             ))}
 
             {selectedVehicle && (
