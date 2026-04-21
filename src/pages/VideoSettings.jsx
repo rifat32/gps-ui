@@ -93,6 +93,20 @@ export default function VideoSettings({ theme }) {
             geofenceId: 0,
             overtime: 0,
             aiCustomMappings: {}
+        },
+        ai: {
+            adas: {
+                fcw: { enable: true, sensitivity: 2, timeThreshold: 24, speedThreshold: 30 },
+                ldw: { enable: true, sensitivity: 2, speedThreshold: 60 },
+                pedestrian: { enable: true, sensitivity: 2, speedThreshold: 30 },
+                volume: 5
+            },
+            dms: {
+                fatigue: { enable: true, threshold: 80, sensitivity: 5 },
+                phone: { enable: true, sensitivity: 5 },
+                smoking: { enable: true, sensitivity: 5 },
+                distraction: { enable: true, timeThreshold: 3, sensitivity: 5 }
+            }
         }
     });
 
@@ -172,6 +186,29 @@ export default function VideoSettings({ theme }) {
                 if (s['0x0000001a']) newForm.network.apn = s['0x0000001a'];
                 if (s['0x0000001b']) newForm.network.ftpAddr = s['0x0000001b'];
 
+                // AI (0x0000F364 = ADAS, 0x0000F365 = DMS)
+                if (s['0x0000f364']) {
+                    const adas = s['0x0000f364'];
+                    newForm.ai.adas.fcw = { 
+                        enable: !!adas.ForwardCollisionAlarmLevel, 
+                        sensitivity: 2, 
+                        timeThreshold: adas.ForwardCollisionThreshold || 24,
+                        speedThreshold: 30 
+                    };
+                    newForm.ai.adas.ldw = { 
+                        enable: !!adas.LaneDepartureAlarmLevel, 
+                        sensitivity: 2, 
+                        speedThreshold: adas.LaneDepartureThreshold || 60 
+                    };
+                }
+                if (s['0x0000f365']) {
+                    const dms = s['0x0000f365'];
+                    newForm.ai.dms.fatigue = { enable: !!dms.FatigueAlarmLevel, threshold: dms.FatigueThreshold || 80, sensitivity: 5 };
+                    newForm.ai.dms.phone = { enable: !!dms.PhoneAlarmLevel, sensitivity: 5 };
+                    newForm.ai.dms.smoking = { enable: !!dms.SmokingAlarmLevel, sensitivity: 5 };
+                    newForm.ai.dms.distraction = { enable: !!dms.DistractionAlarmLevel, timeThreshold: dms.DistractionThreshold || 3, sensitivity: 5 };
+                }
+
                 setForm(newForm);
                 showNotification(`Configuration synchronized for terminal ${deviceId}`);
             } else if (!res.success && res.error === 'Cache empty') {
@@ -248,6 +285,13 @@ export default function VideoSettings({ theme }) {
                         'Position': { RouteId: form.alarms.routeId, GeofenceId: form.alarms.geofenceId, Overtime: form.alarms.overtime }
                     };
                     break;
+                case 'AI Settings':
+                    category = 'Alarm Settings'; 
+                    payload = {
+                        adas: form.ai.adas,
+                        dsm: form.ai.dms
+                    };
+                    break;
             }
 
             await deviceApi.setParams(selectedDevice, category, payload);
@@ -275,7 +319,8 @@ export default function VideoSettings({ theme }) {
         { id: 'System Manage', icon: Settings, mode: 'mixed' },
         { id: 'Record Settings', icon: Video, mode: 'mixed' },
         { id: 'Network Settings', icon: Wifi, mode: 'updateable' },
-        { id: 'Alarm Settings', icon: Shield, mode: 'updateable' }
+        { id: 'Alarm Settings', icon: Shield, mode: 'updateable' },
+        { id: 'AI Settings', icon: Monitor, mode: 'updateable' }
     ];
 
     const currentTab = tabs.find(t => t.id === activeTab);
@@ -598,6 +643,31 @@ export default function VideoSettings({ theme }) {
                                         <input type="number" value={form.alarms.overtime} onChange={e => setForm({...form, alarms: {...form.alarms, overtime: e.target.value}})} className="form-input" />
                                     </ControlRow>
                                 </GlassCard>
+                            )}
+
+                            {/* 9. AI SETTINGS (Read-write) */}
+                            {activeTab === 'AI Settings' && (
+                                <>
+                                    <GlassCard title="ADAS Thresholds" icon={Shield}>
+                                        <ControlRow label="Forward Collision (0.1s)" description="Detection time for FCW alerts">
+                                            <input type="number" value={form.ai.adas.fcw.timeThreshold} onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, fcw: {...form.ai.adas.fcw, timeThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                        </ControlRow>
+                                        <ControlRow label="Lane Departure (km/h)" description="Min speed for LDW activation">
+                                            <input type="number" value={form.ai.adas.ldw.speedThreshold} onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, ldw: {...form.ai.adas.ldw, speedThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                        </ControlRow>
+                                    </GlassCard>
+                                    <GlassCard title="DMS / DSM Thresholds" icon={Activity}>
+                                        <ControlRow label="Fatigue Sensitivity" description="1-10 sensitivity for eye closing">
+                                            <input type="number" value={form.ai.dms.fatigue.threshold} onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, fatigue: {...form.ai.dms.fatigue, threshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                        </ControlRow>
+                                        <ControlRow label="Distraction Level" description="Sensitivity for looking away">
+                                            <input type="number" value={form.ai.dms.distraction.timeThreshold} onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, distraction: {...form.ai.dms.distraction, timeThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                        </ControlRow>
+                                        <ControlRow label="Smoking Threshold" description="Detection sensitivity for smoking">
+                                            <input type="number" value={form.ai.dms.smoking.sensitivity} onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, smoking: {...form.ai.dms.smoking, sensitivity: parseInt(e.target.value)}}}})} className="form-input" />
+                                        </ControlRow>
+                                    </GlassCard>
+                                </>
                             )}
                         </div>
                     ) : (
