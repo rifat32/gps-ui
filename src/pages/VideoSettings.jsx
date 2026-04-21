@@ -32,6 +32,8 @@ export default function VideoSettings({ theme }) {
     const [loading, setLoading] = useState(false);
     const [notification, setNotification] = useState(null);
     const [activeTab, setActiveTab] = useState('System Status');
+    const [showAiModal, setShowAiModal] = useState(false);
+    const [configEvent, setConfigEvent] = useState(null); // { type: 'adas'|'dms', key: 'fcw'|'fatigue'..., label: '...' }
     
     // Extraction (Read-only) Data State
     const [telemetry, setTelemetry] = useState({
@@ -96,16 +98,16 @@ export default function VideoSettings({ theme }) {
         },
         ai: {
             adas: {
-                fcw: { enable: true, sensitivity: 2, timeThreshold: 24, speedThreshold: 30 },
-                ldw: { enable: true, sensitivity: 2, speedThreshold: 60 },
-                pedestrian: { enable: true, sensitivity: 2, speedThreshold: 30 },
+                fcw: null,
+                ldw: null,
+                pedestrian: null,
                 volume: 5
             },
             dms: {
-                fatigue: { enable: true, threshold: 80, sensitivity: 5 },
-                phone: { enable: true, sensitivity: 5 },
-                smoking: { enable: true, sensitivity: 5 },
-                distraction: { enable: true, timeThreshold: 3, sensitivity: 5 }
+                fatigue: null,
+                phone: null,
+                smoking: null,
+                distraction: null
             }
         }
     });
@@ -150,6 +152,22 @@ export default function VideoSettings({ theme }) {
         });
     };
 
+    const _decodeLinkage = (bits) => {
+        const res = {
+            enable: !!(bits & 0x01),
+            record: !!(bits & 0x02),
+            snap: !!(bits & 0x04),
+            audio: !!(bits & 0x08),
+            recordChannels: [],
+            snapChannels: []
+        };
+        if (bits & 0x0100) res.recordChannels.push('CH1');
+        if (bits & 0x0200) res.recordChannels.push('CH2');
+        if (bits & 0x1000) res.snapChannels.push('CH1');
+        if (bits & 0x2000) res.snapChannels.push('CH2');
+        return res;
+    };
+
     const fetchSettings = async (deviceId) => {
         if (!deviceId) return;
         setLoading(true);
@@ -189,24 +207,46 @@ export default function VideoSettings({ theme }) {
                 // AI (0x0000F364 = ADAS, 0x0000F365 = DMS)
                 if (s['0x0000f364']) {
                     const adas = s['0x0000f364'];
+                    newForm.ai.adas.volume = adas.volume;
                     newForm.ai.adas.fcw = { 
-                        enable: !!adas.ForwardCollisionAlarmLevel, 
-                        sensitivity: 2, 
-                        timeThreshold: adas.ForwardCollisionThreshold || 24,
-                        speedThreshold: 30 
+                        ..._decodeLinkage(adas.fcwLinkage), 
+                        sensitivity: adas.fcwSensitivity, 
+                        timeThreshold: adas.fcwTtc, 
+                        speedThreshold: adas.speedThreshold, 
+                        interval: adas.alarmInterval 
                     };
                     newForm.ai.adas.ldw = { 
-                        enable: !!adas.LaneDepartureAlarmLevel, 
-                        sensitivity: 2, 
-                        speedThreshold: adas.LaneDepartureThreshold || 60 
+                        ..._decodeLinkage(adas.ldwLinkage), 
+                        sensitivity: adas.ldwSensitivity, 
+                        speedThreshold: adas.ldwSpeed, 
+                        interval: adas.alarmInterval 
                     };
                 }
+
                 if (s['0x0000f365']) {
                     const dms = s['0x0000f365'];
-                    newForm.ai.dms.fatigue = { enable: !!dms.FatigueAlarmLevel, threshold: dms.FatigueThreshold || 80, sensitivity: 5 };
-                    newForm.ai.dms.phone = { enable: !!dms.PhoneAlarmLevel, sensitivity: 5 };
-                    newForm.ai.dms.smoking = { enable: !!dms.SmokingAlarmLevel, sensitivity: 5 };
-                    newForm.ai.dms.distraction = { enable: !!dms.DistractionAlarmLevel, timeThreshold: dms.DistractionThreshold || 3, sensitivity: 5 };
+                    newForm.ai.dms.fatigue = { 
+                        ..._decodeLinkage(dms.fatigueLinkage), 
+                        threshold: dms.fatigueThreshold, 
+                        sensitivity: dms.fatigueSensitivity, 
+                        interval: 20 
+                    };
+                    newForm.ai.dms.phone = { 
+                        ..._decodeLinkage(dms.phoneLinkage), 
+                        sensitivity: dms.phoneSensitivity, 
+                        interval: 20 
+                    };
+                    newForm.ai.dms.smoking = { 
+                        ..._decodeLinkage(dms.smokingLinkage), 
+                        sensitivity: dms.smokingSensitivity, 
+                        interval: 20 
+                    };
+                    newForm.ai.dms.distraction = { 
+                        ..._decodeLinkage(dms.distractionLinkage), 
+                        timeThreshold: dms.distractionTime, 
+                        sensitivity: dms.distractionSensitivity, 
+                        interval: 20 
+                    };
                 }
 
                 setForm(newForm);
@@ -225,17 +265,28 @@ export default function VideoSettings({ theme }) {
         if (!selectedDevice) return;
         setLoading(true);
         try {
-            await deviceApi.sendCommand({
-                deviceId: selectedDevice,
-                commandType: 'QUERY_RECORDING_SETTINGS'
-            });
-            showNotification('Query command dispatched to terminal. Reconciliation in progress...', 'info');
-            setTimeout(() => {
-                fetchSettings(selectedDevice);
-                fetchTelemetryData(selectedDevice);
-            }, 5000);
+            // 1. Clear current AI state to force "Waiting for data" if sync fails
+            setForm(prev => ({
+                ...prev,
+                ai: {
+                    adas: { fcw: null, ldw: null, pedestrian: null, volume: null },
+                    dms: { fatigue: null, phone: null, smoking: null, distraction: null }
+                }
+            }));
+
+            // 2. Dispatch deep query command (0x8104)
+            await deviceApi.queryParams(selectedDevice, []); 
+            showNotification('Query command dispatched. Reconciling hardware stack...', 'info');
+            
+            // 3. Wait for device to respond and refresh cache
+            setTimeout(async () => {
+                await fetchSettings(selectedDevice);
+                await fetchTelemetryData(selectedDevice);
+                showNotification('Hardware reconciliation complete. Latest values synced.', 'success');
+                setLoading(false);
+            }, 6000);
         } catch (err) {
-            showNotification(err.message, 'error');
+            showNotification(`Sync failed: ${err.message}`, 'error');
             setLoading(false);
         }
     };
@@ -373,6 +424,126 @@ export default function VideoSettings({ theme }) {
             <div className="toggle-knob" />
         </button>
     );
+
+    const AiEventModal = () => {
+        if (!configEvent) return null;
+        const category = configEvent.type; // 'adas' or 'dms'
+        const eventKey = configEvent.key;
+        const data = form.ai[category][eventKey];
+
+        const updateData = (updates) => {
+            setForm({
+                ...form,
+                ai: {
+                    ...form.ai,
+                    [category]: {
+                        ...form.ai[category],
+                        [eventKey]: { ...data, ...updates }
+                    }
+                }
+            });
+        };
+
+        const toggleChannel = (type, ch) => {
+            const current = data[type] || [];
+            const next = current.includes(ch) ? current.filter(c => c !== ch) : [...current, ch];
+            updateData({ [type]: next });
+        };
+
+        return (
+            <div className="modal-overlay animate-fade-in" onClick={() => setShowAiModal(false)}>
+                <div className="premium-modal animate-slide-up" onClick={e => e.stopPropagation()}>
+                    <header className="modal-header">
+                        <div className="header-info">
+                            <Shield className="icon-vibrant" size={24} />
+                            <h2>{configEvent.label} Configuration</h2>
+                        </div>
+                        <button className="close-btn" onClick={() => setShowAiModal(false)}>×</button>
+                    </header>
+                    
+                    <div className="modal-body">
+                        {!data ? (
+                            <div className="p-12 text-center">
+                                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                                <p className="text-gray-400">Waiting for data from camera...</p>
+                                <p className="text-xs text-gray-500 mt-2">Sync settings to fetch real-time values.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <section className="modal-section">
+                                    <h4>Basic Configuration</h4>
+                                    <ControlRow label="Enable" description="Master switch for this alert">
+                                        <Toggle value={data.enable} onChange={v => updateData({ enable: v })} />
+                                    </ControlRow>
+                                    <ControlRow label="GNSS Speed(km/h)" description="Min speed for alert">
+                                        <input type="number" value={data.speedThreshold || ''} placeholder="30" onChange={e => updateData({ speedThreshold: parseInt(e.target.value) || 0 })} className="form-input" />
+                                    </ControlRow>
+                                    <ControlRow label="Classification" description="Sensitivity level">
+                                        <input type="number" value={data.sensitivity || ''} placeholder="0" onChange={e => updateData({ sensitivity: parseInt(e.target.value) || 0 })} className="form-input" />
+                                    </ControlRow>
+                                    <ControlRow label="interval(s)" description="Cooldown between alerts">
+                                        <input type="number" value={data.interval || ''} placeholder="20" onChange={e => updateData({ interval: parseInt(e.target.value) || 0 })} className="form-input" />
+                                    </ControlRow>
+                                    <ControlRow label="audio frequency" description="Voice prompt toggle">
+                                        <Toggle value={data.audio} onChange={v => updateData({ audio: v })} />
+                                    </ControlRow>
+                                    <ControlRow label="Sense(0~30s)" description="Detection sensitivity (TTC)">
+                                        <input type="number" step="0.1" value={data.timeThreshold || ''} placeholder="5" onChange={e => updateData({ timeThreshold: parseFloat(e.target.value) || 0 })} className="form-input" />
+                                    </ControlRow>
+                                </section>
+
+                                <section className="modal-section">
+                                    <h4>Event Linkage</h4>
+                                    <ControlRow label="Record" description="Lock video on event">
+                                        <Toggle value={data.record} onChange={v => updateData({ record: v })} />
+                                    </ControlRow>
+                                    
+                                    <div className="sub-linkage-grid">
+                                        <div className="linkage-item">
+                                            <label>Record Lock Chn</label>
+                                            <div className="flex gap-2 mt-1">
+                                                {['CH1', 'CH2'].map(ch => (
+                                                    <button key={ch} onClick={() => toggleChannel('recordChannels', ch)} className={`ch-pill ${data.recordChannels?.includes(ch) ? 'active' : ''}`}>{ch}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="linkage-item">
+                                            <label>Record Upload Chn</label>
+                                            <div className="flex gap-2 mt-1">
+                                                {['CH1', 'CH2'].map(ch => (
+                                                    <button key={ch} onClick={() => toggleChannel('uploadChannels', ch)} className={`ch-pill ${data.uploadChannels?.includes(ch) ? 'active' : ''}`}>{ch}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="linkage-item mt-4">
+                                            <label>Alarm Output</label>
+                                            <div className="flex gap-2 mt-1">
+                                                {['IO1'].map(io => (
+                                                    <button key={io} onClick={() => toggleChannel('alarmOutput', io)} className={`ch-pill ${data.alarmOutput?.includes(io) ? 'active' : ''}`}>{io}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="linkage-item mt-4">
+                                            <label>Snap Chn</label>
+                                            <div className="flex gap-2 mt-1">
+                                                {['CH1', 'CH2'].map(ch => (
+                                                    <button key={ch} onClick={() => toggleChannel('snapChannels', ch)} className={`ch-pill ${data.snapChannels?.includes(ch) ? 'active' : ''}`}>{ch}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                            </>
+                        )}
+                    </div>
+
+                    <footer className="modal-footer">
+                        <button className="done-btn" onClick={() => setShowAiModal(false)}>Done</button>
+                    </footer>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="terminal-config-container animate-fade-in">
@@ -650,21 +821,46 @@ export default function VideoSettings({ theme }) {
                                 <>
                                     <GlassCard title="ADAS Thresholds" icon={Shield}>
                                         <ControlRow label="Forward Collision (0.1s)" description="Detection time for FCW alerts">
-                                            <input type="number" value={form.ai.adas.fcw.timeThreshold} onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, fcw: {...form.ai.adas.fcw, timeThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                            <div className="input-with-config">
+                                                <input type="number" value={form.ai.adas.fcw?.timeThreshold || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, fcw: {...form.ai.adas.fcw, timeThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                                <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'adas', key: 'fcw', label: 'Forward Collision' }); setShowAiModal(true); }}>
+                                                    <Settings size={14} />
+                                                </button>
+                                            </div>
                                         </ControlRow>
                                         <ControlRow label="Lane Departure (km/h)" description="Min speed for LDW activation">
-                                            <input type="number" value={form.ai.adas.ldw.speedThreshold} onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, ldw: {...form.ai.adas.ldw, speedThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                            <div className="input-with-config">
+                                                <input type="number" value={form.ai.adas.ldw?.speedThreshold || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, ldw: {...form.ai.adas.ldw, speedThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                                <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'adas', key: 'ldw', label: 'Lane Departure' }); setShowAiModal(true); }}>
+                                                    <Settings size={14} />
+                                                </button>
+                                            </div>
                                         </ControlRow>
                                     </GlassCard>
                                     <GlassCard title="DMS / DSM Thresholds" icon={Activity}>
                                         <ControlRow label="Fatigue Sensitivity" description="1-10 sensitivity for eye closing">
-                                            <input type="number" value={form.ai.dms.fatigue.threshold} onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, fatigue: {...form.ai.dms.fatigue, threshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                            <div className="input-with-config">
+                                                <input type="number" value={form.ai.dms.fatigue?.threshold || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, fatigue: {...form.ai.dms.fatigue, threshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                                <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'dms', key: 'fatigue', label: 'Fatigue Driving' }); setShowAiModal(true); }}>
+                                                    <Settings size={14} />
+                                                </button>
+                                            </div>
                                         </ControlRow>
                                         <ControlRow label="Distraction Level" description="Sensitivity for looking away">
-                                            <input type="number" value={form.ai.dms.distraction.timeThreshold} onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, distraction: {...form.ai.dms.distraction, timeThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                            <div className="input-with-config">
+                                                <input type="number" value={form.ai.dms.distraction?.timeThreshold || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, distraction: {...form.ai.dms.distraction, timeThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                                <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'dms', key: 'distraction', label: 'Distraction Alarm' }); setShowAiModal(true); }}>
+                                                    <Settings size={14} />
+                                                </button>
+                                            </div>
                                         </ControlRow>
                                         <ControlRow label="Smoking Threshold" description="Detection sensitivity for smoking">
-                                            <input type="number" value={form.ai.dms.smoking.sensitivity} onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, smoking: {...form.ai.dms.smoking, sensitivity: parseInt(e.target.value)}}}})} className="form-input" />
+                                            <div className="input-with-config">
+                                                <input type="number" value={form.ai.dms.smoking?.sensitivity || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, smoking: {...form.ai.dms.smoking, sensitivity: parseInt(e.target.value)}}}})} className="form-input" />
+                                                <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'dms', key: 'smoking', label: 'Smoking Alarm' }); setShowAiModal(true); }}>
+                                                    <Settings size={14} />
+                                                </button>
+                                            </div>
                                         </ControlRow>
                                     </GlassCard>
                                 </>
@@ -1023,7 +1219,68 @@ export default function VideoSettings({ theme }) {
                 .animate-fade-in { animation: fade-in 0.4s ease-out; }
                 .animate-slide-up { animation: slide-up 0.4s ease-out; }
                 .animate-slide-down { animation: slide-down 0.4s ease-out; }
+
+                /* AI Modal Styles */
+                .modal-overlay {
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.8);
+                    backdrop-filter: blur(10px);
+                    z-index: 2000;
+                    display: flex; align-items: center; justify-content: center;
+                    padding: 20px;
+                }
+                .premium-modal {
+                    background: #121214;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 32px;
+                    width: 100%; max-width: 500px;
+                    overflow: hidden;
+                    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+                }
+                .modal-header {
+                    padding: 24px;
+                    background: rgba(255,255,255,0.02);
+                    display: flex; align-items: center; justify-content: space-between;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                }
+                .header-info { display: flex; align-items: center; gap: 16px; }
+                .header-info h2 { margin: 0; font-size: 18px; font-weight: 700; }
+                .close-btn { background: none; border: none; color: #666; font-size: 28px; cursor: pointer; }
+                .modal-body { padding: 24px; max-height: 70vh; overflow-y: auto; }
+                .modal-section { margin-bottom: 32px; }
+                .modal-section h4 { color: #007AFF; font-size: 12px; text-transform: uppercase; margin-bottom: 16px; letter-spacing: 1px; }
+                .modal-footer { padding: 24px; border-top: 1px solid rgba(255,255,255,0.05); text-align: right; }
+                .done-btn { background: #007AFF; color: #fff; border: none; padding: 12px 40px; border-radius: 14px; font-weight: 700; cursor: pointer; }
+                
+                .input-with-config { display: flex; align-items: center; gap: 12px; }
+                .config-sub-btn {
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    color: #888;
+                    width: 32px; height: 32px;
+                    border-radius: 8px;
+                    display: flex; align-items: center; justify-content: center;
+                    cursor: pointer; transition: 0.2s;
+                }
+                .config-sub-btn:hover { background: #007AFF; color: #fff; }
+
+                .channel-selector {
+                    display: flex; align-items: center; gap: 12px;
+                    margin-top: -8px; margin-bottom: 16px; padding-left: 20px;
+                }
+                .channel-selector span { font-size: 11px; color: #666; }
+                .ch-chip {
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    color: #888;
+                    padding: 4px 10px; border-radius: 6px;
+                    font-size: 11px; font-weight: 700;
+                    cursor: pointer; transition: 0.2s;
+                }
+                .ch-chip.active { background: rgba(0,122,255,0.2); border-color: #007AFF; color: #007AFF; }
             `}</style>
+            {showAiModal && <AiEventModal />}
         </div>
     );
 }
