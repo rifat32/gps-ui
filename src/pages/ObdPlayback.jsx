@@ -22,6 +22,7 @@ import {
   Car,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import "./Playback.css";
 
 // =========================================================================
 // 1. CONFIGURATION
@@ -60,6 +61,7 @@ export default function ObdPlayback({ theme }) {
   const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
   const [trips, setTrips] = useState([]);
   const [selectedTripId, setSelectedTripId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [startDateTime, setStartDateTime] = useState(() => {
     const d = new Date();
@@ -89,6 +91,12 @@ export default function ObdPlayback({ theme }) {
     };
     fetchDevices();
   }, []);
+
+  const formatTime = (dateInput) => {
+    if (!dateInput) return "--";
+    const d = new Date(dateInput);
+    return d.toLocaleTimeString([], { hour12: false });
+  };
 
   // 2. Fetch Playback Data
   const handleFetchData = async (start, end) => {
@@ -162,6 +170,10 @@ export default function ObdPlayback({ theme }) {
     }
   };
 
+  const filteredDevices = deviceList.filter(d => 
+    d.device_id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const handleTripSelect = (trip, idx) => {
     setSelectedTripId(idx);
     // Format times for the datetime-local input (YYYY-MM-DDTHH:mm)
@@ -190,6 +202,9 @@ export default function ObdPlayback({ theme }) {
       const response = await fetch(url);
       const data = await response.json();
       setTrips(data.trips || []);
+      if (data.trips && data.trips.length === 0) {
+          setError("No trips detected for the selected date range");
+      }
     } catch (_err) {
       setError("Failed to fetch trips");
     } finally {
@@ -232,8 +247,7 @@ export default function ObdPlayback({ theme }) {
       <div className={`obd-page-wrapper obd-playback-container ${theme}`} style={{ backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc" }}>
         
         {/* Sidebar */}
-        <div className="obd-sidebar" style={{
-            width: isSidebarOpen ? (window.innerWidth > 1024 ? "350px" : "100%") : "0",
+        <div className={`obd-sidebar ${isSidebarOpen ? "open" : ""}`} style={{
             backgroundColor: theme === "dark" ? "#1e293b" : "white",
             borderRight: "1px solid #e2e8f0",
             display: "flex",
@@ -281,26 +295,59 @@ export default function ObdPlayback({ theme }) {
                                 borderRadius: "12px",
                                 boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                                 zIndex: 110,
-                                maxHeight: "200px",
-                                overflowY: "auto"
+                                maxHeight: "250px",
+                                overflowY: "hidden",
+                                display: "flex",
+                                flexDirection: "column"
                             }}>
-                                {deviceList.map(dev => (
-                                    <div 
-                                        key={dev} 
-                                        onClick={() => { setSelectedDeviceId(dev); setIsDeviceDropdownOpen(false); }}
-                                        style={{
-                                            padding: "12px 16px",
-                                            cursor: "pointer",
-                                            borderBottom: "1px solid #f1f5f9",
-                                            color: theme === "dark" ? "#f8fafc" : "#1e293b",
-                                            backgroundColor: selectedDeviceId === dev ? "#3b82f6" : "transparent"
-                                        }}
-                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
-                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : "transparent"}
-                                    >
-                                        {dev}
+                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0" }}>
+                                    <div style={{ position: "relative" }}>
+                                        <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search Device..." 
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            autoFocus
+                                            style={{
+                                                width: "100%",
+                                                padding: "8px 8px 8px 32px",
+                                                borderRadius: "8px",
+                                                border: "1px solid #e2e8f0",
+                                                fontSize: "0.875rem",
+                                                backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc",
+                                                color: theme === "dark" ? "white" : "black",
+                                                outline: "none"
+                                            }}
+                                        />
                                     </div>
-                                ))}
+                                </div>
+                                <div style={{ overflowY: "auto", flex: 1 }}>
+                                    {filteredDevices.length > 0 ? (
+                                        filteredDevices.map(dev => (
+                                            <div 
+                                                key={dev.device_id} 
+                                                onClick={() => { setSelectedDeviceId(dev.device_id); setIsDeviceDropdownOpen(false); setSearchTerm(""); }}
+                                                style={{
+                                                    padding: "12px 16px",
+                                                    cursor: "pointer",
+                                                    borderBottom: "1px solid #f1f5f9",
+                                                    color: theme === "dark" ? "#f8fafc" : "#1e293b",
+                                                    backgroundColor: selectedDeviceId === dev.device_id ? "#3b82f6" : "transparent"
+                                                }}
+                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev.device_id ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
+                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev.device_id ? "#3b82f6" : "transparent"}
+                                            >
+                                                {dev.device_id}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.875rem" }}>
+                                            No devices found
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -442,7 +489,7 @@ export default function ObdPlayback({ theme }) {
                             <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "8px", textTransform: "uppercase", fontWeight: "600" }}>Position Info</div>
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                 <DetailRow icon={<Navigation size={14} />} label="Heading" value={`${Math.round(currentPoint.calculatedBearing || 0)}°`} />
-                                <DetailRow icon={<Clock size={14} />} label="Point Time" value={currentPoint.time ? new Date(currentPoint.timestamp).toLocaleTimeString() : "--"} />
+                                <DetailRow icon={<Clock size={14} />} label="Point Time" value={currentPoint.timestamp ? formatTime(currentPoint.timestamp) : "--"} />
                                 <DetailRow icon={<Activity size={14} />} label="Progression" value={`${currentIndex + 1} / ${points.length}`} />
                             </div>
                         </div>
@@ -557,24 +604,10 @@ export default function ObdPlayback({ theme }) {
 
             {/* Playback Controls Overlay */}
             {points.length > 0 && (
-                <div style={{
-                    position: "absolute",
-                    bottom: "24px",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: "80%",
-                    maxWidth: "800px",
-                    padding: "16px 24px",
-                    borderRadius: "20px",
-                    backgroundColor: theme === "dark" ? "rgba(30, 41, 59, 0.95)" : "rgba(255, 255, 255, 0.95)",
-                    backdropFilter: "blur(10px)",
-                    boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
-                    zIndex: 50
+                <div className="playback-controls-overlay" style={{
+                    backgroundColor: theme === "dark" ? "rgba(30, 41, 59, 0.95)" : "rgba(255, 255, 255, 0.95)"
                 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                    <div className="playback-main-row">
                         <button 
                             onClick={() => setIsPlaying(!isPlaying)}
                             style={{
@@ -630,9 +663,9 @@ export default function ObdPlayback({ theme }) {
                                 }}
                             />
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#64748b", fontWeight: "600" }}>
-                                <span>{new Date(points[0].timestamp).toLocaleTimeString()}</span>
-                                <span>{new Date(points[currentIndex].timestamp).toLocaleTimeString()}</span>
-                                <span>{new Date(points[points.length-1].timestamp).toLocaleTimeString()}</span>
+                                <span>{formatTime(points[0].timestamp)}</span>
+                                <span style={{ color: "#3b82f6" }}>{formatTime(points[currentIndex].timestamp)}</span>
+                                <span>{formatTime(points[points.length-1].timestamp)}</span>
                             </div>
                         </div>
 

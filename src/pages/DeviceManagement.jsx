@@ -191,6 +191,14 @@ const DeviceManagement = ({ theme }) => {
                     <span className="value">{device.imei || "N/A"}</span>
                   </div>
                   <div className="info-item">
+                    <span className="label">Firmware</span>
+                    <span className="value">{device.fwVersion || "N/A"}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">ICCID</span>
+                    <span className="value">{device.iccid || "N/A"}</span>
+                  </div>
+                  <div className="info-item">
                     <span className="label">Model</span>
                     <span className="value">{device.model || "N/A"}</span>
                   </div>

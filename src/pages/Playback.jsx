@@ -61,6 +61,7 @@ export default function Playback({ theme }) {
   const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
   const [trips, setTrips] = useState([]);
   const [selectedTripId, setSelectedTripId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [startDateTime, setStartDateTime] = useState(() => {
     const d = new Date();
@@ -163,6 +164,10 @@ export default function Playback({ theme }) {
       setLoading(false);
     }
   };
+
+  const filteredDevices = deviceList.filter(dev => 
+    dev.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // 3. Fetch Trip List (Analyze)
   const handleFetchTrips = async () => {
@@ -288,26 +293,59 @@ export default function Playback({ theme }) {
                                 borderRadius: "12px",
                                 boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                                 zIndex: 110,
-                                maxHeight: "200px",
-                                overflowY: "auto"
+                                maxHeight: "250px",
+                                overflowY: "hidden",
+                                display: "flex",
+                                flexDirection: "column"
                             }}>
-                                {deviceList.map(dev => (
-                                    <div 
-                                        key={dev} 
-                                        onClick={() => { setSelectedDeviceId(dev); setIsDeviceDropdownOpen(false); }}
-                                        style={{
-                                            padding: "12px 16px",
-                                            cursor: "pointer",
-                                            borderBottom: "1px solid #f1f5f9",
-                                            color: theme === "dark" ? "#f8fafc" : "#1e293b",
-                                            backgroundColor: selectedDeviceId === dev ? "#3b82f6" : "transparent"
-                                        }}
-                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
-                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : "transparent"}
-                                    >
-                                        {dev}
+                                <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0" }}>
+                                    <div style={{ position: "relative" }}>
+                                        <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search Dashcam..." 
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            autoFocus
+                                            style={{
+                                                width: "100%",
+                                                padding: "8px 8px 8px 32px",
+                                                borderRadius: "8px",
+                                                border: "1px solid #e2e8f0",
+                                                fontSize: "0.875rem",
+                                                backgroundColor: theme === "dark" ? "#0f172a" : "#f8fafc",
+                                                color: theme === "dark" ? "white" : "black",
+                                                outline: "none"
+                                            }}
+                                        />
                                     </div>
-                                ))}
+                                </div>
+                                <div style={{ overflowY: "auto", flex: 1 }}>
+                                    {filteredDevices.length > 0 ? (
+                                        filteredDevices.map(dev => (
+                                            <div 
+                                                key={dev} 
+                                                onClick={() => { setSelectedDeviceId(dev); setIsDeviceDropdownOpen(false); setSearchTerm(""); }}
+                                                style={{
+                                                    padding: "12px 16px",
+                                                    cursor: "pointer",
+                                                    borderBottom: "1px solid #f1f5f9",
+                                                    color: theme === "dark" ? "#f8fafc" : "#1e293b",
+                                                    backgroundColor: selectedDeviceId === dev ? "#3b82f6" : "transparent"
+                                                }}
+                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
+                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : "transparent"}
+                                            >
+                                                {dev}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "0.875rem" }}>
+                                            No devices found
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

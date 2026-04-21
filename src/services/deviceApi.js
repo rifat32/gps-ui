@@ -80,8 +80,21 @@ const deviceApi = {
 
   // Get cached settings from server
   getSettings: async (deviceId) => {
-    const response = await fetch(`${BASE_URL}/api/recording-settings?deviceId=${deviceId}`);
-    if (!response.ok) throw new Error("Failed to get recording settings");
+    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to get settings");
+    }
+    return response.json();
+  },
+
+  // Get extraction telemetry (read-only diagnostics)
+  getTelemetry: async (deviceId, category) => {
+    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/telemetry/${category}`);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to get telemetry");
+    }
     return response.json();
   },
 
