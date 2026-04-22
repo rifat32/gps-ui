@@ -78,6 +78,19 @@ const deviceApi = {
     return response.json();
   },
 
+  updateSettingsBatch: async (deviceId, settings) => {
+    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings/batch`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to update settings batch");
+    }
+    return response.json();
+  },
+
   // Get cached settings from server
   getSettings: async (deviceId) => {
     const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings`);
