@@ -253,46 +253,18 @@ export default function VideoSettings({ theme }) {
                 // AI (0x0000F364 = ADAS, 0x0000F365 = DMS)
                 if (s['0x0000f364']) {
                     const adas = s['0x0000f364'];
-                    newForm.ai.adas.volume = adas.volume;
-                    newForm.ai.adas.fcw = { 
-                        ..._decodeLinkage(adas.fcwLinkage), 
-                        sensitivity: adas.fcwSensitivity, 
-                        timeThreshold: adas.fcwTtc, 
-                        speedThreshold: adas.speedThreshold, 
-                        interval: adas.alarmInterval 
-                    };
-                    newForm.ai.adas.ldw = { 
-                        ..._decodeLinkage(adas.ldwLinkage), 
-                        sensitivity: adas.ldwSensitivity, 
-                        speedThreshold: adas.ldwSpeed, 
-                        interval: adas.alarmInterval 
-                    };
+                    newForm.ai.adas.volume = adas.globalVolume;
+                    newForm.ai.adas.fcw = adas.events?.FCW || null;
+                    newForm.ai.adas.ldw = adas.events?.LDW || null;
+                    newForm.ai.adas.pedestrian = adas.events?.PCW || null;
                 }
 
                 if (s['0x0000f365']) {
                     const dms = s['0x0000f365'];
-                    newForm.ai.dms.fatigue = { 
-                        ..._decodeLinkage(dms.fatigueLinkage), 
-                        threshold: dms.fatigueThreshold, 
-                        sensitivity: dms.fatigueSensitivity, 
-                        interval: 20 
-                    };
-                    newForm.ai.dms.phone = { 
-                        ..._decodeLinkage(dms.phoneLinkage), 
-                        sensitivity: dms.phoneSensitivity, 
-                        interval: 20 
-                    };
-                    newForm.ai.dms.smoking = { 
-                        ..._decodeLinkage(dms.smokingLinkage), 
-                        sensitivity: dms.smokingSensitivity, 
-                        interval: 20 
-                    };
-                    newForm.ai.dms.distraction = { 
-                        ..._decodeLinkage(dms.distractionLinkage), 
-                        timeThreshold: dms.distractionTime, 
-                        sensitivity: dms.distractionSensitivity, 
-                        interval: 20 
-                    };
+                    newForm.ai.dms.fatigue = dms.events?.Fatigue || null;
+                    newForm.ai.dms.phone = dms.events?.Phone || null;
+                    newForm.ai.dms.smoking = dms.events?.Smoking || null;
+                    newForm.ai.dms.distraction = dms.events?.Distraction || null;
                 }
 
                 // Speed (Hex IDs from param-registry.js)
