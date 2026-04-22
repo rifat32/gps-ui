@@ -22,6 +22,7 @@ import {
     Activity,
     Thermometer,
     ZapOff,
+    Layout,
     LayoutGrid,
     Smartphone,
     Gauge,
