@@ -16,6 +16,8 @@ const MediaLogs = lazy(() => import("./pages/MediaLogs"));
 const MediaGallery = lazy(() => import("./pages/MediaGallery"));
 const VehicleHealth = lazy(() => import("./pages/VehicleHealth"));
 const Pm2Logs = lazy(() => import("./pages/Pm2Logs"));
+const RemoteAccess = lazy(() => import("./pages/RemoteAccess"));
+
 
 function App() {
   const [theme, setTheme] = useState(() => {
@@ -80,6 +82,11 @@ function App() {
               path="/pm2-logs"
               element={<Pm2Logs theme={theme} toggleTheme={toggleTheme} />}
             />
+            <Route
+              path="/remote-access"
+              element={<RemoteAccess theme={theme} />}
+            />
+
 
             <Route
               path="/ai-notifications"

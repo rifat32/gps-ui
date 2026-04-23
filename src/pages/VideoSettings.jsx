@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { 
-    ArrowLeft, 
-    CheckCircle2, 
-    AlertCircle, 
-    Settings, 
-    Video, 
-    Network, 
-    Bell, 
-    Cpu, 
-    Save, 
+import {
+    ArrowLeft,
+    CheckCircle2,
+    AlertCircle,
+    Settings,
+    Video,
+    Network,
+    Bell,
+    Cpu,
+    Save,
     RefreshCw,
     Clock,
     Zap,
@@ -43,7 +43,7 @@ export default function VideoSettings({ theme }) {
     const [showAiModal, setShowAiModal] = useState(false);
     const [lastSynced, setLastSynced] = useState(null);
     const [configEvent, setConfigEvent] = useState(null); // { type: 'adas'|'dms', key: 'fcw'|'fatigue'..., label: '...' }
-    
+
     // Extraction (Read-only) Data State
     const [telemetry, setTelemetry] = useState({
         system: null,
@@ -205,12 +205,12 @@ export default function VideoSettings({ theme }) {
         if (bits & 0x0200) res.recordChannels.push(2);
         if (bits & 0x0400) res.recordChannels.push(3);
         if (bits & 0x0800) res.recordChannels.push(4);
-        
+
         if (bits & 0x1000) res.snapChannels.push(1);
         if (bits & 0x2000) res.snapChannels.push(2);
         if (bits & 0x4000) res.snapChannels.push(3);
         if (bits & 0x8000) res.snapChannels.push(4);
-        
+
         return res;
     };
 
@@ -272,7 +272,7 @@ export default function VideoSettings({ theme }) {
                 if (s['0x00000056']) newForm.alarms.speed.duration = s['0x00000056'];
                 if (s['0x00000051']) newForm.alarms.speed.pulse = s['0x00000051'];
                 if (s['0x00000054']) newForm.alarms.speed.unit = s['0x00000054'];
-                
+
                 ['otPark', 'lowSpeedWarn', 'lowSpeedAlarm'].forEach(key => {
                     const id = key === 'otPark' ? '0x0000005a' : (key === 'lowSpeedWarn' ? '0x0000005d' : '0x0000005e');
                     if (s[id]) {
@@ -318,7 +318,7 @@ export default function VideoSettings({ theme }) {
     const handleToolAction = async (action) => {
         if (!selectedDevice) return;
         if (!window.confirm(`Are you sure you want to execute ${action}? This may disrupt service.`)) return;
-        
+
         setLoading(true);
         try {
             let commandType = '';
@@ -362,9 +362,9 @@ export default function VideoSettings({ theme }) {
             }));
 
             // 2. Dispatch deep query command (0x8104)
-            await deviceApi.queryParams(selectedDevice, []); 
+            await deviceApi.queryParams(selectedDevice, []);
             showNotification('Query command dispatched. Reconciling hardware stack...', 'info');
-            
+
             // 3. Wait for device to respond and refresh cache
             setTimeout(async () => {
                 await fetchSettings(selectedDevice);
@@ -423,7 +423,7 @@ export default function VideoSettings({ theme }) {
                     };
                     break;
                 case 'AI Safety':
-                    category = 'batch'; 
+                    category = 'batch';
                     payload['Alarm Settings'] = {
                         AI: {
                             adas: form.ai.adas,
@@ -518,8 +518,8 @@ export default function VideoSettings({ theme }) {
         if (!configEvent) return null;
         const category = configEvent.type; // 'adas', 'dms', 'speed', 'position', or 'io'
         const eventKey = configEvent.key;
-        const data = category === 'speed' || category === 'position' || category === 'io' 
-            ? form.alarms[category][eventKey] 
+        const data = category === 'speed' || category === 'position' || category === 'io'
+            ? form.alarms[category][eventKey]
             : form.ai[category][eventKey];
 
         const updateData = (updates) => {
@@ -564,7 +564,7 @@ export default function VideoSettings({ theme }) {
                         </div>
                         <button className="close-btn" onClick={() => setShowAiModal(false)}>×</button>
                     </header>
-                    
+
                     <div className="modal-body">
                         {!data ? (
                             <div className="p-12 text-center">
@@ -601,7 +601,7 @@ export default function VideoSettings({ theme }) {
                                     <ControlRow label="Record" description="Lock video on event">
                                         <Toggle value={data.record} onChange={v => updateData({ record: v })} />
                                     </ControlRow>
-                                    
+
                                     <div className="sub-linkage-grid">
                                         <div className="linkage-item">
                                             <label>Record Lock Chn</label>
@@ -671,9 +671,9 @@ export default function VideoSettings({ theme }) {
 
                 <nav className="tab-navigator">
                     {categories.map(tab => (
-                        <button 
-                            key={tab.id} 
-                            onClick={() => setActiveTab(tab.id)} 
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
                             className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
                         >
                             <tab.icon size={18} />
@@ -686,9 +686,9 @@ export default function VideoSettings({ theme }) {
             <main className="terminal-main-layout">
                 <aside className="config-sidebar">
                     {categories.map(cat => (
-                        <button 
-                            key={cat.id} 
-                            onClick={() => setActiveTab(cat.id)} 
+                        <button
+                            key={cat.id}
+                            onClick={() => setActiveTab(cat.id)}
                             className={`sidebar-tab ${activeTab === cat.id ? 'active' : ''}`}
                         >
                             <cat.icon size={20} />
@@ -758,9 +758,9 @@ export default function VideoSettings({ theme }) {
                                         </GlassCard>
                                         <GlassCard title="Transmission Config" icon={Wifi}>
                                             <ControlRow label="Protocol">
-                                                <select 
-                                                    value={form.network.protocol} 
-                                                    onChange={e => setForm({...form, network: {...form.network, protocol: e.target.value}})}
+                                                <select
+                                                    value={form.network.protocol}
+                                                    onChange={e => setForm({ ...form, network: { ...form.network, protocol: e.target.value } })}
                                                     className="form-select"
                                                 >
                                                     <option value="JT808-2011">JT/T 808-2011</option>
@@ -768,22 +768,22 @@ export default function VideoSettings({ theme }) {
                                                 </select>
                                             </ControlRow>
                                             <ControlRow label="APN (Carrier)">
-                                                <input 
-                                                    value={form.network.apn} 
-                                                    onChange={e => setForm({...form, network: {...form.network, apn: e.target.value}})}
+                                                <input
+                                                    value={form.network.apn}
+                                                    onChange={e => setForm({ ...form, network: { ...form.network, apn: e.target.value } })}
                                                     className="form-input wide"
                                                 />
                                             </ControlRow>
                                         </GlassCard>
                                         <GlassCard title="Peripheral Port (COM1)" icon={Cpu}>
                                             <ControlRow label="Baud Rate">
-                                                <select value={form.network.peripheral.baudRate} onChange={e => setForm({...form, network: {...form.network, peripheral: {...form.network.peripheral, baudRate: parseInt(e.target.value)}}})} className="form-select">
+                                                <select value={form.network.peripheral.baudRate} onChange={e => setForm({ ...form, network: { ...form.network, peripheral: { ...form.network.peripheral, baudRate: parseInt(e.target.value) } } })} className="form-select">
                                                     <option value={9600}>9600</option>
                                                     <option value={115200}>115200</option>
                                                 </select>
                                             </ControlRow>
                                             <ControlRow label="Data Bits">
-                                                <select value={form.network.peripheral.dataBits} onChange={e => setForm({...form, network: {...form.network, peripheral: {...form.network.peripheral, dataBits: parseInt(e.target.value)}}})} className="form-select">
+                                                <select value={form.network.peripheral.dataBits} onChange={e => setForm({ ...form, network: { ...form.network, peripheral: { ...form.network.peripheral, dataBits: parseInt(e.target.value) } } })} className="form-select">
                                                     <option value={8}>8 Bits</option>
                                                     <option value={7}>7 Bits</option>
                                                 </select>
@@ -797,9 +797,9 @@ export default function VideoSettings({ theme }) {
                                     <>
                                         <GlassCard title="Encoding Logic" icon={Monitor}>
                                             <ControlRow label="Codec Protocol">
-                                                <select 
-                                                    value={form.video.encodeType} 
-                                                    onChange={e => setForm({...form, video: {...form.video, encodeType: e.target.value}})}
+                                                <select
+                                                    value={form.video.encodeType}
+                                                    onChange={e => setForm({ ...form, video: { ...form.video, encodeType: e.target.value } })}
                                                     className="form-select"
                                                 >
                                                     <option value="H264">H.264 (Standard)</option>
@@ -807,9 +807,9 @@ export default function VideoSettings({ theme }) {
                                                 </select>
                                             </ControlRow>
                                             <ControlRow label="Record Mode">
-                                                <select 
-                                                    value={form.video.recordMode} 
-                                                    onChange={e => setForm({...form, video: {...form.video, recordMode: parseInt(e.target.value)}})}
+                                                <select
+                                                    value={form.video.recordMode}
+                                                    onChange={e => setForm({ ...form, video: { ...form.video, recordMode: parseInt(e.target.value) } })}
                                                     className="form-select"
                                                 >
                                                     <option value={0}>Automatic (ACC)</option>
@@ -822,15 +822,15 @@ export default function VideoSettings({ theme }) {
                                             <div className="stream-group">
                                                 <header>CH1 - Road Facing</header>
                                                 <ControlRow label="Enable Feed">
-                                                    <Toggle 
-                                                        value={form.video.mainStream.CH1.enable} 
-                                                        onChange={v => setForm({...form, video: {...form.video, mainStream: {...form.video.mainStream, CH1: {...form.video.mainStream.CH1, enable: v}}}})} 
+                                                    <Toggle
+                                                        value={form.video.mainStream.CH1.enable}
+                                                        onChange={v => setForm({ ...form, video: { ...form.video, mainStream: { ...form.video.mainStream, CH1: { ...form.video.mainStream.CH1, enable: v } } } })}
                                                     />
                                                 </ControlRow>
                                                 <ControlRow label="Resolution">
-                                                    <select 
+                                                    <select
                                                         value={form.video.mainStream.CH1.resolution}
-                                                        onChange={e => setForm({...form, video: {...form.video, mainStream: {...form.video.mainStream, CH1: {...form.video.mainStream.CH1, resolution: parseInt(e.target.value)}}}})}
+                                                        onChange={e => setForm({ ...form, video: { ...form.video, mainStream: { ...form.video.mainStream, CH1: { ...form.video.mainStream.CH1, resolution: parseInt(e.target.value) } } } })}
                                                         className="form-select"
                                                     >
                                                         <option value={6}>1080P</option>
@@ -842,10 +842,10 @@ export default function VideoSettings({ theme }) {
                                         </GlassCard>
                                         <GlassCard title="OSD Overlay" icon={Layout}>
                                             <ControlRow label="Text Transparency">
-                                                <input type="range" min="0" max="255" value={form.video.osd.alpha} onChange={e => setForm({...form, video: {...form.video, osd: {...form.video.osd, alpha: parseInt(e.target.value)}}})} className="form-range" />
+                                                <input type="range" min="0" max="255" value={form.video.osd.alpha} onChange={e => setForm({ ...form, video: { ...form.video, osd: { ...form.video.osd, alpha: parseInt(e.target.value) } } })} className="form-range" />
                                             </ControlRow>
                                             <ControlRow label="Date/Time Overlay">
-                                                <Toggle value={form.video.osd.regions[1].date} onChange={v => setForm({...form, video: {...form.video, osd: {...form.video.osd, regions: { 1: { ...form.video.osd.regions[1], date: v }}} }})} />
+                                                <Toggle value={form.video.osd.regions[1].date} onChange={v => setForm({ ...form, video: { ...form.video, osd: { ...form.video.osd, regions: { 1: { ...form.video.osd.regions[1], date: v } } } } })} />
                                             </ControlRow>
                                         </GlassCard>
                                         {form.video.recordMode === 1 && (
@@ -855,11 +855,11 @@ export default function VideoSettings({ theme }) {
                                                         <div key={day} className="schedule-item">
                                                             <span className="day-label">{day}</span>
                                                             <div className="time-inputs">
-                                                                <input type="number" min="0" max="23" value={form.video.timedRecord[`Day${i}`].startH} onChange={e => setForm({...form, video: {...form.video, timedRecord: {...form.video.timedRecord, [`Day${i}`]: {...form.video.timedRecord[`Day${i}`], startH: parseInt(e.target.value)}}}})} className="time-field" />:
-                                                                <input type="number" min="0" max="59" value={form.video.timedRecord[`Day${i}`].startM} onChange={e => setForm({...form, video: {...form.video, timedRecord: {...form.video.timedRecord, [`Day${i}`]: {...form.video.timedRecord[`Day${i}`], startM: parseInt(e.target.value)}}}})} className="time-field" />
+                                                                <input type="number" min="0" max="23" value={form.video.timedRecord[`Day${i}`].startH} onChange={e => setForm({ ...form, video: { ...form.video, timedRecord: { ...form.video.timedRecord, [`Day${i}`]: { ...form.video.timedRecord[`Day${i}`], startH: parseInt(e.target.value) } } } })} className="time-field" />:
+                                                                <input type="number" min="0" max="59" value={form.video.timedRecord[`Day${i}`].startM} onChange={e => setForm({ ...form, video: { ...form.video, timedRecord: { ...form.video.timedRecord, [`Day${i}`]: { ...form.video.timedRecord[`Day${i}`], startM: parseInt(e.target.value) } } } })} className="time-field" />
                                                                 <span className="mx-2">to</span>
-                                                                <input type="number" min="0" max="23" value={form.video.timedRecord[`Day${i}`].endH} onChange={e => setForm({...form, video: {...form.video, timedRecord: {...form.video.timedRecord, [`Day${i}`]: {...form.video.timedRecord[`Day${i}`], endH: parseInt(e.target.value)}}}})} className="time-field" />:
-                                                                <input type="number" min="0" max="59" value={form.video.timedRecord[`Day${i}`].endM} onChange={e => setForm({...form, video: {...form.video, timedRecord: {...form.video.timedRecord, [`Day${i}`]: {...form.video.timedRecord[`Day${i}`], endM: parseInt(e.target.value)}}}})} className="time-field" />
+                                                                <input type="number" min="0" max="23" value={form.video.timedRecord[`Day${i}`].endH} onChange={e => setForm({ ...form, video: { ...form.video, timedRecord: { ...form.video.timedRecord, [`Day${i}`]: { ...form.video.timedRecord[`Day${i}`], endH: parseInt(e.target.value) } } } })} className="time-field" />:
+                                                                <input type="number" min="0" max="59" value={form.video.timedRecord[`Day${i}`].endM} onChange={e => setForm({ ...form, video: { ...form.video, timedRecord: { ...form.video.timedRecord, [`Day${i}`]: { ...form.video.timedRecord[`Day${i}`], endM: parseInt(e.target.value) } } } })} className="time-field" />
                                                             </div>
                                                         </div>
                                                     ))}
@@ -884,21 +884,21 @@ export default function VideoSettings({ theme }) {
                                             <>
                                                 <GlassCard title="G-Sensor Sensitivity" icon={Activity}>
                                                     <ControlRow label="Rapid Accel" description="Threshold for acceleration alerts">
-                                                        <input type="number" value={form.alarms.sensors.gSensor.rapidAccel} onChange={e => setForm({...form, alarms: {...form.alarms, sensors: {...form.alarms.sensors, gSensor: {...form.alarms.sensors.gSensor, rapidAccel: parseInt(e.target.value)}}}})} className="form-input" />
+                                                        <input type="number" value={form.alarms.sensors.gSensor.rapidAccel} onChange={e => setForm({ ...form, alarms: { ...form.alarms, sensors: { ...form.alarms.sensors, gSensor: { ...form.alarms.sensors.gSensor, rapidAccel: parseInt(e.target.value) } } } })} className="form-input" />
                                                     </ControlRow>
                                                     <ControlRow label="Emergency Brake">
-                                                        <input type="number" value={form.alarms.sensors.gSensor.emergencyBrake} onChange={e => setForm({...form, alarms: {...form.alarms, sensors: {...form.alarms.sensors, gSensor: {...form.alarms.sensors.gSensor, emergencyBrake: parseInt(e.target.value)}}}})} className="form-input" />
+                                                        <input type="number" value={form.alarms.sensors.gSensor.emergencyBrake} onChange={e => setForm({ ...form, alarms: { ...form.alarms, sensors: { ...form.alarms.sensors, gSensor: { ...form.alarms.sensors.gSensor, emergencyBrake: parseInt(e.target.value) } } } })} className="form-input" />
                                                     </ControlRow>
                                                     <ControlRow label="Crash Sensitivity">
-                                                        <input type="number" value={form.alarms.sensors.gSensor.crash} onChange={e => setForm({...form, alarms: {...form.alarms, sensors: {...form.alarms.sensors, gSensor: {...form.alarms.sensors.gSensor, crash: parseInt(e.target.value)}}}})} className="form-input" />
+                                                        <input type="number" value={form.alarms.sensors.gSensor.crash} onChange={e => setForm({ ...form, alarms: { ...form.alarms, sensors: { ...form.alarms.sensors, gSensor: { ...form.alarms.sensors.gSensor, crash: parseInt(e.target.value) } } } })} className="form-input" />
                                                     </ControlRow>
                                                 </GlassCard>
                                                 <GlassCard title="Voltage Protection" icon={Zap}>
                                                     <ControlRow label="Low Voltage Enable">
-                                                        <Toggle value={form.alarms.sensors.voltage.enable} onChange={v => setForm({...form, alarms: {...form.alarms, sensors: {...form.alarms.sensors, voltage: {...form.alarms.sensors.voltage, enable: v}}}})} />
+                                                        <Toggle value={form.alarms.sensors.voltage.enable} onChange={v => setForm({ ...form, alarms: { ...form.alarms, sensors: { ...form.alarms.sensors, voltage: { ...form.alarms.sensors.voltage, enable: v } } } })} />
                                                     </ControlRow>
                                                     <ControlRow label="Limit Voltage (V)">
-                                                        <input type="number" step="0.1" value={form.alarms.sensors.voltage.limit} onChange={e => setForm({...form, alarms: {...form.alarms, sensors: {...form.alarms.sensors, voltage: {...form.alarms.sensors.voltage, limit: parseFloat(e.target.value)}}}})} className="form-input" />
+                                                        <input type="number" step="0.1" value={form.alarms.sensors.voltage.limit} onChange={e => setForm({ ...form, alarms: { ...form.alarms, sensors: { ...form.alarms.sensors, voltage: { ...form.alarms.sensors.voltage, limit: parseFloat(e.target.value) } } } })} className="form-input" />
                                                     </ControlRow>
                                                 </GlassCard>
                                             </>
@@ -907,13 +907,13 @@ export default function VideoSettings({ theme }) {
                                         {configEvent?.subTab === 'IO' && (
                                             <GlassCard title="Alarm Input 1 (IN1)" icon={Shield}>
                                                 <ControlRow label="Enable Type">
-                                                    <select value={form.alarms.io.in1.type} onChange={e => setForm({...form, alarms: {...form.alarms, io: {...form.alarms.io, in1: {...form.alarms.io.in1, type: e.target.value}}}})} className="form-select">
+                                                    <select value={form.alarms.io.in1.type} onChange={e => setForm({ ...form, alarms: { ...form.alarms, io: { ...form.alarms.io, in1: { ...form.alarms.io.in1, type: e.target.value } } } })} className="form-select">
                                                         <option value="Panic">Panic Button</option>
                                                         <option value="Door">Door Sensor</option>
                                                     </select>
                                                 </ControlRow>
                                                 <ControlRow label="Logic Level">
-                                                    <select value={form.alarms.io.in1.level} onChange={e => setForm({...form, alarms: {...form.alarms, io: {...form.alarms.io, in1: {...form.alarms.io.in1, level: e.target.value}}}})} className="form-select">
+                                                    <select value={form.alarms.io.in1.level} onChange={e => setForm({ ...form, alarms: { ...form.alarms, io: { ...form.alarms.io, in1: { ...form.alarms.io.in1, level: e.target.value } } } })} className="form-select">
                                                         <option value="Low">Active Low</option>
                                                         <option value="High">Active High</option>
                                                     </select>
@@ -932,13 +932,13 @@ export default function VideoSettings({ theme }) {
                                             <>
                                                 <GlassCard title="Standard Speed Rules" icon={Gauge}>
                                                     <ControlRow label="Max Speed (km/h)">
-                                                        <input type="number" value={form.alarms.speed.maxSpeed} onChange={e => setForm({...form, alarms: {...form.alarms, speed: {...form.alarms.speed, maxSpeed: parseInt(e.target.value)}}})} className="form-input" />
+                                                        <input type="number" value={form.alarms.speed.maxSpeed} onChange={e => setForm({ ...form, alarms: { ...form.alarms, speed: { ...form.alarms.speed, maxSpeed: parseInt(e.target.value) } } })} className="form-input" />
                                                     </ControlRow>
                                                     <ControlRow label="Overspeed Duration (s)">
-                                                        <input type="number" value={form.alarms.speed.duration} onChange={e => setForm({...form, alarms: {...form.alarms, speed: {...form.alarms.speed, duration: parseInt(e.target.value)}}})} className="form-input" />
+                                                        <input type="number" value={form.alarms.speed.duration} onChange={e => setForm({ ...form, alarms: { ...form.alarms, speed: { ...form.alarms.speed, duration: parseInt(e.target.value) } } })} className="form-input" />
                                                     </ControlRow>
                                                     <ControlRow label="Speed Unit">
-                                                        <select value={form.alarms.speed.unit} onChange={e => setForm({...form, alarms: {...form.alarms, speed: {...form.alarms.speed, unit: parseInt(e.target.value)}}})} className="form-select">
+                                                        <select value={form.alarms.speed.unit} onChange={e => setForm({ ...form, alarms: { ...form.alarms, speed: { ...form.alarms.speed, unit: parseInt(e.target.value) } } })} className="form-select">
                                                             <option value={0}>Kilometers (km/h)</option>
                                                             <option value={1}>Miles (mph)</option>
                                                             <option value={2}>Knots (kn)</option>
@@ -985,7 +985,7 @@ export default function VideoSettings({ theme }) {
                                         <GlassCard title="ADAS Thresholds" icon={Shield}>
                                             <ControlRow label="Forward Collision (0.1s)" description="Detection time for FCW alerts">
                                                 <div className="input-with-config">
-                                                    <input type="number" value={form.ai.adas.fcw?.timeThreshold || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, fcw: {...form.ai.adas.fcw, timeThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                                    <input type="number" value={form.ai.adas.fcw?.timeThreshold || ''} placeholder="N/A" onChange={e => setForm({ ...form, ai: { ...form.ai, adas: { ...form.ai.adas, fcw: { ...form.ai.adas.fcw, timeThreshold: parseInt(e.target.value) } } } })} className="form-input" />
                                                     <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'adas', key: 'fcw', label: 'Forward Collision' }); setShowAiModal(true); }}>
                                                         <Settings size={14} />
                                                     </button>
@@ -993,7 +993,7 @@ export default function VideoSettings({ theme }) {
                                             </ControlRow>
                                             <ControlRow label="Lane Departure (km/h)" description="Min speed for LDW activation">
                                                 <div className="input-with-config">
-                                                    <input type="number" value={form.ai.adas.ldw?.speedThreshold || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, adas: {...form.ai.adas, ldw: {...form.ai.adas.ldw, speedThreshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                                    <input type="number" value={form.ai.adas.ldw?.speedThreshold || ''} placeholder="N/A" onChange={e => setForm({ ...form, ai: { ...form.ai, adas: { ...form.ai.adas, ldw: { ...form.ai.adas.ldw, speedThreshold: parseInt(e.target.value) } } } })} className="form-input" />
                                                     <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'adas', key: 'ldw', label: 'Lane Departure' }); setShowAiModal(true); }}>
                                                         <Settings size={14} />
                                                     </button>
@@ -1003,7 +1003,7 @@ export default function VideoSettings({ theme }) {
                                         <GlassCard title="DMS / DSM Thresholds" icon={Activity}>
                                             <ControlRow label="Fatigue Sensitivity" description="1-10 sensitivity for eye closing">
                                                 <div className="input-with-config">
-                                                    <input type="number" value={form.ai.dms.fatigue?.threshold || ''} placeholder="N/A" onChange={e => setForm({...form, ai: {...form.ai, dms: {...form.ai.dms, fatigue: {...form.ai.dms.fatigue, threshold: parseInt(e.target.value)}}}})} className="form-input" />
+                                                    <input type="number" value={form.ai.dms.fatigue?.threshold || ''} placeholder="N/A" onChange={e => setForm({ ...form, ai: { ...form.ai, dms: { ...form.ai.dms, fatigue: { ...form.ai.dms.fatigue, threshold: parseInt(e.target.value) } } } })} className="form-input" />
                                                     <button className="config-sub-btn" onClick={() => { setConfigEvent({ type: 'dms', key: 'fatigue', label: 'Fatigue Driving' }); setShowAiModal(true); }}>
                                                         <Settings size={14} />
                                                     </button>
@@ -1030,9 +1030,9 @@ export default function VideoSettings({ theme }) {
                                         </GlassCard>
                                         <GlassCard title="Power Management" icon={Zap}>
                                             <ControlRow label="Power Mode" description="Trigger logic for startup/shutdown">
-                                                <select 
-                                                    value={form.system.powerMode} 
-                                                    onChange={e => setForm({...form, system: {...form.system, powerMode: e.target.value}})}
+                                                <select
+                                                    value={form.system.powerMode}
+                                                    onChange={e => setForm({ ...form, system: { ...form.system, powerMode: e.target.value } })}
                                                     className="form-select"
                                                 >
                                                     <option value="ACC">ACC Triggered</option>
@@ -1040,14 +1040,14 @@ export default function VideoSettings({ theme }) {
                                                 </select>
                                             </ControlRow>
                                             <ControlRow label="Auto Reboot">
-                                                <Toggle value={form.system.autoReboot} onChange={v => setForm({...form, system: {...form.system, autoReboot: v}})} />
+                                                <Toggle value={form.system.autoReboot} onChange={v => setForm({ ...form, system: { ...form.system, autoReboot: v } })} />
                                             </ControlRow>
                                         </GlassCard>
                                         <GlassCard title="System Clock" icon={Clock}>
                                             <ControlRow label="NTP Server">
-                                                <input 
-                                                    value={form.system.ntpAddr} 
-                                                    onChange={e => setForm({...form, system: {...form.system, ntpAddr: e.target.value}})}
+                                                <input
+                                                    value={form.system.ntpAddr}
+                                                    onChange={e => setForm({ ...form, system: { ...form.system, ntpAddr: e.target.value } })}
                                                     className="form-input wide"
                                                 />
                                             </ControlRow>

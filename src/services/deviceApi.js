@@ -15,7 +15,7 @@ const deviceApi = {
       },
       body: JSON.stringify(payload),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || "Failed to send command");
@@ -80,13 +80,13 @@ const deviceApi = {
 
   updateSettingsBatch: async (deviceId, settings) => {
     const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings/batch`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
     });
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to update settings batch");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to update settings batch");
     }
     return response.json();
   },
@@ -95,8 +95,8 @@ const deviceApi = {
   getSettings: async (deviceId) => {
     const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings`);
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get settings");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to get settings");
     }
     return response.json();
   },
@@ -105,8 +105,8 @@ const deviceApi = {
   getTelemetry: async (deviceId, category) => {
     const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/telemetry/${category}`);
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get telemetry");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to get telemetry");
     }
     return response.json();
   },
@@ -171,6 +171,20 @@ const deviceApi = {
       throw new Error(errorData.error || "Failed to delete device");
     }
     return response.json();
+  },
+
+  // Trigger FRP tunnel — sends wake-up command to dashcam and returns the login URL
+  triggerRemoteSettings: async (deviceId) => {
+    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to trigger remote settings tunnel");
+    }
+    return data;
   },
 
 };

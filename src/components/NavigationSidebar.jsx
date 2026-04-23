@@ -16,7 +16,9 @@ import {
   Image as ImageIcon,
   ShieldAlert,
   Terminal,
+  MonitorSmartphone,
 } from "lucide-react";
+
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 
@@ -35,6 +37,8 @@ const NAV_ITEMS = [
   { path: "/media-gallery", icon: ImageIcon, label: "Media Gallery" },
   { path: "/vehicle-health", icon: ShieldAlert, label: "Vehicle Health" },
   { path: "/pm2-logs", icon: Terminal, label: "Server Logs" },
+  { path: "/remote-access", icon: MonitorSmartphone, label: "Remote Access" },
+
 ];
 
 export default function NavigationSidebar({ theme, toggleTheme }) {
