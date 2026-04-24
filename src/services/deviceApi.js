@@ -1,8 +1,19 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
+const getAuthHeaders = (extraHeaders = {}) => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const token = user.accessToken;
+  return {
+    ...extraHeaders,
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  };
+};
+
 const deviceApi = {
   checkStatus: async () => {
-    const response = await fetch(`${BASE_URL}/api/status`);
+    const response = await fetch(`${BASE_URL}/api/status`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to check status");
     return response.json();
   },
@@ -10,9 +21,9 @@ const deviceApi = {
   sendCommand: async (payload) => {
     const response = await fetch(`${BASE_URL}/api/command`, {
       method: "POST",
-      headers: {
+      headers: getAuthHeaders({
         "Content-Type": "application/json",
-      },
+      }),
       body: JSON.stringify(payload),
     });
 
@@ -24,14 +35,18 @@ const deviceApi = {
   },
 
   getFiles: async (deviceId) => {
-    const response = await fetch(`${BASE_URL}/api/files?deviceId=${deviceId}`);
+    const response = await fetch(`${BASE_URL}/api/files?deviceId=${deviceId}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to get files");
     return response.json();
   },
 
   getGpsData: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${BASE_URL}/api/gps?${query}`);
+    const response = await fetch(`${BASE_URL}/api/gps?${query}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to get GPS data");
     return response.json();
   },
@@ -51,7 +66,9 @@ const deviceApi = {
   // Get available parameter definitions
   getParameterList: async (category = "") => {
     const url = category ? `${BASE_URL}/api/parameters/list?category=${category}` : `${BASE_URL}/api/parameters/list`;
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to get parameter list");
     return response.json();
   },
@@ -60,7 +77,7 @@ const deviceApi = {
   queryParams: async (deviceId, paramIds) => {
     const response = await fetch(`${BASE_URL}/api/device/query-params`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ deviceId, parameters: { paramIds } }),
     });
     if (!response.ok) throw new Error("Failed to query parameters");
@@ -71,7 +88,7 @@ const deviceApi = {
   setParams: async (deviceId, category, settings) => {
     const response = await fetch(`${BASE_URL}/api/device/set-params`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ deviceId, category, settings }),
     });
     if (!response.ok) throw new Error("Failed to set parameters");
@@ -81,7 +98,7 @@ const deviceApi = {
   updateSettingsBatch: async (deviceId, settings) => {
     const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings/batch`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(settings),
     });
     if (!response.ok) {
@@ -93,7 +110,9 @@ const deviceApi = {
 
   // Get cached settings from server
   getSettings: async (deviceId) => {
-    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings`);
+    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "Failed to get settings");
@@ -103,7 +122,9 @@ const deviceApi = {
 
   // Get extraction telemetry (read-only diagnostics)
   getTelemetry: async (deviceId, category) => {
-    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/telemetry/${category}`);
+    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/telemetry/${category}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "Failed to get telemetry");
@@ -118,20 +139,26 @@ const deviceApi = {
 
   getAiEvents: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${BASE_URL}/api/ai-events?${query}`);
+    const response = await fetch(`${BASE_URL}/api/ai-events?${query}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to get AI events");
     return response.json();
   },
 
   getDevices: async () => {
-    const response = await fetch(`${BASE_URL}/api/devices`);
+    const response = await fetch(`${BASE_URL}/api/devices`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to fetch devices");
     return response.json();
   },
 
   getDevicesV2: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${BASE_URL}/api/devices/v2?${query}`);
+    const response = await fetch(`${BASE_URL}/api/devices/v2?${query}`, {
+      headers: getAuthHeaders(),
+    });
     if (!response.ok) throw new Error("Failed to fetch devices V2");
     return response.json();
   },
@@ -139,7 +166,7 @@ const deviceApi = {
   createDevice: async (data) => {
     const response = await fetch(`${BASE_URL}/api/devices`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -152,7 +179,7 @@ const deviceApi = {
   updateDevice: async (deviceId, data) => {
     const response = await fetch(`${BASE_URL}/api/devices/${deviceId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -165,6 +192,7 @@ const deviceApi = {
   deleteDevice: async (deviceId) => {
     const response = await fetch(`${BASE_URL}/api/devices/${deviceId}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -177,7 +205,7 @@ const deviceApi = {
   triggerRemoteSettings: async (deviceId) => {
     const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
       body: "{}",
     });
     const data = await response.json().catch(() => ({}));

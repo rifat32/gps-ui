@@ -45,6 +45,14 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      setUser(JSON.parse(userStr));
+    }
+  }, []);
 
   // Close mobile sidebar on navigation
   useEffect(() => {
@@ -109,11 +117,11 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
           </button>
 
           <div className="user-profile">
-            <div className="avatar">A</div>
+            <div className="avatar">{(user?.name || "A")[0]}</div>
             {!isCollapsed && (
               <div className="user-info">
-                <span className="user-name">Admin User</span>
-                <span className="user-role">Super Admin</span>
+                <span className="user-name">{user?.name || "Admin User"}</span>
+                <span className="user-role">{user?.role || "Super Admin"}</span>
               </div>
             )}
           </div>
