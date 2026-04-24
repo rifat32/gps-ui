@@ -21,6 +21,7 @@ import {
 
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import authApi from "../services/authApi";
 
 const NAV_ITEMS = [
   { path: "/", icon: MapIcon, label: "Live Tracker" },
@@ -124,6 +125,13 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
                 <span className="user-role">{user?.role || "Super Admin"}</span>
               </div>
             )}
+            <button 
+              className="logout-btn" 
+              onClick={() => { authApi.logout(); window.location.reload(); }}
+              title="Sign Out"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </aside>

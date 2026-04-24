@@ -19,36 +19,47 @@ const Pm2Logs = lazy(() => import("./pages/Pm2Logs"));
 const RemoteAccess = lazy(() => import("./pages/RemoteAccess"));
 
 
+import LoginPage from "./pages/Auth/LoginPage";
+import authApi from "./services/authApi";
+
 function PrivateRoute({ children }) {
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
   const isAuthenticated = !!user?.accessToken;
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
-  if (!isAuthenticated || !isSuperAdmin) {
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  if (!isSuperAdmin) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-100 p-8">
-        <div className="bg-white p-10 rounded-2xl shadow-2xl text-center max-w-md border border-gray-200">
-          <div className="text-red-500 text-6xl mb-6">⚠️</div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">Access Restricted</h1>
-          <p className="text-gray-600 mb-8 leading-relaxed">
-            {isAuthenticated 
-              ? "This console is reserved for Super Administrators. Your current account does not have sufficient permissions."
-              : "You are not authorized to access the GPS Fleet Management Console. Please log in through the main portal to continue."}
+      <div className="flex flex-col items-center justify-center h-screen bg-[#0f1016] p-8 text-white font-sans">
+        <div className="bg-white/5 backdrop-blur-xl p-12 rounded-[32px] shadow-2xl text-center max-w-md border border-white/10">
+          <div className="text-amber-500 text-7xl mb-8">🛡️</div>
+          <h1 className="text-4xl font-extrabold tracking-tight mb-4">Elevated Access Required</h1>
+          <p className="text-white/60 mb-10 leading-relaxed text-lg">
+            This terminal is restricted to <strong>Super Administrators</strong>. 
+            Your current permissions are insufficient for this operational area.
           </p>
-          <button 
-            onClick={() => window.location.href = "/"}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-300 transform hover:scale-105"
-          >
-            Return to Portal
-          </button>
+          <div className="flex flex-col gap-4">
+            <button 
+              onClick={() => authApi.logout() || window.location.reload()}
+              className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-amber-900/20"
+            >
+              Sign Out / Switch Operator
+            </button>
+            <button 
+              onClick={() => window.location.href = "/"}
+              className="w-full py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all duration-300"
+            >
+              Return to Fleet Portal
+            </button>
+          </div>
         </div>
       </div>
     );
   }
-
-  // Optional: Check for Super Admin role if needed
-  // if (user.role !== 'SUPER_ADMIN') { ... }
 
   return children;
 }

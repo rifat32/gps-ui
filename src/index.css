@@ -84,3 +84,26 @@ input:checked + .slider-round {
 input:checked + .slider-round:before {
   transform: translateX(20px);
 }
+
+.logout-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.dark-theme .logout-btn {
+  color: rgba(255, 255, 255, 0.4);
+}
