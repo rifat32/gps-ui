@@ -48,7 +48,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
   const fetchInitialPositions = async () => {
     try {
-      const json = await deviceApi.getGpsData({ device_type: deviceType });
+      const json = await deviceApi.getLiveGpsData({ device_type: deviceType });
 
       const apiVehicles = (json.data || [])
         .map((v) => {
@@ -58,10 +58,11 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
           if (lat === 0 && lng === 0) return null;
 
-          // Check if data is older than 1 minute
-          const gpsTime = new Date(v.gps_time);
+          // Check if data is older than 1 minute (Offline detection)
+          const timeStr = v.gps_time || v.time || v.timestamp;
+          const gpsTime = new Date(timeStr);
           const now = new Date();
-          const isStale = (now - gpsTime) > 1 * 60 * 1000; // 1 minute in ms
+          const isStale = !timeStr || isNaN(gpsTime.getTime()) || (now - gpsTime) > 1 * 60 * 1000;
 
           return {
             id: deviceId,
@@ -70,7 +71,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
             lng: lng,
             speed: Number(v.speed || 0),
             heading: Number(v.direction || 0),
-            timestamp: v.gps_time,
+            timestamp: timeStr,
             // If data is stale, show Offline, otherwise check speed
             status: isStale ? "Offline" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped"),
           };

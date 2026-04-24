@@ -73,6 +73,13 @@ const deviceApi = {
     return response.json();
   },
 
+  getLiveGpsData: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const response = await fetchWithAuth(`${BASE_URL}/api/live/gps?${query}`);
+    if (!response.ok) throw new Error("Failed to get Live GPS data");
+    return response.json();
+  },
+
   // Helper to start live stream
   startLive: async (deviceId, channel = 1, socketId = null) => {
     return deviceApi.sendCommand({
