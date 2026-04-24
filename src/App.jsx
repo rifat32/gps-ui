@@ -1,5 +1,6 @@
 import { lazy, useEffect, useState, Suspense } from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Route, BrowserRouter as Router, Routes, Navigate } from "react-router-dom";
+
 import "./App.css";
 const LiveTracker = lazy(() => import("./pages/LiveTracker"));
 const Dashcam = lazy(() => import("./pages/Dashcam"));
@@ -29,8 +30,9 @@ function PrivateRoute({ children }) {
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return <Navigate to="/login" replace />;
   }
+
 
   if (!isSuperAdmin) {
     return (
@@ -86,7 +88,9 @@ function App() {
     <Router>
       <Suspense fallback={<div className="p-4">Loading Fleet Pro...</div>}>
         <Routes>
+          <Route path="/login" element={<LoginPage />} />
           <Route element={
+
             <PrivateRoute>
               <Layout theme={theme} toggleTheme={toggleTheme} />
             </PrivateRoute>

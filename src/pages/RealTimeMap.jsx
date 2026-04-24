@@ -10,11 +10,11 @@ import { Loader2, Bell, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 
+import deviceApi from "../services/deviceApi";
+
 // Configuration
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const API_URL_DASHCAM = `${import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
 const WS_URL_DASHCAM = import.meta.env.VITE_WS_URL;
-const API_URL_OBD = `${import.meta.env.VITE_OBD_API_URL}/api/live/gps`;
 const WS_URL_OBD = import.meta.env.VITE_OBD_API_URL;
 
 const mapContainerStyle = { width: "100%", height: "100vh" };
@@ -37,7 +37,6 @@ const getPixelPositionOffset = (width, height) => ({
 });
 
 export default function RealTimeMap({ deviceType = "DASHCAM" }) {
-  const currentApiUrl = deviceType === "OBD" ? API_URL_OBD : API_URL_DASHCAM;
   const currentWsUrl = deviceType === "OBD" ? WS_URL_OBD : WS_URL_DASHCAM;
 
   const [vehicles, setVehicles] = useState([]);
@@ -49,10 +48,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
   const fetchInitialPositions = async () => {
     try {
-      const urlWithFilter = `${currentApiUrl}?device_type=${deviceType}`;
-      const response = await fetch(urlWithFilter);
-      if (!response.ok) throw new Error("Failed to fetch initial data");
-      const json = await response.json();
+      const json = await deviceApi.getGpsData({ device_type: deviceType });
 
       const apiVehicles = (json.data || [])
         .map((v) => {

@@ -1,29 +1,43 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 const getAuthHeaders = (extraHeaders = {}) => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const token = user.accessToken;
-  return {
-    ...extraHeaders,
-    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-  };
+  const userStr = localStorage.getItem("user");
+  if (!userStr) return extraHeaders;
+  
+  try {
+    const user = JSON.parse(userStr);
+    const token = user.accessToken || user.token;
+    return {
+      ...extraHeaders,
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    };
+  } catch (e) {
+    console.error("Error parsing user in deviceApi:", e);
+    return extraHeaders;
+  }
 };
 
 const fetchWithAuth = async (url, options = {}) => {
+  const headers = getAuthHeaders(options.headers || {});
+  
   const response = await fetch(url, {
     ...options,
-    headers: getAuthHeaders(options.headers || {}),
+    headers
   });
 
+  // fetchInterceptor already handles 401, but we keep this as a secondary safety
   if (response.status === 401) {
-    console.warn("🔐 Session expired or unauthorized. Logging out...");
+    console.warn("🔐 Session expired in deviceApi. Redirecting...");
     localStorage.removeItem("user");
-    window.location.reload();
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = '/login';
+    }
     throw new Error("Unauthorized");
   }
 
   return response;
 };
+
 
 const deviceApi = {
   checkStatus: async () => {
