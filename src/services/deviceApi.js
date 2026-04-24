@@ -9,21 +9,33 @@ const getAuthHeaders = (extraHeaders = {}) => {
   };
 };
 
+const fetchWithAuth = async (url, options = {}) => {
+  const response = await fetch(url, {
+    ...options,
+    headers: getAuthHeaders(options.headers || {}),
+  });
+
+  if (response.status === 401) {
+    console.warn("🔐 Session expired or unauthorized. Logging out...");
+    localStorage.removeItem("user");
+    window.location.reload();
+    throw new Error("Unauthorized");
+  }
+
+  return response;
+};
+
 const deviceApi = {
   checkStatus: async () => {
-    const response = await fetch(`${BASE_URL}/api/status`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/status`);
     if (!response.ok) throw new Error("Failed to check status");
     return response.json();
   },
 
   sendCommand: async (payload) => {
-    const response = await fetch(`${BASE_URL}/api/command`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/command`, {
       method: "POST",
-      headers: getAuthHeaders({
-        "Content-Type": "application/json",
-      }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
@@ -35,18 +47,14 @@ const deviceApi = {
   },
 
   getFiles: async (deviceId) => {
-    const response = await fetch(`${BASE_URL}/api/files?deviceId=${deviceId}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/files?deviceId=${deviceId}`);
     if (!response.ok) throw new Error("Failed to get files");
     return response.json();
   },
 
   getGpsData: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${BASE_URL}/api/gps?${query}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/gps?${query}`);
     if (!response.ok) throw new Error("Failed to get GPS data");
     return response.json();
   },
@@ -66,18 +74,16 @@ const deviceApi = {
   // Get available parameter definitions
   getParameterList: async (category = "") => {
     const url = category ? `${BASE_URL}/api/parameters/list?category=${category}` : `${BASE_URL}/api/parameters/list`;
-    const response = await fetch(url, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(url);
     if (!response.ok) throw new Error("Failed to get parameter list");
     return response.json();
   },
 
   // Query live parameter values from device
   queryParams: async (deviceId, paramIds) => {
-    const response = await fetch(`${BASE_URL}/api/device/query-params`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/device/query-params`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deviceId, parameters: { paramIds } }),
     });
     if (!response.ok) throw new Error("Failed to query parameters");
@@ -86,9 +92,9 @@ const deviceApi = {
 
   // Update parameters on the device
   setParams: async (deviceId, category, settings) => {
-    const response = await fetch(`${BASE_URL}/api/device/set-params`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/device/set-params`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deviceId, category, settings }),
     });
     if (!response.ok) throw new Error("Failed to set parameters");
@@ -96,9 +102,9 @@ const deviceApi = {
   },
 
   updateSettingsBatch: async (deviceId, settings) => {
-    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings/batch`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/settings/batch`, {
       method: "PUT",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     });
     if (!response.ok) {
@@ -110,9 +116,7 @@ const deviceApi = {
 
   // Get cached settings from server
   getSettings: async (deviceId) => {
-    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/settings`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/settings`);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "Failed to get settings");
@@ -122,9 +126,7 @@ const deviceApi = {
 
   // Get extraction telemetry (read-only diagnostics)
   getTelemetry: async (deviceId, category) => {
-    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/telemetry/${category}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/telemetry/${category}`);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "Failed to get telemetry");
@@ -139,34 +141,28 @@ const deviceApi = {
 
   getAiEvents: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${BASE_URL}/api/ai-events?${query}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/ai-events?${query}`);
     if (!response.ok) throw new Error("Failed to get AI events");
     return response.json();
   },
 
   getDevices: async () => {
-    const response = await fetch(`${BASE_URL}/api/devices`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/devices`);
     if (!response.ok) throw new Error("Failed to fetch devices");
     return response.json();
   },
 
   getDevicesV2: async (params = {}) => {
     const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${BASE_URL}/api/devices/v2?${query}`, {
-      headers: getAuthHeaders(),
-    });
+    const response = await fetchWithAuth(`${BASE_URL}/api/devices/v2?${query}`);
     if (!response.ok) throw new Error("Failed to fetch devices V2");
     return response.json();
   },
 
   createDevice: async (data) => {
-    const response = await fetch(`${BASE_URL}/api/devices`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/devices`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -177,9 +173,9 @@ const deviceApi = {
   },
 
   updateDevice: async (deviceId, data) => {
-    const response = await fetch(`${BASE_URL}/api/devices/${deviceId}`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/devices/${deviceId}`, {
       method: "PUT",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -190,9 +186,8 @@ const deviceApi = {
   },
 
   deleteDevice: async (deviceId) => {
-    const response = await fetch(`${BASE_URL}/api/devices/${deviceId}`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/devices/${deviceId}`, {
       method: "DELETE",
-      headers: getAuthHeaders(),
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -203,9 +198,9 @@ const deviceApi = {
 
   // Trigger FRP tunnel — sends wake-up command to dashcam and returns the login URL
   triggerRemoteSettings: async (deviceId) => {
-    const response = await fetch(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings`, {
+    const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings`, {
       method: "POST",
-      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      headers: { "Content-Type": "application/json" },
       body: "{}",
     });
     const data = await response.json().catch(() => ({}));
@@ -214,7 +209,6 @@ const deviceApi = {
     }
     return data;
   },
-
 };
 
 export default deviceApi;

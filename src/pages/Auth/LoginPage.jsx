@@ -17,7 +17,7 @@ export default function LoginPage() {
 
     try {
       await authApi.login(email, password);
-      navigate("/");
+      window.location.href = "/";
     } catch (err) {
       setError(err.message || "Login failed. Please check your credentials.");
     } finally {

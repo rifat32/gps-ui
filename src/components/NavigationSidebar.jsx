@@ -112,7 +112,7 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
             ) : (
               <>
                 <ChevronLeft size={18} />
-                <span>Collapse</span>
+                <span>Collapse Sidebar</span>
               </>
             )}
           </button>
@@ -125,14 +125,15 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
                 <span className="user-role">{user?.role || "Super Admin"}</span>
               </div>
             )}
-            <button 
-              className="logout-btn" 
-              onClick={() => { authApi.logout(); window.location.reload(); }}
-              title="Sign Out"
-            >
-              <LogOut size={18} />
-            </button>
           </div>
+
+          <button 
+            className={`logout-full-btn ${isCollapsed ? 'collapsed' : ''}`}
+            onClick={() => { authApi.logout(); window.location.reload(); }}
+          >
+            <LogOut size={18} />
+            {!isCollapsed && <span>Sign Out System</span>}
+          </button>
         </div>
       </aside>
     </>
