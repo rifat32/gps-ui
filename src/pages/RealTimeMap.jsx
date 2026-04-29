@@ -121,7 +121,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
           lat,
           lng,
           speed: Number(update.speed || 0),
-          heading: Number(update.heading || 0),
+          heading: Number(update.direction || update.heading || 0),
           status: (Number(update.speed) || 0) > 0 ? "Moving" : "Stopped",
           timestamp: update.gpsTime,
           lastUpdatedAt: Date.now(), // Track when we last got a live update
@@ -249,14 +249,14 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
                 position={{ lat: vehicle.lat, lng: vehicle.lng }}
                 onClick={() => setSelectedVehicle(vehicle)}
                 icon={window.google ? {
-                  path: "M50 5 L15 85 L50 70 L85 85 Z",
+                  path: "M25,50 L50,5 L75,50 L50,40 Z", // Sharper arrow pointing North
                   fillColor: vehicle.status === "Offline" ? "#94a3b8" : "#3b82f6",
                   fillOpacity: 1,
                   strokeColor: "white",
                   strokeWeight: 2,
-                  scale: 0.4,
-                  rotation: vehicle.heading || 0,
-                  anchor: new window.google.maps.Point(50, 50),
+                  scale: 1,
+                  rotation: (vehicle.heading || 0) + 180, // Compensate for reverse direction
+                  anchor: new window.google.maps.Point(50, 25),
                 } : null}
               />
             ))}
