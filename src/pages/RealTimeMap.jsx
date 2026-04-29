@@ -58,22 +58,23 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
 
           if (lat === 0 && lng === 0) return null;
 
-          // Check if data is older than 1 minute (Offline detection)
+          // Check if data is older than 10 minutes (Offline detection)
           const timeStr = v.gps_time || v.time || v.timestamp;
           const gpsTime = new Date(timeStr);
           const now = new Date();
-          const isStale = !timeStr || isNaN(gpsTime.getTime()) || (now - gpsTime) > 1 * 60 * 1000;
+          const TEN_MINUTES = 10 * 60 * 1000;
+          const isStale = !timeStr || isNaN(gpsTime.getTime()) || (now - gpsTime) > TEN_MINUTES;
 
           return {
             id: deviceId,
-            name: v.deviceName || deviceId,
+            name: v.deviceName || v.name || deviceId,
             lat: lat,
             lng: lng,
             speed: Number(v.speed || 0),
             heading: Number(v.direction || 0),
             timestamp: timeStr,
-            // If data is stale, show Offline, otherwise check speed
-            status: isStale ? "Offline" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped"),
+            // Priority: Server-side calculated status > Client-side staleness check
+            status: v.status || (isStale ? "Offline" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped")),
           };
         })
         .filter(Boolean);
@@ -136,20 +137,20 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
       });
     });
 
-    // Periodically check if any vehicle has gone stale (no update in 1 minute)
+    // Periodically check if any vehicle has gone stale (no update in 10 minutes)
     const stalenessInterval = setInterval(() => {
-      const ONE_MINUTE = 1 * 60 * 1000;
+      const TEN_MINUTES = 10 * 60 * 1000;
       setVehicles((prev) =>
         prev.map((v) => {
           const lastUpdate = v.lastUpdatedAt || new Date(v.timestamp).getTime();
-          const isStale = Date.now() - lastUpdate > ONE_MINUTE;
+          const isStale = Date.now() - lastUpdate > TEN_MINUTES;
           if (isStale && v.status !== "Offline") {
             return { ...v, status: "Offline" };
           }
           return v;
         })
       );
-    }, 30000); // Check every 30 seconds
+    }, 60000); // Check every 1 minute
 
     return () => {
       if (socketRef.current) {

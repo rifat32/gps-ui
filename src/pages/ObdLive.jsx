@@ -177,13 +177,14 @@ export default function ObdLive({ theme }) {
     };
   }, [activeDeviceId]);
 
-  // Monitor for staleness (e.g. if we don't get data for 45s, consider it offline)
+  // Monitor for staleness (e.g. if we don't get data for 10m, consider it offline)
   useEffect(() => {
     const checkStaleness = setInterval(() => {
-      if (lastUpdateTime && Date.now() - lastUpdateTime > 45000) {
+      const TEN_MINUTES = 10 * 60 * 1000;
+      if (lastUpdateTime && Date.now() - lastUpdateTime > TEN_MINUTES) {
         setIsOnline(false);
       }
-    }, 10000);
+    }, 30000); // Check every 30s
     return () => clearInterval(checkStaleness);
   }, [lastUpdateTime]);
 
