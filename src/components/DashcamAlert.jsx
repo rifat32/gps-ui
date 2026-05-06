@@ -55,13 +55,31 @@ export default function DashcamAlert({ alert, onOpenMedia }) {
       <div
         style={{
           fontSize: "14px",
-          fontWeight: "600",
-          marginBottom: "12px",
-          lineHeight: "1.4",
+          fontWeight: "800",
+          marginBottom: "4px",
+          lineHeight: "1.2",
+          textTransform: "uppercase",
+          color: "var(--text-primary)",
         }}
       >
-        {alert.message || alert.event_code || "AI Triggered"}
+        {alert.friendly_name || alert.message || alert.event_code || "AI Triggered"}
       </div>
+      {alert.description && (
+        <div
+          style={{
+            fontSize: "11px",
+            color: "var(--text-secondary)",
+            marginBottom: "12px",
+            lineHeight: "1.4",
+            opacity: 0.8,
+          }}
+        >
+          {alert.description}
+        </div>
+      )}
+      {!alert.description && (
+        <div style={{ marginBottom: "12px" }}></div>
+      )}
 
       {(hasImage || hasVideo) && (
         <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>

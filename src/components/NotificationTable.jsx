@@ -135,7 +135,7 @@ export default function NotificationTable({
               <th style={thStyle}>Device</th>
               <th style={thStyle}>Time</th>
               <th style={thStyle}>Alert Type</th>
-              <th style={thStyle}>Event Code</th>
+              <th style={thStyle}>Intelligence Event</th>
               <th style={thStyle}>Speed</th>
               <th style={thStyle}>Media View</th>
               <th style={thStyle}>Copy Links</th>
@@ -183,8 +183,36 @@ export default function NotificationTable({
                   </td>
 
                   <td style={tdStyle}>
-                    <div style={{ color: "var(--text-secondary)" }}>
-                      {alert.event_code}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <div
+                        style={{
+                          fontWeight: "800",
+                          color: "var(--text-primary)",
+                          fontSize: "12px",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {alert.friendly_name || "Unknown Event"}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "10px",
+                          color: "var(--text-secondary)",
+                          opacity: 0.7,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {alert.description || "No description available"}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "9px",
+                          color: "#64748b",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        Code: {alert.event_code}
+                      </div>
                     </div>
                   </td>
                   <td style={tdStyle}>

@@ -110,7 +110,9 @@ export default function Dashcam({ theme, toggleTheme }) {
         return {
           id: event.id,
           type: event.category,
-          message: event.event_code,
+          message: event.friendly_name || event.event_code,
+          friendly_name: event.friendly_name,
+          description: event.description,
           time: timeStr,
           deviceId: event.device_id,
           file_path: event.file_path,
@@ -152,7 +154,9 @@ export default function Dashcam({ theme, toggleTheme }) {
         const newAlert = {
           id: Date.now(),
           type: event.category,
-          message: event.code || event.event_code,
+          message: event.friendly_name || event.code || event.event_code,
+          friendly_name: event.friendly_name,
+          description: event.description,
           time: new Date().toLocaleString("sv-SE").replace("T", " "),
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
