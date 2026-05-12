@@ -74,7 +74,7 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
             heading: Number(v.direction || 0),
             timestamp: timeStr,
             // Priority: Server-side calculated status > Client-side staleness check
-            status: v.status || (isStale ? "Offline" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped")),
+            status: v.status || (isStale ? "OFFLINE" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped")),
           };
         })
         .filter(Boolean);
@@ -144,8 +144,8 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
         prev.map((v) => {
           const lastUpdate = v.lastUpdatedAt || new Date(v.timestamp).getTime();
           const isStale = Date.now() - lastUpdate > TEN_MINUTES;
-          if (isStale && v.status !== "Offline") {
-            return { ...v, status: "Offline" };
+          if (isStale && String(v.status).toUpperCase() !== "OFFLINE") {
+            return { ...v, status: "OFFLINE" };
           }
           return v;
         })
@@ -249,13 +249,15 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
                 position={{ lat: vehicle.lat, lng: vehicle.lng }}
                 onClick={() => setSelectedVehicle(vehicle)}
                 icon={window.google ? {
-                  path: "M25,50 L50,5 L75,50 L50,40 Z", // Sharper arrow pointing North
-                  fillColor: vehicle.status === "Offline" ? "#94a3b8" : "#3b82f6",
+                  path: "M25,50 L50,5 L75,50 L50,40 Z", 
+                  fillColor: 
+                    String(vehicle.status).toUpperCase() === "OFFLINE" ? "#94a3b8" : 
+                    String(vehicle.status).toUpperCase() === "MOVING" ? "#22c55e" : "#ef4444",
                   fillOpacity: 1,
                   strokeColor: "white",
                   strokeWeight: 2,
                   scale: 1,
-                  rotation: (vehicle.heading || 0) + 180, // Compensate for reverse direction
+                  rotation: (vehicle.heading || 0), 
                   anchor: new window.google.maps.Point(50, 25),
                 } : null}
               />
@@ -278,8 +280,8 @@ export default function RealTimeMap({ deviceType = "DASHCAM" }) {
                       <span
                         style={{
                           color:
-                            selectedVehicle.status === "Moving" ? "#22c55e" :
-                              selectedVehicle.status === "Offline" ? "#94a3b8" : "#ef4444",
+                            String(selectedVehicle.status).toUpperCase() === "MOVING" ? "#22c55e" :
+                            String(selectedVehicle.status).toUpperCase() === "OFFLINE" ? "#94a3b8" : "#ef4444",
                           fontWeight: "bold",
                         }}
                       >
