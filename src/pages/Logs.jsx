@@ -147,7 +147,7 @@ const Logs = ({ theme }) => {
                 onChange={handleServiceChange}
                 className="logs-select"
               >
-                <option value="dashcam">Dashcam Service</option>
+                <option value="dashcam">AI Dashcam Service</option>
                 <option value="j42">J42 Service</option>
                 <option value="obd">OBD Service</option>
               </select>

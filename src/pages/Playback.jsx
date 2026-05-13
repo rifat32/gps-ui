@@ -254,7 +254,7 @@ export default function Playback({ theme }) {
         }}>
             <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "24px", minWidth: "350px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "space-between" }}>
-                    <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: theme === "dark" ? "#f8fafc" : "#1e293b", margin: 0 }}>Dashcam Playback</h2>
+                    <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: theme === "dark" ? "#f8fafc" : "#1e293b", margin: 0 }}>AI Dashcam Playback</h2>
                     <button onClick={() => setIsSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
                         <X size={24} />
                     </button>
@@ -262,7 +262,7 @@ export default function Playback({ theme }) {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div style={{ position: "relative" }}>
-                        <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>Select Dashcam</label>
+                        <label style={{ fontSize: "0.75rem", fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: "8px", display: "block" }}>Select AI Dashcam</label>
                         <div 
                             onClick={() => setIsDeviceDropdownOpen(!isDeviceDropdownOpen)}
                             style={{
@@ -303,7 +303,7 @@ export default function Playback({ theme }) {
                                         <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
                                         <input 
                                             type="text" 
-                                            placeholder="Search Dashcam..." 
+                                            placeholder="Search AI Dashcam..." 
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             onClick={(e) => e.stopPropagation()}

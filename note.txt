@@ -2,14 +2,14 @@
 GPS UI (Production):
 - Home:           http://54.37.225.65:4173/
 - Playback:       http://54.37.225.65:4173/playback
-- Dashcam:        http://54.37.225.65:4173/dashcam
+- AI Dashcam:        http://54.37.225.65:4173/dashcam
 - Saved Videos:   http://54.37.225.65:4173/saved-videos
 - Video Settings: http://54.37.225.65:4173/video-settings
 
 GPS UI (Local Dev):
 - Home:           http://localhost:5173/
 - Playback:       http://localhost:5173/playback
-- Dashcam:        http://localhost:5173/dashcam
+- AI Dashcam:        http://localhost:5173/dashcam
 - Saved Videos:   http://localhost:5173/saved-videos
 - Video Settings: http://localhost:5173/video-settings
 

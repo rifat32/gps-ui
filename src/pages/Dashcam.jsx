@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 import DeviceCard from "../components/DeviceCard";
-import DashcamAlert from "../components/DashcamAlert";
+import AI DashcamAlert from "../components/AI DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
 import MediaViewer from "../components/MediaViewer";
 import deviceApi from "../services/deviceApi";
@@ -80,7 +80,7 @@ const MOCK_RECORDINGS = [
   },
 ];
 
-export default function Dashcam({ theme, toggleTheme }) {
+export default function AI Dashcam({ theme, toggleTheme }) {
   const [gridSize, setGridSize] = useState(1); // Default to one large camera
   const [alerts, setAlerts] = useState([]);
   const [devices, setDevices] = useState({ active: [], historical: [] });
@@ -128,7 +128,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   // Fetch devices
   const fetchDevices = async () => {
     try {
-      const data = await deviceApi.getDevicesV2({ device_type: 'DASHCAM' });
+      const data = await deviceApi.getDevicesV2({ device_type: 'AI_DASHCAM' });
       const activeDevices = data.data.filter((d) => d.status === "online");
       const historicalDevices = data.data.filter((d) => d.status === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
@@ -475,7 +475,7 @@ export default function Dashcam({ theme, toggleTheme }) {
                   letterSpacing: "0.5px",
                 }}
               >
-                DASHCAM AI
+                AI_DASHCAM AI
               </h1>
               <div
                 style={{
@@ -789,7 +789,7 @@ export default function Dashcam({ theme, toggleTheme }) {
             {activeTab === "alerts" ? (
               alerts.length > 0 ? (
                 alerts.map((alert) => (
-                  <DashcamAlert key={alert.id} alert={alert} onOpenMedia={setSelectedMedia} />
+                  <AI DashcamAlert key={alert.id} alert={alert} onOpenMedia={setSelectedMedia} />
                 ))
               ) : (
                 <div style={{ padding: "40px 20px", textAlign: "center", color: "#475569" }}>

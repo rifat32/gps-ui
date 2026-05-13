@@ -3,10 +3,10 @@ import RealTimeMap from "./RealTimeMap";
 import { Map as MapIcon, Gauge } from "lucide-react";
 
 export default function LiveTracker() {
-  const [activeTab, setActiveTab] = useState("DASHCAM");
+  const [activeTab, setActiveTab] = useState("AI_DASHCAM");
 
   const tabs = [
-    { id: "DASHCAM", label: "Dashcam Live", icon: MapIcon },
+    { id: "AI_DASHCAM", label: "AI Dashcam Live", icon: MapIcon },
     { id: "OBD", label: "OBD Live", icon: Gauge },
   ];
 
@@ -62,8 +62,8 @@ export default function LiveTracker() {
 
       {/* Content Area */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        {activeTab === "DASHCAM" ? (
-          <RealTimeMap deviceType="DASHCAM" />
+        {activeTab === "AI_DASHCAM" ? (
+          <RealTimeMap deviceType="AI_DASHCAM" />
         ) : (
           <RealTimeMap deviceType="OBD" />
         )}

@@ -36,7 +36,7 @@ const getPixelPositionOffset = (width, height) => ({
   y: -(height / 2),
 });
 
-export default function RealTimeMap({ deviceType = "DASHCAM" }) {
+export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
   const currentWsUrl = deviceType === "OBD" ? WS_URL_OBD : WS_URL_DASHCAM;
 
   const [vehicles, setVehicles] = useState([]);

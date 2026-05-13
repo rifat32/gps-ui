@@ -3,7 +3,7 @@ import { Route, BrowserRouter as Router, Routes, Navigate } from "react-router-d
 
 import "./App.css";
 const LiveTracker = lazy(() => import("./pages/LiveTracker"));
-const Dashcam = lazy(() => import("./pages/Dashcam"));
+const AI Dashcam = lazy(() => import("./pages/AI Dashcam"));
 const Playback = lazy(() => import("./pages/Playback"));
 const SavedVideos = lazy(() => import("./pages/SavedVideos"));
 const VideoSettings = lazy(() => import("./pages/VideoSettings"));
@@ -101,7 +101,7 @@ function App() {
             />
             <Route
               path="/dashcam"
-              element={<Dashcam theme={theme} toggleTheme={toggleTheme} />}
+              element={<AI Dashcam theme={theme} toggleTheme={toggleTheme} />}
             />
             <Route
               path="/saved-videos"

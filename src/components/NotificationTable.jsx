@@ -93,7 +93,7 @@ export default function NotificationTable({
               maxWidth: "250px"
             }}
           >
-            <option value="">-- All Dashcams --</option>
+            <option value="">-- All AI Dashcams --</option>
             {devices.map(dev => (
               <option key={dev.device_id || dev.id} value={dev.device_id || dev.id}>
                 {dev.device_id || dev.id} {dev.status === 'online' ? '(Online)' : '(Offline)'}

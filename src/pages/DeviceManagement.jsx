@@ -26,7 +26,7 @@ const DeviceManagement = ({ theme }) => {
     deviceId: "",
     name: "",
     imei: "",
-    device_type: "DASHCAM",
+    device_type: "AI_DASHCAM",
     model: ""
   });
 
@@ -57,7 +57,7 @@ const DeviceManagement = ({ theme }) => {
         deviceId: device.id,
         name: device.name || "",
         imei: device.imei || "",
-        device_type: device.device_type || "DASHCAM",
+        device_type: device.device_type || "AI_DASHCAM",
         model: device.model || ""
       });
     } else {
@@ -66,7 +66,7 @@ const DeviceManagement = ({ theme }) => {
         deviceId: "",
         name: "",
         imei: "",
-        device_type: "DASHCAM",
+        device_type: "AI_DASHCAM",
         model: ""
       });
     }
@@ -147,7 +147,7 @@ const DeviceManagement = ({ theme }) => {
           <Filter size={18} className="filter-icon" />
           <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
             <option value="ALL">All Types</option>
-            <option value="DASHCAM">Dashcam</option>
+            <option value="AI_DASHCAM">AI Dashcam</option>
             <option value="OBD">OBD Tracker</option>
             <option value="J42">J42 Device</option>
           </select>
@@ -267,7 +267,7 @@ const DeviceManagement = ({ theme }) => {
                 <div className="form-group">
                   <label>Device Type</label>
                   <select name="device_type" value={formData.device_type} onChange={handleInputChange}>
-                    <option value="DASHCAM">Dashcam</option>
+                    <option value="AI_DASHCAM">AI Dashcam</option>
                     <option value="OBD">OBD Tracker</option>
                     <option value="J42">J42 Device</option>
                   </select>
