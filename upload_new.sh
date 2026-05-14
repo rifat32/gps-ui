@@ -1,66 +1,54 @@
 #!/bin/bash
 
-# Deployment Script for GPS UI (Native)
-# Target: 77.68.52.203
+# Project Upload Script for GPS UI (React/Vite)
 set -e
 
 # Configuration
 REMOTE_USER="rifat"
 REMOTE_HOST="77.68.52.203"
-REMOTE_DIR="/home/rifat/gps-ui"
 LOCAL_DIR="."
 
-echo "🚀 Starting GPS UI Native Deployment to ${REMOTE_HOST}..."
+# Load .env file (for SERVER_PASSWORD, PORT, SERVICE_NAME)
+if [ -f ../final-dashcam/.env ]; then
+    export $(grep -v '^#' ../final-dashcam/.env | xargs)
+elif [ -f .env ]; then
+    # Note: gps-ui/.env might not have SERVER_PASSWORD, so we check final-dashcam first
+    export $(grep -v '^#' .env | xargs)
+fi
 
-# 1. Sync files to remote
-echo "🔄 Syncing files..."
-rsync -av --delete \
+# Set SSHPASS for sshpass tool
+export SSHPASS=$SERVER_PASSWORD
+
+# Set default PM2_PORT, SERVICE_NAME, and REMOTE_DIR if not defined
+PM2_PORT=${PM2_PORT:-4173}
+SERVICE_NAME=${SERVICE_NAME:-gps-ui}
+# Hardcode REMOTE_DIR for the old server to avoid conflicts with .env
+REMOTE_DIR="/home/rifat/gps-ui"
+
+echo "🔄 Syncing files to ${REMOTE_HOST}..."
+
+# Sync files only, using sshpass for authentication
+sshpass -e rsync -av --delete \
     --exclude='node_modules' \
     --exclude='dist' \
     --exclude='.git' \
     --exclude='*.DS_Store' \
     --exclude='*.tmp' \
     --exclude='*.log' \
-    --exclude='.env' \
-    --exclude='.env.local' \
+    -e ssh \
     ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
-# 2. Upload the server environment file
-echo "🔑 Uploading server environment (.env.old)..."
-scp .env.old ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env.old
+echo "✅ Files synced successfully!"
 
-# 3. Remote Execution: Build and Run with PM2
-echo "🔧 Executing remote build and restart..."
-ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << EOF
-    # Load NVM
-    export NVM_DIR="\$HOME/.nvm"
-    [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
-    
-    set -e
-    cd ${REMOTE_DIR}
-    
-    # Update .env
-    cp .env.old .env
-    
-    # Load variables for PM2
-    export \$(grep -v '^#' .env | xargs)
-    PM2_PORT=\${PM2_PORT:-4173}
-    SERVICE_NAME=\${SERVICE_NAME:-gps-ui}
+echo "🔑 Uploading server environment (.env.new)..."
+sshpass -e scp .env.new ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env
 
-    echo "📦 Installing dependencies..."
-    npm install
+echo "📦 Installing dependencies and building on remote..."
+sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && npm install && npm run build"
 
-    echo "🏗️ Building the application..."
-    npm run build
+echo "🔄 Starting UI service with PM2..."
+# Using 'vite preview' to serve the build on configured port
+sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run serve -- -l ${PM2_PORT}' --name ${SERVICE_NAME}"
 
-    echo "🔄 Restarting service with PM2..."
-    pm2 delete \${SERVICE_NAME} || true
-    pm2 start "node_modules/.bin/serve -s dist -l \${PM2_PORT}" --name \${SERVICE_NAME}
-    
-    # Save PM2 state
-    pm2 save
-EOF
-
-echo ""
-echo "✅ GPS UI native deployment completed successfully!"
-echo "🔗 Frontend should be accessible at: http://${REMOTE_HOST}:4173"
+echo "🚀 Deployment successful!"
+echo "🔗 UI should be accessible at: http://${REMOTE_HOST}:${PM2_PORT}"
