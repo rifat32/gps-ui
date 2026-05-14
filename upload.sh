@@ -40,8 +40,8 @@ sshpass -e rsync -av --delete \
 
 echo "✅ Files synced successfully!"
 
-echo "🔑 Uploading server environment (.env.old)..."
-sshpass -e scp .env.old ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env
+echo "🔑 Uploading server environment (.env.server)..."
+sshpass -e scp .env.server ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env
 
 echo "📦 Installing dependencies and building on remote..."
 sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && npm install && npm run build"

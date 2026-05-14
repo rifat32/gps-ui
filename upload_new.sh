@@ -26,8 +26,8 @@ rsync -av --delete \
     ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
 # 2. Upload the server environment file
-echo "🔑 Uploading server environment (.env.new)..."
-scp .env.new ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env.new
+echo "🔑 Uploading server environment (.env.old)..."
+scp .env.old ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env.old
 
 # 3. Remote Execution: Build and Run with PM2
 echo "🔧 Executing remote build and restart..."
@@ -40,7 +40,7 @@ ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << EOF
     cd ${REMOTE_DIR}
     
     # Update .env
-    cp .env.new .env
+    cp .env.old .env
     
     # Load variables for PM2
     export \$(grep -v '^#' .env | xargs)
