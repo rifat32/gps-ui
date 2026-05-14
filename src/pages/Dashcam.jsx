@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 import DeviceCard from "../components/DeviceCard";
-import AI DashcamAlert from "../components/AI DashcamAlert";
+import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
 import MediaViewer from "../components/MediaViewer";
 import deviceApi from "../services/deviceApi";
@@ -80,7 +80,7 @@ const MOCK_RECORDINGS = [
   },
 ];
 
-export default function AI Dashcam({ theme, toggleTheme }) {
+export default function Dashcam({ theme, toggleTheme }) {
   const [gridSize, setGridSize] = useState(1); // Default to one large camera
   const [alerts, setAlerts] = useState([]);
   const [devices, setDevices] = useState({ active: [], historical: [] });

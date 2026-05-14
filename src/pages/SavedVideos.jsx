@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import deviceApi from "../services/deviceApi";
+import DeviceCard from "../components/DeviceCard";
 
 const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
 
@@ -74,7 +75,7 @@ export default function SavedVideos() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const json = await deviceApi.getDevicesV2();
+        const json = await deviceApi.getDevicesV2({ device_type: 'AI_DASHCAM' });
         setDevices(json.data || []);
       } catch (err) {
         console.error("Error fetching devices:", err);
@@ -236,39 +237,12 @@ export default function SavedVideos() {
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
             {devices.map((dev) => (
-              <div
+              <DeviceCard
                 key={dev.id}
-                onClick={() => handleDeviceSelect(dev)}
-                style={{
-                  padding: "12px",
-                  borderRadius: "10px",
-                  marginBottom: "8px",
-                  cursor: "pointer",
-                  background:
-                    selectedDevice?.id === dev.id ? "#3b82f615" : "transparent",
-                  border:
-                    selectedDevice?.id === dev.id
-                      ? "1px solid #3b82f644"
-                      : "1px solid transparent",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  transition: "all 0.2s",
-                }}
-              >
-                <Monitor
-                  size={18}
-                  color={selectedDevice?.id === dev.id ? "#3b82f6" : "#64748b"}
-                />
-                <div>
-                  <div style={{ fontWeight: "600", fontSize: "14px" }}>
-                    {dev.name}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#64748b" }}>
-                    {dev.id}
-                  </div>
-                </div>
-              </div>
+                dev={dev}
+                selectedDevice={selectedDevice}
+                setSelectedDevice={handleDeviceSelect}
+              />
             ))}
           </div>
         </aside>

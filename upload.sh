@@ -22,7 +22,8 @@ export SSHPASS=$SERVER_PASSWORD
 # Set default PM2_PORT, SERVICE_NAME, and REMOTE_DIR if not defined
 PM2_PORT=${PM2_PORT:-4173}
 SERVICE_NAME=${SERVICE_NAME:-gps-ui}
-REMOTE_DIR=${REMOTE_DIR:-/home/ubuntu/gps-ui}
+# Hardcode REMOTE_DIR for the old server to avoid conflicts with .env
+REMOTE_DIR="/home/ubuntu/gps-ui"
 
 echo "🔄 Syncing files to ${REMOTE_HOST}..."
 
@@ -38,6 +39,9 @@ sshpass -e rsync -av --delete \
     ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
 echo "✅ Files synced successfully!"
+
+echo "🔑 Uploading server environment (.env.old)..."
+sshpass -e scp .env.old ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env
 
 echo "📦 Installing dependencies and building on remote..."
 sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && npm install && npm run build"

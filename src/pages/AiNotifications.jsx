@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 import DeviceCard from "../components/DeviceCard";
-import AI DashcamAlert from "../components/AI DashcamAlert";
+import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
 import MediaViewer from "../components/MediaViewer";
 import NotificationTable from "../components/NotificationTable";
@@ -152,7 +152,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   // Fetch devices
   const fetchDevices = async () => {
     try {
-      const data = await deviceApi.getDevicesV2();
+      const data = await deviceApi.getDevicesV2({ device_type: "AI_DASHCAM" });
       const allDevices = data.data || [];
       const dashcamDevices = allDevices.filter(d => d.device_type === "AI_DASHCAM");
       

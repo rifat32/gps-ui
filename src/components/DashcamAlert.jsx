@@ -1,6 +1,6 @@
 import { ChevronRight, Clock, Monitor, Image, PlaySquare } from "lucide-react";
 
-export default function AI DashcamAlert({ alert, onOpenMedia }) {
+export default function DashcamAlert({ alert, onOpenMedia }) {
   const hasImage = !!alert.file_path;
   const hasVideo = !!alert.video_path;
 

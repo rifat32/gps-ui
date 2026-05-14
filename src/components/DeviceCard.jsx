@@ -63,7 +63,7 @@ function DeviceCard({ dev, selectedDevice, setSelectedDevice }) {
           {dev.id}
         </div>
       </div>
-      {dev.alert !== "none" && (
+      {dev.alert && dev.alert !== "none" && (
         <div
           style={{
             width: 8,
