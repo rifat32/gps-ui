@@ -25,6 +25,16 @@ SERVICE_NAME=${SERVICE_NAME:-gps-ui}
 # Hardcode REMOTE_DIR for the old server to avoid conflicts with .env
 REMOTE_DIR="/home/rifat/gps-ui"
 
+# --- Connectivity Check ---
+SSH_PORT=22
+echo "🔍 Testing connection to ${REMOTE_HOST} on port ${SSH_PORT}..."
+if ! nc -z -w5 ${REMOTE_HOST} ${SSH_PORT}; then
+    echo "❌ Error: Cannot reach ${REMOTE_HOST} on port ${SSH_PORT}."
+    echo "   Your IP might be blocked or the port is incorrect."
+    exit 1
+fi
+echo "✅ Connection reached!"
+
 echo "🔄 Syncing files to ${REMOTE_HOST}..."
 
 # Sync files only, using sshpass for authentication
