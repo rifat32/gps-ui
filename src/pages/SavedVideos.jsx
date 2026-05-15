@@ -57,9 +57,9 @@ export default function SavedVideos() {
   const [files, setFiles] = useState([]);
   const [vpsFiles, setVpsFiles] = useState([]);
 
-  // Date Filter State (default to Feb 2026 based on records)
-  const [startDate, setStartDate] = useState("2026-02-01");
-  const [endDate, setEndDate] = useState("2026-02-28");
+  // Date Filter State (default to current month)
+  const [startDate, setStartDate] = useState("2026-05-01");
+  const [endDate, setEndDate] = useState("2026-05-31");
 
   // Helper to convert YYYY-MM-DD to YYMMDDHHmmss
   const apiDateFormat = (dateStr, isEnd = false) => {
@@ -337,7 +337,7 @@ export default function SavedVideos() {
                     />
                   </div>
                   <button
-                    onClick={() => selectedChannel && handleChannelSelect(selectedChannel)}
+                    onClick={() => handleChannelSelect(selectedChannel || 1)}
                     style={{
                       background: "#3b82f6",
                       color: "white",

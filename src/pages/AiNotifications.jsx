@@ -156,8 +156,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
       const allDevices = data.data || [];
       const dashcamDevices = allDevices.filter(d => d.device_type === "AI_DASHCAM");
       
-      const activeDevices = dashcamDevices.filter((d) => d.status === "online");
-      const historicalDevices = dashcamDevices.filter((d) => d.status === "offline");
+      const activeDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "online");
+      const historicalDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
       // COMMENTED OUT: Stop "ghost" live stream requests on page load
       // if (!selectedDevice && activeDevices.length > 0) {

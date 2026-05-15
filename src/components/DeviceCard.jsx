@@ -25,7 +25,7 @@ function DeviceCard({ dev, selectedDevice, setSelectedDevice }) {
           position: "relative",
           width: 40,
           height: 40,
-          background: dev.status === "online" ? "#22c55e10" : "#47556910",
+          background: dev.status?.toLowerCase() === "online" ? "#22c55e10" : "#47556910",
           borderRadius: "10px",
           display: "flex",
           alignItems: "center",
@@ -34,9 +34,9 @@ function DeviceCard({ dev, selectedDevice, setSelectedDevice }) {
       >
         <Monitor
           size={20}
-          color={dev.status === "online" ? "#22c55e" : "#475569"}
+          color={dev.status?.toLowerCase() === "online" ? "#22c55e" : "#475569"}
         />
-        {dev.status === "online" && (
+        {dev.status?.toLowerCase() === "online" && (
           <div
             style={{
               position: "absolute",
