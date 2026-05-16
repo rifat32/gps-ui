@@ -138,6 +138,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           speed: event.speed,
           file_path: event.file_path,
           video_path: event.video_path,
+          file_path_back: event.file_path_back,
+          video_path_back: event.video_path_back,
         };
       });
       setAlerts(formatted);
@@ -202,6 +204,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           event_code: event.code || event.event_code,
           file_path: event.file_path,
           video_path: event.video_path,
+          file_path_back: event.file_path_back,
+          video_path_back: event.video_path_back,
         };
         // Avoid adding if same alert arrived via polling/refresh?
         // For simplicity, just unshift
@@ -224,6 +228,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
               ...alert,
               file_path: data.file_path || alert.file_path,
               video_path: data.video_path || alert.video_path,
+              file_path_back: data.file_path_back || alert.file_path_back,
+              video_path_back: data.video_path_back || alert.video_path_back,
             };
           }
           // The 'id' might be Date.now() for new real-time alerts, so also match by serial_no if we stored it
@@ -236,6 +242,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
               ...alert,
               file_path: data.file_path || alert.file_path,
               video_path: data.video_path || alert.video_path,
+              file_path_back: data.file_path_back || alert.file_path_back,
+              video_path_back: data.video_path_back || alert.video_path_back,
             };
           }
           return alert;

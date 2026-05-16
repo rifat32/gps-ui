@@ -221,26 +221,26 @@ export default function NotificationTable({
                     </div>
                   </td>
                   <td style={tdStyle}>
-                    <div style={{ display: "flex", gap: "6px" }}>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                       {alert.file_path ? (
                         <button
                           onClick={() =>
                             onOpenMedia &&
                             onOpenMedia({
                               url: getProperUrl(alert.file_path),
-                              title: alert.message,
+                              title: `${alert.message || alert.friendly_name} (Front)`,
                               time: alert.time,
                               deviceId: alert.deviceId,
                               type: "image",
                             })
                           }
                           className="media-btn image"
-                          title="View Image"
+                          title="View Front Image"
                         >
                           <Image size={14} />
                         </button>
                       ) : (
-                        <div className="media-btn disabled" title="No Image">
+                        <div className="media-btn disabled" title="No Front Image">
                           <Image size={14} />
                         </div>
                       )}
@@ -250,26 +250,72 @@ export default function NotificationTable({
                             onOpenMedia &&
                             onOpenMedia({
                               url: getProperUrl(alert.video_path),
-                              title: alert.message,
+                              title: `${alert.message || alert.friendly_name} (Front)`,
                               time: alert.time,
                               deviceId: alert.deviceId,
                               type: "video",
                             })
                           }
                           className="media-btn video"
-                          title="Play Video"
+                          title="Play Front Video"
                         >
                           <PlaySquare size={14} />
                         </button>
                       ) : (
-                        <div className="media-btn disabled" title="No Video">
+                        <div className="media-btn disabled" title="No Front Video">
+                          <PlaySquare size={14} />
+                        </div>
+                      )}
+
+                      {alert.file_path_back ? (
+                        <button
+                          onClick={() =>
+                            onOpenMedia &&
+                            onOpenMedia({
+                              url: getProperUrl(alert.file_path_back),
+                              title: `${alert.message || alert.friendly_name} (Cabin/Back)`,
+                              time: alert.time,
+                              deviceId: alert.deviceId,
+                              type: "image",
+                            })
+                          }
+                          className="media-btn cabin-image"
+                          title="View Cabin Image"
+                        >
+                          <Image size={14} />
+                        </button>
+                      ) : (
+                        <div className="media-btn disabled" title="No Cabin Image">
+                          <Image size={14} />
+                        </div>
+                      )}
+
+                      {alert.video_path_back ? (
+                        <button
+                          onClick={() =>
+                            onOpenMedia &&
+                            onOpenMedia({
+                              url: getProperUrl(alert.video_path_back),
+                              title: `${alert.message || alert.friendly_name} (Cabin/Back)`,
+                              time: alert.time,
+                              deviceId: alert.deviceId,
+                              type: "video",
+                            })
+                          }
+                          className="media-btn cabin-video"
+                          title="Play Cabin Video"
+                        >
+                          <PlaySquare size={14} />
+                        </button>
+                      ) : (
+                        <div className="media-btn disabled" title="No Cabin Video">
                           <PlaySquare size={14} />
                         </div>
                       )}
                     </div>
                   </td>
                   <td style={tdStyle}>
-                    <div style={{ display: "flex", gap: "12px" }}>
+                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                       {alert.file_path && (
                         <button
                           onClick={() =>
@@ -296,7 +342,7 @@ export default function NotificationTable({
                           ) : (
                             <Copy size={14} />
                           )}
-                          Image
+                          Front Image
                         </button>
                       )}
                       {alert.video_path && (
@@ -325,10 +371,70 @@ export default function NotificationTable({
                           ) : (
                             <Copy size={14} />
                           )}
-                          Video
+                          Front Video
                         </button>
                       )}
-                      {!alert.file_path && !alert.video_path && (
+
+                      {alert.file_path_back && (
+                        <button
+                          onClick={() =>
+                            handleCopy(alert.file_path_back, alert.id, "image_back")
+                          }
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: isCopied(alert.id, "image_back")
+                              ? "#22c55e"
+                              : "#a855f7",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            padding: "4px",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {isCopied(alert.id, "image_back") ? (
+                            <Check size={14} />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                          Cabin Image
+                        </button>
+                      )}
+                      {alert.video_path_back && (
+                        <button
+                          onClick={() =>
+                            handleCopy(alert.video_path_back, alert.id, "video_back")
+                          }
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: isCopied(alert.id, "video_back")
+                              ? "#22c55e"
+                              : "#eab308",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            padding: "4px",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {isCopied(alert.id, "video_back") ? (
+                            <Check size={14} />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                          Cabin Video
+                        </button>
+                      )}
+
+                      {!alert.file_path && !alert.video_path && !alert.file_path_back && !alert.video_path_back && (
                         <span style={{ color: "#475569", fontSize: "11px" }}>
                           No Links
                         </span>
@@ -349,7 +455,7 @@ export default function NotificationTable({
                 >
                   No notifications found
                 </td>
-              </tr>
+               </tr>
             )}
           </tbody>
         </table>
@@ -445,6 +551,16 @@ export default function NotificationTable({
             background: #22c55e15;
             color: #22c55e;
             border-color: #22c55e33;
+          }
+          .media-btn.cabin-image {
+            background: #a855f715;
+            color: #a855f7;
+            border-color: #a855f733;
+          }
+          .media-btn.cabin-video {
+            background: #eab30815;
+            color: #eab308;
+            border-color: #eab30833;
           }
           .media-btn:hover {
             transform: translateY(-1px);

@@ -81,61 +81,124 @@ export default function DashcamAlert({ alert, onOpenMedia }) {
         <div style={{ marginBottom: "12px" }}></div>
       )}
 
-      {(hasImage || hasVideo) && (
-        <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-          {hasImage && (
-            <button
-              onClick={() => onOpenMedia && onOpenMedia({ 
-                url: alert.file_path, 
-                title: alert.message || alert.event_code,
-                time: alert.time,
-                deviceId: alert.deviceId || alert.device_id
-              })}
-              style={{
-                flex: 1,
-                background: "#3b82f615",
-                color: "#3b82f6",
-                border: "1px solid #3b82f633",
-                borderRadius: "8px",
-                padding: "6px 0",
-                fontSize: "11px",
-                fontWeight: "700",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                cursor: "pointer"
-              }}
-            >
-              <Image size={14} /> Image
-            </button>
+      {(hasImage || hasVideo || alert.file_path_back || alert.video_path_back) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+          {(hasImage || hasVideo) && (
+            <div style={{ display: "flex", gap: "8px" }}>
+              {hasImage && (
+                <button
+                  onClick={() => onOpenMedia && onOpenMedia({ 
+                    url: alert.file_path, 
+                    title: `${alert.message || alert.event_code} (Front)`,
+                    time: alert.time,
+                    deviceId: alert.deviceId || alert.device_id
+                  })}
+                  style={{
+                    flex: 1,
+                    background: "#3b82f615",
+                    color: "#3b82f6",
+                    border: "1px solid #3b82f633",
+                    borderRadius: "8px",
+                    padding: "6px 0",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    cursor: "pointer"
+                  }}
+                >
+                  <Image size={14} /> Front Image
+                </button>
+              )}
+              {hasVideo && (
+                <button
+                  onClick={() => onOpenMedia && onOpenMedia({ 
+                    url: alert.video_path, 
+                    title: `${alert.message || alert.event_code} (Front)`,
+                    time: alert.time,
+                    deviceId: alert.deviceId || alert.device_id
+                  })}
+                  style={{
+                    flex: 1,
+                    background: "#22c55e15",
+                    color: "#22c55e",
+                    border: "1px solid #22c55e33",
+                    borderRadius: "8px",
+                    padding: "6px 0",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    cursor: "pointer"
+                  }}
+                >
+                  <PlaySquare size={14} /> Front Video
+                </button>
+              )}
+            </div>
           )}
-          {hasVideo && (
-            <button
-              onClick={() => onOpenMedia && onOpenMedia({ 
-                url: alert.video_path, 
-                title: alert.message || alert.event_code,
-                time: alert.time,
-                deviceId: alert.deviceId || alert.device_id
-              })}
-              style={{
-                flex: 1,
-                background: "#22c55e15",
-                color: "#22c55e",
-                border: "1px solid #22c55e33",
-                borderRadius: "8px",
-                padding: "6px 0",
-                fontSize: "11px",
-                fontWeight: "700",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                cursor: "pointer"
-              }}
-            >
-              <PlaySquare size={14} /> Video
-            </button>
+
+          {(alert.file_path_back || alert.video_path_back) && (
+            <div style={{ display: "flex", gap: "8px" }}>
+              {alert.file_path_back && (
+                <button
+                  onClick={() => onOpenMedia && onOpenMedia({ 
+                    url: alert.file_path_back, 
+                    title: `${alert.message || alert.event_code} (Cabin/Back)`,
+                    time: alert.time,
+                    deviceId: alert.deviceId || alert.device_id
+                  })}
+                  style={{
+                    flex: 1,
+                    background: "#a855f715",
+                    color: "#a855f7",
+                    border: "1px solid #a855f733",
+                    borderRadius: "8px",
+                    padding: "6px 0",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    cursor: "pointer"
+                  }}
+                >
+                  <Image size={14} /> Cabin Image
+                </button>
+              )}
+              {alert.video_path_back && (
+                <button
+                  onClick={() => onOpenMedia && onOpenMedia({ 
+                    url: alert.video_path_back, 
+                    title: `${alert.message || alert.event_code} (Cabin/Back)`,
+                    time: alert.time,
+                    deviceId: alert.deviceId || alert.device_id
+                  })}
+                  style={{
+                    flex: 1,
+                    background: "#eab30815",
+                    color: "#eab308",
+                    border: "1px solid #eab30833",
+                    borderRadius: "8px",
+                    padding: "6px 0",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    cursor: "pointer"
+                  }}
+                >
+                  <PlaySquare size={14} /> Cabin Video
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
