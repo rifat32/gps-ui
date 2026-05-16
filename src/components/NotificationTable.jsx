@@ -21,7 +21,8 @@ export default function NotificationTable({
     // If the path is absolute (contains /home/), extract the relative part
     if (path.includes("downloads/")) {
       const relativePart = path.substring(path.indexOf("downloads/"));
-      return `${BASE_URL}/${relativePart}`;
+      const dashcamBase = BASE_URL ? BASE_URL.replace(":8040", ":4020") : "http://54.37.225.65:4020";
+      return `${dashcamBase}/${relativePart}`;
     }
 
     return path.startsWith("/") ? `${BASE_URL}${path}` : `${BASE_URL}/${path}`;
@@ -30,9 +31,33 @@ export default function NotificationTable({
   const handleCopy = (path, id, type) => {
     const fullPath = getProperUrl(path);
     if (!fullPath) return;
-    navigator.clipboard.writeText(fullPath);
-    setCopiedType({ id, type });
-    setTimeout(() => setCopiedType(null), 2000);
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullPath)
+        .then(() => {
+          setCopiedType({ id, type });
+          setTimeout(() => setCopiedType(null), 2000);
+        })
+        .catch((err) => console.error("Clipboard copy failed:", err));
+    } else {
+      // Fallback for non-HTTPS HTTP environments (e.g. http://54.37.225.65)
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = fullPath;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+        setCopiedType({ id, type });
+        setTimeout(() => setCopiedType(null), 2000);
+      } catch (err) {
+        console.error("Fallback copy failed:", err);
+      }
+    }
   };
 
   const isCopied = (id, type) =>

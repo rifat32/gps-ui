@@ -77,9 +77,32 @@ export default function RemoteAccess() {
 
     const handleCopy = () => {
         if (!result?.url) return;
-        navigator.clipboard.writeText(result.url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+
+        if (navigator?.clipboard?.writeText) {
+            navigator.clipboard.writeText(result.url)
+                .then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                })
+                .catch(err => console.error("Clipboard copy failed:", err));
+        } else {
+            try {
+                const textArea = document.createElement("textarea");
+                textArea.value = result.url;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand("copy");
+                textArea.remove();
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            } catch (err) {
+                console.error("Fallback copy failed:", err);
+            }
+        }
     };
 
     const isActive = devices.active.includes(selectedDevice);

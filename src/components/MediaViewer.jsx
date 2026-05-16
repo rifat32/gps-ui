@@ -5,7 +5,10 @@ export default function MediaViewer({ media, onClose }) {
 
   const isVideo = media.url.toLowerCase().endsWith(".mp4") || media.url.toLowerCase().endsWith(".avi");
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
-  const fullUrl = media.url.startsWith("http") ? media.url : `${baseUrl}/${media.url}`;
+  let fullUrl = media.url.startsWith("http") ? media.url : `${baseUrl}/${media.url}`;
+  if (fullUrl.includes("downloads/")) {
+    fullUrl = fullUrl.replace(":8040", ":4020");
+  }
 
   return (
     <div
