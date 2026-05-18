@@ -321,31 +321,7 @@ export default function RemoteAccess() {
                             )}
                         </div>
 
-                        {/* Embedded iframe */}
-                        <div style={{
-                            borderRadius: '16px', overflow: 'hidden',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            background: '#fff',
-                            animation: 'fadeIn 0.5s ease'
-                        }}>
-                            {/* Browser chrome bar */}
-                            <div style={{
-                                padding: '0.6rem 1rem',
-                                background: 'rgba(20,20,20,0.95)',
-                                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                                display: 'flex', alignItems: 'center', gap: '0.6rem',
-                                fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.5)'
-                            }}>
-                                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80', flexShrink: 0 }} />
-                                {result.url}
-                            </div>
-                            <iframe
-                                key={iframeKey}
-                                src={result.url}
-                                style={{ width: '100%', height: '580px', border: 'none', display: 'block' }}
-                                title={`Camera ${result.deviceId}`}
-                            />
-                        </div>
+
                     </>
                 )}
             </div>
