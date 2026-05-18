@@ -16,7 +16,7 @@ const ObdStatus = lazy(() => import("./pages/ObdStatus"));
 const MediaLogs = lazy(() => import("./pages/MediaLogs"));
 const MediaGallery = lazy(() => import("./pages/MediaGallery"));
 const VehicleHealth = lazy(() => import("./pages/VehicleHealth"));
-const Pm2Logs = lazy(() => import("./pages/Pm2Logs"));
+const ContainerLogs = lazy(() => import("./pages/ContainerLogs"));
 const RemoteAccess = lazy(() => import("./pages/RemoteAccess"));
 
 
@@ -132,8 +132,8 @@ function App() {
               element={<VehicleHealth theme={theme} toggleTheme={toggleTheme} />}
             />
             <Route
-              path="/pm2-logs"
-              element={<Pm2Logs theme={theme} toggleTheme={toggleTheme} />}
+              path="/container-logs"
+              element={<ContainerLogs theme={theme} toggleTheme={toggleTheme} />}
             />
             <Route
               path="/remote-access"

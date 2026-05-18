@@ -5,7 +5,7 @@ import "./Logs.css";
 const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
 const API_BASE = `${API_BASE_URL}/api`;
 
-const Pm2Logs = ({ theme }) => {
+const ContainerLogs = ({ theme }) => {
   const [apps, setApps] = useState([]);
   const [selectedApp, setSelectedApp] = useState("");
   const [logType, setLogType] = useState("out");
@@ -27,7 +27,7 @@ const Pm2Logs = ({ theme }) => {
 
   const fetchApps = async () => {
     try {
-      const response = await fetch(`${API_BASE}/logs/pm2-list`);
+      const response = await fetch(`${API_BASE}/logs/service-list`);
       const data = await response.json();
       if (data.success) {
         setApps(data.apps);
@@ -60,7 +60,7 @@ const Pm2Logs = ({ theme }) => {
 
   const fetchLogFiles = async () => {
     try {
-      const response = await fetch(`${API_BASE}/logs/pm2-files/${selectedApp}?type=${logType}`);
+      const response = await fetch(`${API_BASE}/logs/service-files/${selectedApp}?type=${logType}`);
       const data = await response.json();
       if (data.success) {
         setLogFiles(data.files);
@@ -106,7 +106,7 @@ const Pm2Logs = ({ theme }) => {
     try {
       setLoading(true);
       setError("");
-      const url = `${API_BASE}/logs/pm2/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
+      const url = `${API_BASE}/logs/service/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
       
       const response = await fetch(url, { signal: controller.signal });
       const data = await response.json();
@@ -137,7 +137,7 @@ const Pm2Logs = ({ theme }) => {
   };
 
   const downloadLogs = () => {
-    const url = `${API_BASE}/logs/pm2-download/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
+    const url = `${API_BASE}/logs/service-download/${selectedApp}?type=${logType}${selectedFile ? `&fileName=${selectedFile}` : ""}`;
     window.open(url, '_blank');
   };
 
@@ -150,18 +150,14 @@ const Pm2Logs = ({ theme }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Improved sanitization for binary-heavy logs while preserving structure
   const sanitizeForDisplay = (str) => {
     if (!str) return "";
-    // Replace non-printable ASCII chars (except common whitespace) with placeholders 
-    // to avoid invisible lines or browser rendering issues with binary blobs
     return str.replace(/[^\x20-\x7E\n\t]/g, (match) => {
-      if (match === "\r") return ""; // Normalize line endings
-      return ""; // Unicode replacement character for binary/invalid chars
+      if (match === "\r") return "";
+      return "";
     });
   };
 
-  // Memoized log processing to prevent UI thread blocking on every render
   const { filteredLines, totalLines } = React.useMemo(() => {
     if (!logContent) return { filteredLines: [], totalLines: 0 };
     
@@ -175,7 +171,6 @@ const Pm2Logs = ({ theme }) => {
       filtered = allLines.filter((line) => line.toLowerCase().includes(lowerSearch));
     }
     
-    // Limit displayed lines to prevent DOM bloat and browser crashes (last 2000 lines)
     const MAX_DISPLAY_LINES = 5000;
     const truncated = filtered.length > MAX_DISPLAY_LINES 
       ? filtered.slice(-MAX_DISPLAY_LINES) 
@@ -199,7 +194,7 @@ const Pm2Logs = ({ theme }) => {
     
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/logs/pm2-clear/${selectedApp}?type=${logType}`, {
+      const response = await fetch(`${API_BASE}/logs/service-clear/${selectedApp}?type=${logType}`, {
         method: 'DELETE'
       });
       const data = await response.json();
@@ -207,7 +202,7 @@ const Pm2Logs = ({ theme }) => {
       if (data.success) {
         setLogContent("");
         setMetadata(prev => prev ? { ...prev, fileSize: 0 } : null);
-        fetchLogs(); // Refresh view
+        fetchLogs();
       } else {
         setError(data.message || "Failed to clear logs");
       }
@@ -226,8 +221,8 @@ const Pm2Logs = ({ theme }) => {
             <Terminal size={24} />
           </div>
           <div className="logs-title">
-            <h1>PM2 Server Logs</h1>
-            <p>Monitor real-time service activity and errors</p>
+            <h1>Container Server Logs</h1>
+            <p>Monitor real-time Docker container microservice activity and errors</p>
           </div>
         </div>
         <div className="logs-header-actions">
@@ -271,7 +266,7 @@ const Pm2Logs = ({ theme }) => {
         <div className="logs-card">
           <div className="logs-row">
             <div className="form-group flex-1">
-              <label><ChevronDown size={14} /> Application</label>
+              <label><ChevronDown size={14} /> Microservice</label>
               <select 
                 value={selectedApp} 
                 onChange={(e) => setSelectedApp(e.target.value)}
@@ -296,7 +291,7 @@ const Pm2Logs = ({ theme }) => {
             </div>
             
             <div className="form-group flex-1">
-              <label><Clock size={14} /> Log Version</label>
+              <label><Clock size={14} /> Log File</label>
               <select 
                 value={selectedFile} 
                 onChange={(e) => setSelectedFile(e.target.value)}
@@ -340,7 +335,7 @@ const Pm2Logs = ({ theme }) => {
           <span>{selectedApp} - {metadata?.fileName || (logType === 'out' ? 'standard output' : 'error log')}</span>
           <div className="viewer-meta">
             {metadata && (
-              <span className="file-info">
+               <span className="file-info">
                 Size: {formatSize(metadata.fileSize)}
                 {metadata.isTruncated && <span className="trunc-warn"> (Previewing last 10MB)</span>}
               </span>
@@ -355,7 +350,7 @@ const Pm2Logs = ({ theme }) => {
             </pre>
           ) : (
             <div className="placeholder-text">
-              {loading ? "Loading logs..." : "No logs available for this application"}
+              {loading ? "Loading logs..." : "No logs available for this microservice"}
             </div>
           )}
         </div>
@@ -370,4 +365,4 @@ const Pm2Logs = ({ theme }) => {
   );
 };
 
-export default Pm2Logs;
+export default ContainerLogs;

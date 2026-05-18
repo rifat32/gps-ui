@@ -37,7 +37,7 @@ const NAV_ITEMS = [
   { path: "/media-logs", icon: FileText, label: "Media Logs" },
   { path: "/media-gallery", icon: ImageIcon, label: "Media Gallery" },
   { path: "/vehicle-health", icon: ShieldAlert, label: "Vehicle Health" },
-  { path: "/pm2-logs", icon: Terminal, label: "Server Logs" },
+  { path: "/container-logs", icon: Terminal, label: "Container Logs" },
   { path: "/remote-access", icon: MonitorSmartphone, label: "Remote Access" },
 
 ];
