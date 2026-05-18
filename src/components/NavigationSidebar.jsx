@@ -39,38 +39,49 @@ const NAV_ITEMS = [
   { path: "/vehicle-health", icon: ShieldAlert, label: "Vehicle Health" },
   { path: "/container-logs", icon: Terminal, label: "Container Logs" },
   { path: "/remote-access", icon: MonitorSmartphone, label: "Remote Access" },
-
 ];
 
-export default function NavigationSidebar({ theme, toggleTheme }) {
+export default function NavigationSidebar() {
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isCollapsed, setIsCollapsed] = useState(() => window.innerWidth <= 1280);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user] = useState(() => {
+    const userStr = localStorage.getItem("user");
+    return userStr ? JSON.parse(userStr) : null;
+  });
 
   useEffect(() => {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      setUser(JSON.parse(userStr));
-    }
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      if (window.innerWidth <= 1280 && window.innerWidth > 1024) {
+        setIsCollapsed(true);
+      } else if (window.innerWidth > 1280) {
+        setIsCollapsed(false);
+      }
+      if (window.innerWidth > 1024) {
+        setIsMobileOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Close mobile sidebar on navigation
-  useEffect(() => {
-    setIsMobileOpen(false);
-  }, [location.pathname]);
-
   const isActive = (path) => location.pathname === path;
+  const effectiveIsCollapsed = isCollapsed && windowWidth > 1024;
 
   return (
     <>
       {/* Mobile Toggle Button */}
-      <button
-        className="mobile-nav-toggle"
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-      >
-        <Menu size={24} />
-      </button>
+      {!isMobileOpen && (
+        <button
+          className="mobile-nav-toggle"
+          onClick={() => setIsMobileOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={24} />
+        </button>
+      )}
 
       {/* Overlay for mobile */}
       {isMobileOpen && (
@@ -78,11 +89,22 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
       )}
 
       <aside
-        className={`nav-sidebar ${isCollapsed ? "collapsed" : ""} ${isMobileOpen ? "mobile-open" : ""}`}
+        className={`nav-sidebar ${effectiveIsCollapsed ? "collapsed" : ""} ${isMobileOpen ? "mobile-open" : ""}`}
       >
         <div className="nav-logo">
-          <div className="logo-icon">GPS</div>
-          {!isCollapsed && <span className="logo-text">FLEET PRO</span>}
+          <div className="logo-wrap">
+            <div className="logo-icon">GPS</div>
+            {!effectiveIsCollapsed && <span className="logo-text">FLEET PRO</span>}
+          </div>
+          {isMobileOpen && (
+            <button
+              className="mobile-nav-close"
+              onClick={() => setIsMobileOpen(false)}
+              aria-label="Close navigation menu"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         <nav className="nav-items">
@@ -91,11 +113,12 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
               key={item.path}
               to={item.path}
               className={`nav-item ${isActive(item.path) ? "active" : ""}`}
-              title={isCollapsed ? item.label : ""}
+              title={effectiveIsCollapsed ? item.label : ""}
+              onClick={() => setIsMobileOpen(false)}
             >
               <item.icon size={20} className="nav-icon" />
-              {!isCollapsed && <span className="nav-label">{item.label}</span>}
-              {isActive(item.path) && !isCollapsed && (
+              {!effectiveIsCollapsed && <span className="nav-label">{item.label}</span>}
+              {isActive(item.path) && !effectiveIsCollapsed && (
                 <div className="active-indicator" />
               )}
             </Link>
@@ -107,7 +130,7 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
             className="collapse-toggle"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            {isCollapsed ? (
+            {effectiveIsCollapsed ? (
               <ChevronRight size={18} />
             ) : (
               <>
@@ -119,7 +142,7 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
 
           <div className="user-profile">
             <div className="avatar">{(user?.name || "A")[0]}</div>
-            {!isCollapsed && (
+            {!effectiveIsCollapsed && (
               <div className="user-info">
                 <span className="user-name">{user?.name || "Admin User"}</span>
                 <span className="user-role">{user?.role || "Super Admin"}</span>
@@ -128,11 +151,11 @@ export default function NavigationSidebar({ theme, toggleTheme }) {
           </div>
 
           <button 
-            className={`logout-full-btn ${isCollapsed ? 'collapsed' : ''}`}
+            className={`logout-full-btn ${effectiveIsCollapsed ? 'collapsed' : ''}`}
             onClick={() => { authApi.logout(); window.location.reload(); }}
           >
             <LogOut size={18} />
-            {!isCollapsed && <span>Sign Out System</span>}
+            {!effectiveIsCollapsed && <span>Sign Out System</span>}
           </button>
         </div>
       </aside>
