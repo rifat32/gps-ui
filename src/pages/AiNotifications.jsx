@@ -90,6 +90,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const [activeChannel, setActiveChannel] = useState(2);
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
   const [filterDeviceId, setFilterDeviceId] = useState(""); // For filtering the table
+  const [activeCategory, setActiveCategory] = useState(""); // Category tabs filter
   const [pagination, setPagination] = useState({
     page: 1,
     perPage: 20,
@@ -105,6 +106,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const socketRef = useRef(null);
   const paginationRef = useRef(pagination);
   const filterDeviceIdRef = useRef(filterDeviceId);
+  const activeCategoryRef = useRef(activeCategory);
 
   // Sync refs with state
   useEffect(() => {
@@ -115,11 +117,16 @@ export default function AiNotifications({ theme, toggleTheme }) {
     filterDeviceIdRef.current = filterDeviceId;
   }, [filterDeviceId]);
 
+  useEffect(() => {
+    activeCategoryRef.current = activeCategory;
+  }, [activeCategory]);
+
   // Fetch AI events with pagination and filter
-  const fetchAlerts = async (page = 1, deviceId = filterDeviceId) => {
+  const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
     try {
       const params = { page, perPage: 20, device_type: "AI_DASHCAM" };
       if (deviceId) params.deviceId = deviceId;
+      if (category) params.category = category;
       const data = await deviceApi.getAiEvents(params);
       const formatted = (data.events || []).map((event) => {
         const date = new Date(event.event_time);
@@ -187,6 +194,12 @@ export default function AiNotifications({ theme, toggleTheme }) {
       // Respect filter if active
       if (filterDeviceIdRef.current && eventDeviceId !== filterDeviceIdRef.current) {
         console.log(`Skipping real-time event for ${eventDeviceId} due to filter ${filterDeviceIdRef.current}`);
+        return;
+      }
+
+      // Respect category filter if active
+      if (activeCategoryRef.current && event.category !== activeCategoryRef.current) {
+        console.log(`Skipping real-time event due to category filter ${activeCategoryRef.current}`);
         return;
       }
 
@@ -502,6 +515,11 @@ export default function AiNotifications({ theme, toggleTheme }) {
               onDeviceChange={(id) => {
                 setFilterDeviceId(id);
                 fetchAlerts(1, id);
+              }}
+              activeCategory={activeCategory}
+              onCategoryChange={(cat) => {
+                setActiveCategory(cat);
+                fetchAlerts(1, filterDeviceId, cat);
               }}
             />
           </div>

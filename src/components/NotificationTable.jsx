@@ -10,7 +10,9 @@ export default function NotificationTable({
   onPageChange,
   devices = [],
   filterDeviceId = "",
-  onDeviceChange
+  onDeviceChange,
+  activeCategory = "",
+  onCategoryChange
 }) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
 
@@ -125,6 +127,58 @@ export default function NotificationTable({
               </option>
             ))}
           </select>
+
+          {/* Category Tabs */}
+          <div style={{ 
+            display: "flex", 
+            gap: "2px", 
+            marginLeft: "24px",
+            background: "rgba(15, 23, 42, 0.45)", // Semi-transparent dark slate
+            padding: "3px",
+            borderRadius: "10px",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+          }}>
+            {[
+              { id: "", label: "All Alerts" },
+              { id: "ADAS", label: "ADAS" },
+              { id: "DSM", label: "DSM" },
+              { id: "BEHAVIOR", label: "G-Sensor (G-Shock)" },
+            ].map(tab => {
+              const active = activeCategory === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => onCategoryChange && onCategoryChange(tab.id)}
+                  style={{
+                    padding: "6px 16px",
+                    borderRadius: "7px",
+                    background: active ? "#ffffff" : "transparent",
+                    color: active ? "#1e293b" : "rgba(255, 255, 255, 0.8)",
+                    border: "none",
+                    fontSize: "11px",
+                    fontWeight: active ? "800" : "600",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    boxShadow: active ? "0 4px 12px rgba(0, 0, 0, 0.2)" : "none",
+                  }}
+                  onMouseOver={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.color = "#ffffff";
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <span
@@ -197,9 +251,15 @@ export default function NotificationTable({
                         padding: "3px 8px",
                         borderRadius: "5px",
                         background:
-                          alert.type === "DSM" ? "#f59e0b15" : "#ef444415",
-                        color: alert.type === "DSM" ? "#f59e0b" : "#ef4444",
-                        border: `1px solid ${alert.type === "DSM" ? "#f59e0b33" : "#ef444433"}`,
+                          alert.type === "DSM" ? "#f59e0b15" :
+                          alert.type === "BEHAVIOR" ? "#a855f715" : "#ef444415",
+                        color:
+                          alert.type === "DSM" ? "#f59e0b" :
+                          alert.type === "BEHAVIOR" ? "#a855f7" : "#ef4444",
+                        border: `1px solid ${
+                          alert.type === "DSM" ? "#f59e0b33" :
+                          alert.type === "BEHAVIOR" ? "#a855f733" : "#ef444433"
+                        }`,
                         textTransform: "uppercase",
                       }}
                     >
