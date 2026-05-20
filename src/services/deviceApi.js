@@ -1,3 +1,5 @@
+import { GRAPHQL_URL } from "./authApi";
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 const getAuthHeaders = (extraHeaders = {}) => {
@@ -38,6 +40,69 @@ const fetchWithAuth = async (url, options = {}) => {
   return response;
 };
 
+const deviceIdToUuidMap = new Map();
+
+const fetchGraphql = async (query, variables = {}) => {
+  const response = await fetchWithAuth(GRAPHQL_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`GraphQL query failed: ${response.statusText}`);
+  }
+  
+  const result = await response.json();
+  if (result.errors) {
+    throw new Error(result.errors[0].message);
+  }
+  
+  return result.data;
+};
+
+const findUuidByDeviceId = async (deviceId) => {
+  const query = `
+    query GetAllDevices($deviceQueryInput: DeviceQueryInput!) {
+      getAllDevices(deviceQueryInput: $deviceQueryInput) {
+        data {
+          id
+          deviceId
+        }
+      }
+    }
+  `;
+  try {
+    const data = await fetchGraphql(query, { deviceQueryInput: { deviceId } });
+    const found = data.getAllDevices?.data?.[0];
+    if (found && found.deviceId === deviceId) {
+      deviceIdToUuidMap.set(deviceId, found.id);
+      return found.id;
+    }
+  } catch (e) {
+    console.error("Error finding UUID for device:", e);
+  }
+  return null;
+};
+
+const mapParamsToQueryInput = (params = {}) => {
+  const input = {};
+  if (params.device_type) {
+    input.deviceType = params.device_type;
+  }
+  if (params.status) {
+    input.status = params.status;
+  }
+  if (params.imei) {
+    input.imei = params.imei;
+  }
+  if (params.deviceId) {
+    input.deviceId = params.deviceId;
+  }
+  return input;
+};
 
 const deviceApi = {
   checkStatus: async () => {
@@ -168,53 +233,195 @@ const deviceApi = {
   },
 
   getDevices: async () => {
-    const response = await fetchWithAuth(`${BASE_URL}/api/devices`);
-    if (!response.ok) throw new Error("Failed to fetch devices");
-    return response.json();
+    return deviceApi.getDevicesV2();
   },
 
   getDevicesV2: async (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    const response = await fetchWithAuth(`${BASE_URL}/api/devices/v2?${query}`);
-    if (!response.ok) throw new Error("Failed to fetch devices V2");
-    return response.json();
+    const input = mapParamsToQueryInput(params);
+    const query = `
+      query GetAllDevices($deviceQueryInput: DeviceQueryInput!) {
+        getAllDevices(deviceQueryInput: $deviceQueryInput) {
+          success
+          data {
+            id
+            deviceId
+            updatedAt
+            deviceType
+            imei
+            simNumber
+            name
+            status
+            obdProfile {
+              protocol
+            }
+            dashcamProfile {
+              dashcamType
+              channelCount
+            }
+            j42Profile {
+              protocol
+            }
+          }
+        }
+      }
+    `;
+    const data = await fetchGraphql(query, { deviceQueryInput: input });
+    const rawDevices = data.getAllDevices?.data || [];
+    
+    const mapped = rawDevices.map(d => {
+      deviceIdToUuidMap.set(d.deviceId, d.id);
+      return {
+        id: d.deviceId,
+        name: d.name,
+        imei: d.imei,
+        device_type: d.deviceType,
+        status: d.status,
+        model: d.dashcamProfile?.dashcamType || d.obdProfile?.protocol || d.j42Profile?.protocol || "",
+        fwVersion: "N/A",
+        iccid: d.simNumber || "N/A",
+        lastSeen: d.updatedAt ? new Date(d.updatedAt).toLocaleString() : "N/A"
+      };
+    });
+    return { success: true, data: mapped };
   },
 
   createDevice: async (data) => {
-    const response = await fetchWithAuth(`${BASE_URL}/api/devices`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to create device");
+    const input = {
+      deviceId: data.deviceId,
+      deviceType: data.device_type,
+      imei: data.imei,
+      simNumber: data.simNumber || data.imei || "",
+      name: data.name,
+      isRegistered: true,
+    };
+    
+    if (data.device_type === "AI_DASHCAM") {
+      input.dashcamProfile = {
+        dashcamType: "DUAL_FACING_AI_DASHCAM",
+        channelCount: 2
+      };
+    } else if (data.device_type === "OBD") {
+      input.obdProfile = {
+        protocol: data.model || "OBD-II"
+      };
+    } else if (data.device_type === "J42") {
+      input.j42Profile = {
+        protocol: data.model || "J42"
+      };
     }
-    return response.json();
+
+    const mutation = `
+      mutation CreateDevice($createDeviceInput: CreateDeviceInput!) {
+        createDevice(createDeviceInput: $createDeviceInput) {
+          success
+          message
+          data {
+            id
+            deviceId
+            deviceType
+            name
+            status
+          }
+        }
+      }
+    `;
+
+    const res = await fetchGraphql(mutation, { createDeviceInput: input });
+    const createdDevice = res.createDevice?.data;
+    if (createdDevice) {
+      deviceIdToUuidMap.set(createdDevice.deviceId, createdDevice.id);
+      return {
+        success: true,
+        data: {
+          id: createdDevice.deviceId,
+          device_type: createdDevice.deviceType,
+          name: createdDevice.name,
+          status: createdDevice.status
+        }
+      };
+    }
+    throw new Error("Failed to create device");
   },
 
   updateDevice: async (deviceId, data) => {
-    const response = await fetchWithAuth(`${BASE_URL}/api/devices/${deviceId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to update device");
+    const uuid = deviceIdToUuidMap.get(deviceId) || await findUuidByDeviceId(deviceId);
+    if (!uuid) {
+      throw new Error(`Could not find internal ID for device ${deviceId}`);
     }
-    return response.json();
+
+    const input = {
+      name: data.name,
+      simNumber: data.simNumber || data.imei || "",
+      isRegistered: true
+    };
+
+    if (data.device_type === "AI_DASHCAM") {
+      input.dashcamProfile = {
+        dashcamType: "DUAL_FACING_AI_DASHCAM",
+        channelCount: 2
+      };
+    } else if (data.device_type === "OBD") {
+      input.obdProfile = {
+        protocol: data.model || "OBD-II"
+      };
+    } else if (data.device_type === "J42") {
+      input.j42Profile = {
+        protocol: data.model || "J42"
+      };
+    }
+
+    const mutation = `
+      mutation UpdateDevice($id: ID!, $updateDeviceInput: UpdateDeviceInput!) {
+        updateDevice(id: $id, updateDeviceInput: $updateDeviceInput) {
+          success
+          message
+          data {
+            id
+            deviceId
+            deviceType
+            name
+            status
+          }
+        }
+      }
+    `;
+
+    const res = await fetchGraphql(mutation, { id: uuid, updateDeviceInput: input });
+    const updatedDevice = res.updateDevice?.data;
+    if (updatedDevice) {
+      return {
+        success: true,
+        data: {
+          id: updatedDevice.deviceId,
+          device_type: updatedDevice.deviceType,
+          name: updatedDevice.name,
+          status: updatedDevice.status
+        }
+      };
+    }
+    throw new Error("Failed to update device");
   },
 
   deleteDevice: async (deviceId) => {
-    const response = await fetchWithAuth(`${BASE_URL}/api/devices/${deviceId}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to delete device");
+    const uuid = deviceIdToUuidMap.get(deviceId) || await findUuidByDeviceId(deviceId);
+    if (!uuid) {
+      throw new Error(`Could not find internal ID for device ${deviceId}`);
     }
-    return response.json();
+
+    const mutation = `
+      mutation DeleteDevice($id: ID!) {
+        deleteDevice(id: $id) {
+          success
+        }
+      }
+    `;
+
+    const res = await fetchGraphql(mutation, { id: uuid });
+    if (res.deleteDevice?.success) {
+      deviceIdToUuidMap.delete(deviceId);
+      return { success: true };
+    }
+    throw new Error("Failed to delete device");
   },
 
   // Trigger FRP tunnel — sends wake-up command to dashcam and returns the login URL

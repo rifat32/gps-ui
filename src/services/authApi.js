@@ -20,7 +20,7 @@ const getGraphqlUrl = () => {
   return `${window.location.protocol}//${window.location.hostname}:8040/graphql`;
 };
 
-const GRAPHQL_URL = getGraphqlUrl();
+export const GRAPHQL_URL = getGraphqlUrl();
 
 const authApi = {
   login: async (email, password) => {
