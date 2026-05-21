@@ -3,6 +3,31 @@ import { useState } from "react";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
+const ALERT_CATEGORY_TABS = [
+  { id: "", label: "All Alerts" },
+  { id: "ADAS", label: "ADAS" },
+  { id: "DSM", label: "DSM" },
+  { id: "BEHAVIOR", label: "G-Sensor (G-Shock)" },
+  { id: "HARDWARE", label: "Hardware / Video" },
+  { id: "IO", label: "IO / Physical" },
+  { id: "SPEED_GPS", label: "Speed / GPS" },
+  { id: "GEOFENCE", label: "Geofence / Route" },
+  { id: "VIDEO", label: "Video" },
+];
+
+const CATEGORY_STYLES = {
+  ADAS: { bg: "#ef444415", color: "#ef4444", border: "#ef444433" },
+  DSM: { bg: "#f59e0b15", color: "#f59e0b", border: "#f59e0b33" },
+  BEHAVIOR: { bg: "#a855f715", color: "#a855f7", border: "#a855f733" },
+  HARDWARE: { bg: "#0ea5e915", color: "#0ea5e9", border: "#0ea5e933" },
+  IO: { bg: "#22c55e15", color: "#22c55e", border: "#22c55e33" },
+  SPEED_GPS: { bg: "#eab30815", color: "#eab308", border: "#eab30833" },
+  GEOFENCE: { bg: "#14b8a615", color: "#14b8a6", border: "#14b8a633" },
+  VIDEO: { bg: "#6366f115", color: "#6366f1", border: "#6366f133" },
+};
+
+const getCategoryStyle = (type) => CATEGORY_STYLES[type] || CATEGORY_STYLES.ADAS;
+
 export default function NotificationTable({ 
   alerts, 
   onOpenMedia, 
@@ -137,13 +162,10 @@ export default function NotificationTable({
             padding: "3px",
             borderRadius: "10px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
+            flexWrap: "wrap",
+            maxWidth: "720px",
           }}>
-            {[
-              { id: "", label: "All Alerts" },
-              { id: "ADAS", label: "ADAS" },
-              { id: "DSM", label: "DSM" },
-              { id: "BEHAVIOR", label: "G-Sensor (G-Shock)" },
-            ].map(tab => {
+            {ALERT_CATEGORY_TABS.map(tab => {
               const active = activeCategory === tab.id;
               return (
                 <button
@@ -250,16 +272,9 @@ export default function NotificationTable({
                         fontWeight: "800",
                         padding: "3px 8px",
                         borderRadius: "5px",
-                        background:
-                          alert.type === "DSM" ? "#f59e0b15" :
-                          alert.type === "BEHAVIOR" ? "#a855f715" : "#ef444415",
-                        color:
-                          alert.type === "DSM" ? "#f59e0b" :
-                          alert.type === "BEHAVIOR" ? "#a855f7" : "#ef4444",
-                        border: `1px solid ${
-                          alert.type === "DSM" ? "#f59e0b33" :
-                          alert.type === "BEHAVIOR" ? "#a855f733" : "#ef444433"
-                        }`,
+                        background: getCategoryStyle(alert.type).bg,
+                        color: getCategoryStyle(alert.type).color,
+                        border: `1px solid ${getCategoryStyle(alert.type).border}`,
                         textTransform: "uppercase",
                       }}
                     >
