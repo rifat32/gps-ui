@@ -146,13 +146,16 @@ const deviceApi = {
   },
 
   // Helper to start live stream
-  startLive: async (deviceId, channel = 1, socketId = null) => {
+  // Use the existing REST command path only.
+  // Do not call GraphQL here; the old REST path is the working live-control flow.
+  startLive: async (deviceId, channel = 1, socketId = null, streamType = 0) => {
     return deviceApi.sendCommand({
       deviceId,
       commandType: "START_LIVE",
       parameters: {
-        channel,
-        socketId,
+        channel: Number(channel) || 1,
+        streamType: Number(streamType) || 0,
+        ...(socketId ? { socketId } : {}),
       },
     });
   },

@@ -97,6 +97,8 @@ export default function Dashcam({ theme, toggleTheme }) {
   const lastRequestTimesRef = useRef({}); // { [key]: timestamp }
   const socketRef = useRef(null);
 
+  const isDeviceOnline = (device) => String(device?.status || "").toLowerCase() === "online";
+
   // Fetch initial AI events
   const fetchInitialAlerts = async () => {
     try {
@@ -277,7 +279,22 @@ export default function Dashcam({ theme, toggleTheme }) {
     // Only skip if already 'live' (and not forcing).
     if (!force && activeStreamsRef.current[key] === "live") return;
 
-    if (device.status !== "online") return;
+    if (!isDeviceOnline(device)) {
+      const message = `Device ${device.id} is ${device.status || "OFFLINE"}; live command was not sent`;
+      console.warn(`⚠️ [START_LIVE] ${message}`);
+      setLiveStreams((prev) => ({
+        ...prev,
+        [key]: {
+          url: null,
+          webrtcUrl: null,
+          channel,
+          status: "error",
+          error: message,
+        },
+      }));
+      activeStreamsRef.current[key] = "error";
+      return;
+    }
 
     // Clear all other channels for this device since the simulator/device 
     // usually only supports one active stream at a time or we want a fresh start.
@@ -354,6 +371,12 @@ export default function Dashcam({ theme, toggleTheme }) {
 
   const handleDeviceSelect = (device) => {
     setSelectedDevice(device);
+
+    // Do not rely only on the React effect. If the user clicks the already
+    // selected device, selectedDevice does not change, so the effect will not
+    // run and no API call will be made. Force a live-start attempt from the
+    // click handler itself.
+    startLiveStream(device, activeChannel, true);
   };
 
   const getStreamForCell = (cellIndex) => {
