@@ -90,6 +90,7 @@ export default function Dashcam({ theme, toggleTheme }) {
   const [activeTab, setActiveTab] = useState("live");
   const [activeChannel, setActiveChannel] = useState(1);
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
+  const [isLoadingDevices, setIsLoadingDevices] = useState(true);
 
   // Live stream state: { [deviceId]: { url, webrtcUrl, channel, status: 'idle'|'loading'|'live'|'error', error } }
   const [liveStreams, setLiveStreams] = useState({});
@@ -131,6 +132,7 @@ export default function Dashcam({ theme, toggleTheme }) {
 
   // Fetch devices
   const fetchDevices = async () => {
+    setIsLoadingDevices(true);
     try {
       const data = await deviceApi.getDevicesV2({ device_type: 'AI_DASHCAM' });
       const activeDevices = data.data.filter((d) => d.status?.toLowerCase() === "online");
@@ -141,6 +143,8 @@ export default function Dashcam({ theme, toggleTheme }) {
       }
     } catch (err) {
       console.error("Failed to fetch devices:", err);
+    } finally {
+      setIsLoadingDevices(false);
     }
   };
 
@@ -722,15 +726,85 @@ export default function Dashcam({ theme, toggleTheme }) {
             >
               Fleet Devices
             </div>
-            {[...devices.active, ...devices.historical].map((dev) => (
-              <DeviceCard
-                key={dev.id}
-                dev={dev}
-                selectedDevice={selectedDevice}
-                setSelectedDevice={handleDeviceSelect}
-                streamStatus={liveStreams[`${dev.id}_ch${activeChannel}`]?.status || "idle"}
-              />
-            ))}
+            {isLoadingDevices ? (
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "12px",
+                    marginBottom: "12px",
+                    background: "var(--input-bg)",
+                    border: "1px solid var(--surface-border)",
+                    position: "relative",
+                    overflow: "hidden",
+                    opacity: 0.6,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent)",
+                      animation: "shimmer 1.8s infinite",
+                    }}
+                  />
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        background: "rgba(100, 116, 139, 0.2)",
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          width: "65%",
+                          height: "12px",
+                          borderRadius: "4px",
+                          background: "rgba(100, 116, 139, 0.25)",
+                          marginBottom: "8px",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: "35%",
+                          height: "8px",
+                          borderRadius: "3px",
+                          background: "rgba(100, 116, 139, 0.15)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : [...devices.active, ...devices.historical].length === 0 ? (
+              <div
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                  color: "var(--text-secondary)",
+                  fontSize: "14px",
+                }}
+              >
+                No dashcam devices found
+              </div>
+            ) : (
+              [...devices.active, ...devices.historical].map((dev) => (
+                <DeviceCard
+                  key={dev.id}
+                  dev={dev}
+                  selectedDevice={selectedDevice}
+                  setSelectedDevice={handleDeviceSelect}
+                  streamStatus={liveStreams[`${dev.id}_ch${activeChannel}`]?.status || "idle"}
+                />
+              ))
+            )}
           </div>
         </aside>
 
