@@ -20,6 +20,137 @@ const WS_URL_OBD = import.meta.env.VITE_OBD_API_URL;
 const mapContainerStyle = { width: "100%", height: "100vh" };
 const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
 
+const normalizeDeviceId = (value) => String(value || "").replace(/^device_/, "").trim();
+
+const LIVE_CACHE_PREFIX = "live_map_last_positions_";
+const TEN_MINUTES = 10 * 60 * 1000;
+const CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
+
+const parseTimeMs = (value) => {
+  if (!value) return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+
+  const raw = String(value).trim();
+  if (!raw) return 0;
+
+  // PostgreSQL sometimes returns "YYYY-MM-DD HH:mm:ss" without a timezone.
+  // Treat that format as UTC so live received_at does not look several hours old.
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(raw)) {
+    const pgMs = new Date(raw.replace(" ", "T") + "Z").getTime();
+    if (Number.isFinite(pgMs)) return pgMs;
+  }
+
+  const ms = new Date(raw).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+};
+
+const formatTime = (value) => {
+  if (!value) return "";
+  const ms = parseTimeMs(value);
+  if (!ms) return String(value);
+  return new Date(ms).toLocaleString();
+};
+
+const getFreshnessTime = (value) =>
+  value?.lastReceivedAt ||
+  value?.last_received_at ||
+  value?.receivedAt ||
+  value?.received_at ||
+  value?.serverTime ||
+  value?.timestamp ||
+  value?.gpsTime ||
+  value?.gps_time ||
+  value?.time;
+
+const getGpsTime = (value) => value?.gpsTime || value?.gps_time || value?.time || value?.timestamp || "";
+
+const getVehicleFreshnessMs = (vehicle) =>
+  Number(vehicle?.lastUpdatedAt || 0) || parseTimeMs(getFreshnessTime(vehicle));
+
+const buildStatus = (speed, freshnessTime, explicitStatus) => {
+  const freshnessMs = parseTimeMs(freshnessTime);
+  const isFresh = freshnessMs && Date.now() - freshnessMs <= TEN_MINUTES;
+
+  if (!isFresh) return "Offline";
+  if (explicitStatus && String(explicitStatus).toUpperCase() !== "OFFLINE") return explicitStatus;
+  return Number(speed || 0) > 0 ? "Moving" : "Stopped";
+};
+
+const mergeVehicleLists = (currentList, incomingList) => {
+  const map = new Map();
+
+  const put = (vehicle) => {
+    if (!vehicle) return;
+    const key = normalizeDeviceId(vehicle.id || vehicle.device_id || vehicle.deviceId);
+    if (!key) return;
+
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, { ...vehicle, id: key });
+      return;
+    }
+
+    const existingFreshness = getVehicleFreshnessMs(existing);
+    const incomingFreshness = getVehicleFreshnessMs(vehicle);
+
+    // Do not allow an old REST/API response to overwrite a newer socket position.
+    if (existingFreshness && incomingFreshness && existingFreshness > incomingFreshness) {
+      map.set(key, { ...vehicle, ...existing, id: key });
+    } else {
+      map.set(key, { ...existing, ...vehicle, id: key });
+    }
+  };
+
+  currentList.forEach(put);
+  incomingList.forEach(put);
+  return Array.from(map.values());
+};
+
+const loadCachedVehicles = (deviceType) => {
+  try {
+    const raw = localStorage.getItem(`${LIVE_CACHE_PREFIX}${deviceType}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((v) => {
+      const lat = Number(v.lat);
+      const lng = Number(v.lng);
+      const freshness = getVehicleFreshnessMs(v);
+      return isFinite(lat) && isFinite(lng) && !(lat === 0 && lng === 0) && freshness && Date.now() - freshness < CACHE_MAX_AGE;
+    });
+  } catch (e) {
+    return [];
+  }
+};
+
+const saveCachedVehicles = (deviceType, list) => {
+  try {
+    const safeList = (list || [])
+      .filter((v) => {
+        const freshness = getVehicleFreshnessMs(v);
+        return freshness && Date.now() - freshness < CACHE_MAX_AGE;
+      })
+      .map((v) => ({
+        id: normalizeDeviceId(v.id),
+        name: v.name,
+        lat: v.lat,
+        lng: v.lng,
+        speed: v.speed,
+        heading: v.heading,
+        status: v.status,
+        timestamp: v.timestamp,
+        gpsTime: v.gpsTime,
+        lastReceivedAt: v.lastReceivedAt,
+        lastUpdatedAt: v.lastUpdatedAt,
+      }));
+
+    localStorage.setItem(`${LIVE_CACHE_PREFIX}${deviceType}`, JSON.stringify(safeList));
+  } catch (e) {
+    // Cache is only a reload helper. Ignore storage errors.
+  }
+};
+
 // Custom Car SVG
 const VehicleMarker = ({ size = 48, status = "ONLINE" }) => {
   const isOnline = status === "ONLINE";
@@ -52,37 +183,33 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
 
       const apiVehicles = (json.data || [])
         .map((v) => {
-          const deviceId = String(v.device_id);
-          const lat = Number(v.latitude || 0);
-          const lng = Number(v.longitude || 0);
+          const deviceId = normalizeDeviceId(v.device_id || v.deviceId || v.IMEI || v.imei);
+          const lat = Number(v.latitude ?? v.lat ?? 0);
+          const lng = Number(v.longitude ?? v.lng ?? v.lon ?? 0);
 
-          if (lat === 0 && lng === 0) return null;
+          if (!deviceId || !isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) return null;
 
-          // Check if data is older than 10 minutes (Offline detection)
-          const timeStr = v.gps_time || v.time || v.timestamp;
-          const receivedAt = v.received_at || v.receivedAt || v.live_time || timeStr;
-          const freshnessTime = new Date(receivedAt);
-          const now = new Date();
-          const TEN_MINUTES = 10 * 60 * 1000;
-          const isStale = !receivedAt || isNaN(freshnessTime.getTime()) || (now - freshnessTime) > TEN_MINUTES;
+          const speed = Number(v.speed || 0);
+          const freshnessTime = getFreshnessTime(v);
+          const gpsTime = getGpsTime(v);
 
           return {
             id: deviceId,
             name: v.deviceName || v.name || deviceId,
-            lat: lat,
-            lng: lng,
-            speed: Number(v.speed || 0),
-            heading: Number(v.direction || 0),
-            timestamp: timeStr,
-            receivedAt,
-            // Priority: Server-side calculated status > Client-side staleness check
-            status: v.status || (isStale ? "OFFLINE" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped")),
+            lat,
+            lng,
+            speed,
+            heading: Number(v.direction ?? v.heading ?? 0),
+            timestamp: freshnessTime || gpsTime,
+            gpsTime,
+            lastReceivedAt: freshnessTime,
+            status: buildStatus(speed, freshnessTime, v.status),
           };
         })
         .filter(Boolean);
 
-
-      setVehicles(apiVehicles);
+      // Merge, do not replace. A slow/stale API response must not overwrite a newer socket/cache position.
+      setVehicles((prev) => mergeVehicleLists(prev, apiVehicles));
     } catch (err) {
       console.error("Error fetching vehicles:", err);
     } finally {
@@ -92,7 +219,13 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
 
   useEffect(() => {
     setLoading(true);
-    setVehicles([]);
+    setSelectedVehicle(null);
+
+    // Show the last live socket position immediately after browser reload.
+    // This prevents a live OBD device from appearing offline until the next socket packet arrives.
+    const cachedVehicles = loadCachedVehicles(deviceType);
+    setVehicles(cachedVehicles);
+
     fetchInitialPositions();
 
     // Initialize Socket.io
@@ -113,46 +246,54 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
         return;
       }
 
-      setVehicles((prev) => {
-        const deviceId = String(update.deviceId);
-        const index = prev.findIndex((v) => String(v.id) === deviceId);
+      const deviceId = normalizeDeviceId(update.deviceId || update.device_id || update.IMEI || update.imei);
+      if (!deviceId) return;
 
-        const updatedVehicle = {
-          id: deviceId,
-          name: update.name || deviceId || "Unknown",
-          lat,
-          lng,
-          speed: Number(update.speed || 0),
-          heading: Number(update.direction || update.heading || 0),
-          status: (Number(update.speed) || 0) > 0 ? "Moving" : "Stopped",
-          timestamp: update.gpsTime || update.time || update.timestamp,
-          receivedAt: update.receivedAt || update.received_at || new Date().toISOString(),
-          lastUpdatedAt: Date.now(), // Track when we last got a live update
-        };
+      const receivedAt = update.receivedAt || update.received_at || new Date().toISOString();
+      const speed = Number(update.speed || 0);
+      const gpsTime = getGpsTime(update);
 
-        if (index !== -1) {
-          const newVehicles = [...prev];
-          newVehicles[index] = updatedVehicle;
-          return newVehicles;
-        } else {
-          return [...prev, updatedVehicle];
-        }
+      const updatedVehicle = {
+        id: deviceId,
+        name: update.name || deviceId || "Unknown",
+        lat,
+        lng,
+        speed,
+        heading: Number(update.direction ?? update.heading ?? 0),
+        status: buildStatus(speed, receivedAt, update.status),
+        timestamp: receivedAt,
+        gpsTime,
+        lastReceivedAt: receivedAt,
+        lastUpdatedAt: Date.now(), // Track when we last got a live socket update
+      };
+
+      setVehicles((prev) => mergeVehicleLists(prev, [updatedVehicle]));
+
+      setSelectedVehicle((current) => {
+        if (!current || normalizeDeviceId(current.id) !== deviceId) return current;
+        return { ...current, ...updatedVehicle };
       });
     });
 
     // Periodically check if any vehicle has gone stale (no update in 10 minutes)
     const stalenessInterval = setInterval(() => {
-      const TEN_MINUTES = 10 * 60 * 1000;
       setVehicles((prev) =>
         prev.map((v) => {
-          const lastUpdate = v.lastUpdatedAt || new Date(v.receivedAt || v.timestamp).getTime();
-          const isStale = !Number.isFinite(lastUpdate) || Date.now() - lastUpdate > TEN_MINUTES;
+          const lastUpdate = getVehicleFreshnessMs(v);
+          const isStale = !lastUpdate || Date.now() - lastUpdate > TEN_MINUTES;
           if (isStale && String(v.status).toUpperCase() !== "OFFLINE") {
-            return { ...v, status: "OFFLINE" };
+            return { ...v, status: "Offline" };
           }
           return v;
         })
       );
+
+      setSelectedVehicle((current) => {
+        if (!current) return current;
+        const lastUpdate = getVehicleFreshnessMs(current);
+        const isStale = !lastUpdate || Date.now() - lastUpdate > TEN_MINUTES;
+        return isStale ? { ...current, status: "Offline" } : current;
+      });
     }, 60000); // Check every 1 minute
 
     return () => {
@@ -164,12 +305,10 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
   }, [deviceType]);
 
   useEffect(() => {
-    if (!selectedVehicle) return;
-    const latestSelectedVehicle = vehicles.find((v) => String(v.id) === String(selectedVehicle.id));
-    if (latestSelectedVehicle) {
-      setSelectedVehicle(latestSelectedVehicle);
+    if (vehicles.length > 0) {
+      saveCachedVehicles(deviceType, vehicles);
     }
-  }, [vehicles, selectedVehicle?.id]);
+  }, [vehicles, deviceType]);
 
   // Auto-center map on first load of vehicles
   useEffect(() => {
@@ -300,7 +439,10 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                       </span>
                     </p>
 
-                    <p>Time: {selectedVehicle.timestamp}</p>
+                    <p>Last Seen: {formatTime(selectedVehicle.timestamp)}</p>
+                    {selectedVehicle.gpsTime && selectedVehicle.gpsTime !== selectedVehicle.timestamp && (
+                      <p>GPS Time: {formatTime(selectedVehicle.gpsTime)}</p>
+                    )}
                   </div>
                 </div>
               </InfoWindow>
