@@ -18,7 +18,7 @@ const WS_URL_OBD = import.meta.env.VITE_OBD_API_URL;
 const mapContainerStyle = { width: "100%", height: "100vh" };
 const defaultCenter = { lat: 51.5074, lng: -0.1278 };
 
-const normalizeId = (value) => String(value || "").replace(/^device_/, "");
+const normalizeId = (value) => String(value || "").replace(/^device[_:-]/i, "");
 
 const getMillis = (value) => {
   if (!value) return 0;
@@ -26,12 +26,29 @@ const getMillis = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const MOVING_SPEED_THRESHOLD = Number(import.meta.env.VITE_LIVE_DEVICE_MOVING_SPEED_THRESHOLD || 1);
+
 const formatStatus = (status, speed) => {
   const normalized = String(status || "").toUpperCase();
+  const hasSpeed = speed !== undefined && speed !== null && speed !== "";
+  const numericSpeed = Number(speed);
+
   if (normalized === "OFFLINE") return "Offline";
   if (normalized === "MOVING") return "Moving";
   if (normalized === "STOPPED") return "Stopped";
-  return Number(speed || 0) > 0 ? "Moving" : "Stopped";
+
+  if (normalized === "ONLINE") {
+    if (hasSpeed && Number.isFinite(numericSpeed)) {
+      return numericSpeed > MOVING_SPEED_THRESHOLD ? "Moving" : "Stopped";
+    }
+    return "Online";
+  }
+
+  if (hasSpeed && Number.isFinite(numericSpeed)) {
+    return numericSpeed > MOVING_SPEED_THRESHOLD ? "Moving" : "Stopped";
+  }
+
+  return "Online";
 };
 
 const mapApiVehicle = (v) => {
@@ -215,7 +232,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
     const normalized = String(status).toUpperCase();
     if (normalized === "OFFLINE") return "#94a3b8";
     if (normalized === "MOVING") return "#22c55e";
-    return "#ef4444";
+    if (normalized === "STOPPED") return "#ef4444";
+    return "#3b82f6";
   };
 
   return (
