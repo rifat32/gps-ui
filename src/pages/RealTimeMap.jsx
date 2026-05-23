@@ -1,68 +1,96 @@
-import { useEffect, useRef, useState, Fragment } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   GoogleMap,
   LoadScript,
   Marker,
   InfoWindow,
-  OverlayView,
 } from "@react-google-maps/api";
-import { Loader2, Bell, ShieldAlert } from "lucide-react";
+import { Loader2, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 
 import deviceApi from "../services/deviceApi";
 
-// Configuration
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
 const WS_URL_DASHCAM = import.meta.env.VITE_WS_URL;
 const WS_URL_OBD = import.meta.env.VITE_OBD_API_URL;
 
 const mapContainerStyle = { width: "100%", height: "100vh" };
-const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
+const defaultCenter = { lat: 51.5074, lng: -0.1278 };
 
-const normalizeDeviceId = (id) => String(id || "").replace(/^device_/, "");
+const normalizeId = (value) => String(value || "").replace(/^device_/, "");
 
-const parseTimeMs = (value) => {
+const getMillis = (value) => {
   if (!value) return 0;
-  const ms = new Date(value).getTime();
-  return Number.isFinite(ms) ? ms : 0;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const isOfflineStatus = (status) => String(status || "").toUpperCase() === "OFFLINE";
+const formatStatus = (status, speed) => {
+  const normalized = String(status || "").toUpperCase();
+  if (normalized === "OFFLINE") return "Offline";
+  if (normalized === "MOVING") return "Moving";
+  if (normalized === "STOPPED") return "Stopped";
+  return Number(speed || 0) > 0 ? "Moving" : "Stopped";
+};
 
-const mergeVehicleByFreshness = (existing, incoming) => {
-  if (!existing) return incoming;
+const mapApiVehicle = (v) => {
+  const id = normalizeId(v.device_id || v.deviceId || v.id);
+  const lat = Number(v.latitude ?? v.lat ?? 0);
+  const lng = Number(v.longitude ?? v.lng ?? v.lon ?? 0);
 
-  const existingFreshness = existing.lastUpdatedAt || parseTimeMs(existing.receivedAt || existing.timestamp);
-  const incomingFreshness = incoming.lastUpdatedAt || parseTimeMs(incoming.receivedAt || incoming.timestamp);
-
-  if (incomingFreshness && existingFreshness && incomingFreshness < existingFreshness) {
-    return existing;
+  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+    return null;
   }
 
+  const speed = Number(v.speed || 0);
+  const lastSeen = v.last_seen || v.lastSeen || v.received_at || v.receivedAt || v.timestamp || null;
+  const gpsTime = v.gps_time || v.gpsTime || v.time || v.timestamp || null;
+
   return {
-    ...existing,
-    ...incoming,
-    vehicle: incoming.vehicle || existing.vehicle,
-    name: incoming.name || existing.name,
+    id,
+    name: v.deviceName || v.name || id,
+    lat,
+    lng,
+    speed,
+    heading: Number(v.direction ?? v.heading ?? 0),
+    status: formatStatus(v.status, speed),
+    timestamp: gpsTime,
+    gpsTime,
+    lastSeen,
+    lastUpdatedAt: getMillis(lastSeen) || Date.now(),
+    deviceType: v.device_type || v.type,
   };
 };
 
-// Custom Car SVG
-const VehicleMarker = ({ size = 48, status = "ONLINE" }) => {
-  const isOnline = status === "ONLINE";
-  const color = isOnline ? "#3b82f6" : "#94a3b8";
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.4))", opacity: isOnline ? 1 : 0.7 }}>
-      <path d="M50 5 L15 85 L50 70 L85 85 Z" fill={color} stroke="white" strokeWidth="2" strokeLinejoin="round" />
-    </svg>
-  );
-};
+const mapSocketVehicle = (update) => {
+  const id = normalizeId(update.deviceId || update.device_id || update.id);
+  const lat = Number(update.latitude ?? update.lat ?? 0);
+  const lng = Number(update.longitude ?? update.lng ?? update.lon ?? 0);
 
-const getPixelPositionOffset = (width, height) => ({
-  x: -(width / 2),
-  y: -(height / 2),
-});
+  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+    return null;
+  }
+
+  const speed = Number(update.speed || 0);
+  const lastSeen = update.receivedAt || update.received_at || update.lastSeen || new Date().toISOString();
+  const gpsTime = update.gpsTime || update.gps_time || update.time || null;
+
+  return {
+    id,
+    name: update.name || update.deviceName || id,
+    lat,
+    lng,
+    speed,
+    heading: Number(update.direction ?? update.heading ?? 0),
+    status: formatStatus(update.status, speed),
+    timestamp: gpsTime,
+    gpsTime,
+    lastSeen,
+    lastUpdatedAt: Date.now(),
+    deviceType: update.deviceType || update.device_type || "OBD",
+  };
+};
 
 export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
   const currentWsUrl = deviceType === "OBD" ? WS_URL_OBD : WS_URL_DASHCAM;
@@ -70,57 +98,44 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const mapRef = useRef(null);
   const socketRef = useRef(null);
-  const [error, setError] = useState(null);
+
+  const mergeVehicle = (incoming) => {
+    if (!incoming) return;
+
+    setVehicles((prev) => {
+      const index = prev.findIndex((v) => normalizeId(v.id) === incoming.id);
+      if (index === -1) return [...prev, incoming];
+
+      const existing = prev[index];
+      const existingTime = existing.lastUpdatedAt || getMillis(existing.lastSeen) || getMillis(existing.gpsTime);
+      const incomingTime = incoming.lastUpdatedAt || getMillis(incoming.lastSeen) || getMillis(incoming.gpsTime);
+
+      // Do not let an older API/socket packet overwrite a newer live packet.
+      if (existingTime && incomingTime && incomingTime < existingTime) return prev;
+
+      const next = [...prev];
+      next[index] = { ...existing, ...incoming, name: incoming.name || existing.name };
+      return next;
+    });
+
+    setSelectedVehicle((current) => {
+      if (!current || normalizeId(current.id) !== incoming.id) return current;
+      return { ...current, ...incoming, name: incoming.name || current.name };
+    });
+  };
 
   const fetchInitialPositions = async () => {
     try {
+      setError(null);
       const json = await deviceApi.getLiveGpsData({ device_type: deviceType });
-
-      const apiVehicles = (json.data || [])
-        .map((v) => {
-          const deviceId = normalizeDeviceId(v.device_id || v.deviceId);
-          const lat = Number(v.latitude || v.lat || 0);
-          const lng = Number(v.longitude || v.lng || v.lon || 0);
-
-          if (!deviceId || !isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) return null;
-
-          const receivedAt = v.received_at || v.receivedAt || v.lastSeen || null;
-          const gpsTime = v.gps_time || v.gpsTime || v.time || v.timestamp || null;
-          const freshnessTime = receivedAt || gpsTime;
-          const TEN_MINUTES = 10 * 60 * 1000;
-          const freshnessMs = parseTimeMs(freshnessTime);
-          const isStale = !freshnessMs || Date.now() - freshnessMs > TEN_MINUTES;
-
-          return {
-            id: deviceId,
-            name: v.deviceName || v.name || deviceId,
-            lat,
-            lng,
-            speed: Number(v.speed || 0),
-            heading: Number(v.direction || v.heading || 0),
-            timestamp: freshnessTime,
-            receivedAt,
-            gpsTime,
-            vehicle: v.vehicle,
-            status: v.status || (isStale ? "Offline" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped")),
-            lastUpdatedAt: freshnessMs || 0,
-          };
-        })
-        .filter(Boolean);
-
-      setVehicles((prev) => {
-        const map = new Map();
-        for (const vehicle of prev) map.set(normalizeDeviceId(vehicle.id), vehicle);
-        for (const vehicle of apiVehicles) {
-          const key = normalizeDeviceId(vehicle.id);
-          map.set(key, mergeVehicleByFreshness(map.get(key), vehicle));
-        }
-        return Array.from(map.values());
-      });
+      const apiVehicles = (json.data || []).map(mapApiVehicle).filter(Boolean);
+      setVehicles(apiVehicles);
     } catch (err) {
       console.error("Error fetching vehicles:", err);
+      setError("Failed to load live GPS data");
     } finally {
       setLoading(false);
     }
@@ -129,10 +144,10 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
   useEffect(() => {
     setLoading(true);
     setVehicles([]);
+    setSelectedVehicle(null);
     fetchInitialPositions();
 
-    // Initialize Socket.io
-    socketRef.current = io(currentWsUrl);
+    socketRef.current = io(currentWsUrl, { transports: ["websocket", "polling"] });
 
     socketRef.current.on("connect", () => {
       console.log("Connected to Socket.io server");
@@ -140,85 +155,46 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
 
     socketRef.current.on("gps_update", (update) => {
       console.log("Received GPS update:", update);
-      
-      const lat = Number(update.latitude);
-      const lng = Number(update.longitude || update.lng || update.lon);
 
-      if (!isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) {
+      const incomingType = String(update.deviceType || update.device_type || "").toUpperCase();
+      if (incomingType && incomingType !== String(deviceType).toUpperCase()) return;
+
+      const vehicle = mapSocketVehicle(update);
+      if (!vehicle) {
         console.warn("Discarding invalid GPS update:", update);
         return;
       }
 
-      setVehicles((prev) => {
-        const deviceId = normalizeDeviceId(update.deviceId || update.device_id);
-        const index = prev.findIndex((v) => normalizeDeviceId(v.id) === deviceId);
-        const existing = index !== -1 ? prev[index] : null;
-        const receivedAt = update.receivedAt || update.received_at || new Date().toISOString();
-        const gpsTime = update.gpsTime || update.gps_time || update.time || null;
-
-        const updatedVehicle = mergeVehicleByFreshness(existing, {
-          id: deviceId,
-          name: update.name || existing?.name || deviceId || "Unknown",
-          lat,
-          lng,
-          speed: Number(update.speed || 0),
-          heading: Number(update.direction || update.heading || 0),
-          status: (Number(update.speed) || 0) > 0 ? "Moving" : "Stopped",
-          timestamp: receivedAt || gpsTime,
-          receivedAt,
-          gpsTime,
-          lastUpdatedAt: Date.now(),
-        });
-
-        if (index !== -1) {
-          const newVehicles = [...prev];
-          newVehicles[index] = updatedVehicle;
-          return newVehicles;
-        }
-        return [...prev, updatedVehicle];
-      });
+      mergeVehicle(vehicle);
     });
 
-    // Periodically check if any vehicle has gone stale (no update in 10 minutes)
     const stalenessInterval = setInterval(() => {
       const TEN_MINUTES = 10 * 60 * 1000;
       setVehicles((prev) =>
         prev.map((v) => {
-          const lastUpdate = v.lastUpdatedAt || parseTimeMs(v.receivedAt || v.timestamp);
+          const lastUpdate = v.lastUpdatedAt || getMillis(v.lastSeen) || getMillis(v.gpsTime);
           const isStale = !lastUpdate || Date.now() - lastUpdate > TEN_MINUTES;
-          if (isStale && !isOfflineStatus(v.status)) {
+          if (isStale && String(v.status).toUpperCase() !== "OFFLINE") {
             return { ...v, status: "Offline" };
           }
           return v;
         })
       );
-    }, 60000); // Check every 1 minute
+    }, 60000);
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      if (socketRef.current) socketRef.current.disconnect();
       clearInterval(stalenessInterval);
     };
-  }, [deviceType]);
+  }, [deviceType, currentWsUrl]);
 
   useEffect(() => {
-    if (!selectedVehicle) return;
-    const latest = vehicles.find((v) => normalizeDeviceId(v.id) === normalizeDeviceId(selectedVehicle.id));
-    if (latest && latest !== selectedVehicle) {
-      setSelectedVehicle(latest);
-    }
-  }, [vehicles, selectedVehicle]);
-
-  // Auto-center map on first load of vehicles
-  useEffect(() => {
-    console.log(`📊 Total vehicles in state: ${vehicles.length}`, vehicles);
     if (vehicles.length > 0 && mapRef.current && window.google) {
       const bounds = new window.google.maps.LatLngBounds();
       let hasValidCoords = false;
 
       vehicles.forEach((v) => {
-        if (isFinite(v.lat) && isFinite(v.lng)) {
+        if (Number.isFinite(v.lat) && Number.isFinite(v.lng)) {
           bounds.extend({ lat: v.lat, lng: v.lng });
           hasValidCoords = true;
         }
@@ -226,15 +202,21 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
 
       if (hasValidCoords) {
         mapRef.current.fitBounds(bounds);
-        // Don't zoom in too much for a single vehicle
         if (vehicles.length === 1) {
           setTimeout(() => {
-             if (mapRef.current) mapRef.current.setZoom(15);
+            if (mapRef.current) mapRef.current.setZoom(15);
           }, 100);
         }
       }
     }
-  }, [vehicles.length]); // Run when vehicles count changes
+  }, [vehicles.length]);
+
+  const markerColor = (status) => {
+    const normalized = String(status).toUpperCase();
+    if (normalized === "OFFLINE") return "#94a3b8";
+    if (normalized === "MOVING") return "#22c55e";
+    return "#ef4444";
+  };
 
   return (
     <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
@@ -243,7 +225,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
           position: "relative",
           height: "100%",
           width: "100%",
-          backgroundColor: "#f8fafc", // Light gray background
+          backgroundColor: "#f8fafc",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
@@ -265,10 +247,16 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
           </div>
         )}
 
+        {error && (
+          <div style={{ position: "absolute", top: 16, left: 16, zIndex: 60, color: "#dc2626", background: "white", padding: 8, borderRadius: 8 }}>
+            {error}
+          </div>
+        )}
+
         <div
           className="realtime-map-card"
           style={{
-            width: "calc(100% - 60px)", // 30px margin on each side
+            width: "calc(100% - 60px)",
             height: "calc(100% - 60px)",
             backgroundColor: "white",
             borderRadius: "16px",
@@ -299,15 +287,13 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                 position={{ lat: vehicle.lat, lng: vehicle.lng }}
                 onClick={() => setSelectedVehicle(vehicle)}
                 icon={window.google ? {
-                  path: "M25,50 L50,5 L75,50 L50,40 Z", 
-                  fillColor: 
-                    String(vehicle.status).toUpperCase() === "OFFLINE" ? "#94a3b8" : 
-                    String(vehicle.status).toUpperCase() === "MOVING" ? "#22c55e" : "#ef4444",
+                  path: "M25,50 L50,5 L75,50 L50,40 Z",
+                  fillColor: markerColor(vehicle.status),
                   fillOpacity: 1,
                   strokeColor: "white",
                   strokeWeight: 2,
                   scale: 1,
-                  rotation: (vehicle.heading || 0), 
+                  rotation: vehicle.heading || 0,
                   anchor: new window.google.maps.Point(50, 25),
                 } : null}
               />
@@ -318,7 +304,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                 position={{ lat: selectedVehicle.lat, lng: selectedVehicle.lng }}
                 onCloseClick={() => setSelectedVehicle(null)}
               >
-                <div style={{ padding: "8px", minWidth: "150px" }}>
+                <div style={{ padding: "8px", minWidth: "190px" }}>
                   <h3 style={{ fontWeight: "bold", marginBottom: "4px" }}>
                     {selectedVehicle.name}
                   </h3>
@@ -327,54 +313,43 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                     <p>Speed: {Math.round(selectedVehicle.speed * 0.621371)} mph</p>
                     <p>
                       Status:{" "}
-                      <span
-                        style={{
-                          color:
-                            String(selectedVehicle.status).toUpperCase() === "MOVING" ? "#22c55e" :
-                            String(selectedVehicle.status).toUpperCase() === "OFFLINE" ? "#94a3b8" : "#ef4444",
-                          fontWeight: "bold",
-                        }}
-                      >
+                      <span style={{ color: markerColor(selectedVehicle.status), fontWeight: "bold" }}>
                         {selectedVehicle.status}
                       </span>
                     </p>
-
-                    <p>Last Seen: {selectedVehicle.receivedAt || selectedVehicle.timestamp || "N/A"}</p>
-                    {selectedVehicle.gpsTime && selectedVehicle.gpsTime !== selectedVehicle.receivedAt && (
-                      <p>GPS Time: {selectedVehicle.gpsTime}</p>
-                    )}
+                    <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
+                    {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
                   </div>
                 </div>
               </InfoWindow>
             )}
           </GoogleMap>
 
-      {/* Floating AI Notification Link */}
-      <Link 
-        to="/dashcam" 
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          backgroundColor: '#3b82f6',
-          color: 'white',
-          padding: '12px 20px',
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          textDecoration: 'none',
-          fontWeight: '600',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-          zIndex: 1000,
-          transition: 'transform 0.2s',
-        }}
-        onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-        onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-      >
-        <Bell size={20} />
-        AI Notifications
-      </Link>
+          <Link
+            to="/dashcam"
+            style={{
+              position: "fixed",
+              bottom: "24px",
+              right: "24px",
+              backgroundColor: "#3b82f6",
+              color: "white",
+              padding: "12px 20px",
+              borderRadius: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              textDecoration: "none",
+              fontWeight: "600",
+              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+              zIndex: 1000,
+              transition: "transform 0.2s",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+            onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          >
+            <Bell size={20} />
+            AI Notifications
+          </Link>
         </div>
       </div>
     </LoadScript>
