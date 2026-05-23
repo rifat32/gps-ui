@@ -60,10 +60,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
 
           // Check if data is older than 10 minutes (Offline detection)
           const timeStr = v.gps_time || v.time || v.timestamp;
-          const gpsTime = new Date(timeStr);
+          const receivedAt = v.received_at || v.receivedAt || v.live_time || timeStr;
+          const freshnessTime = new Date(receivedAt);
           const now = new Date();
           const TEN_MINUTES = 10 * 60 * 1000;
-          const isStale = !timeStr || isNaN(gpsTime.getTime()) || (now - gpsTime) > TEN_MINUTES;
+          const isStale = !receivedAt || isNaN(freshnessTime.getTime()) || (now - freshnessTime) > TEN_MINUTES;
 
           return {
             id: deviceId,
@@ -73,6 +74,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
             speed: Number(v.speed || 0),
             heading: Number(v.direction || 0),
             timestamp: timeStr,
+            receivedAt,
             // Priority: Server-side calculated status > Client-side staleness check
             status: v.status || (isStale ? "OFFLINE" : (Number(v.speed || 0) > 0 ? "Moving" : "Stopped")),
           };
@@ -123,7 +125,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
           speed: Number(update.speed || 0),
           heading: Number(update.direction || update.heading || 0),
           status: (Number(update.speed) || 0) > 0 ? "Moving" : "Stopped",
-          timestamp: update.gpsTime,
+          timestamp: update.gpsTime || update.time || update.timestamp,
+          receivedAt: update.receivedAt || update.received_at || new Date().toISOString(),
           lastUpdatedAt: Date.now(), // Track when we last got a live update
         };
 
@@ -142,8 +145,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
       const TEN_MINUTES = 10 * 60 * 1000;
       setVehicles((prev) =>
         prev.map((v) => {
-          const lastUpdate = v.lastUpdatedAt || new Date(v.timestamp).getTime();
-          const isStale = Date.now() - lastUpdate > TEN_MINUTES;
+          const lastUpdate = v.lastUpdatedAt || new Date(v.receivedAt || v.timestamp).getTime();
+          const isStale = !Number.isFinite(lastUpdate) || Date.now() - lastUpdate > TEN_MINUTES;
           if (isStale && String(v.status).toUpperCase() !== "OFFLINE") {
             return { ...v, status: "OFFLINE" };
           }
@@ -159,6 +162,14 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
       clearInterval(stalenessInterval);
     };
   }, [deviceType]);
+
+  useEffect(() => {
+    if (!selectedVehicle) return;
+    const latestSelectedVehicle = vehicles.find((v) => String(v.id) === String(selectedVehicle.id));
+    if (latestSelectedVehicle) {
+      setSelectedVehicle(latestSelectedVehicle);
+    }
+  }, [vehicles, selectedVehicle?.id]);
 
   // Auto-center map on first load of vehicles
   useEffect(() => {
