@@ -249,6 +249,8 @@ const deviceApi = {
             id
             deviceId
             updatedAt
+            liveStatus
+            lastSeenAt
             deviceType
             imei
             simNumber
@@ -279,10 +281,11 @@ const deviceApi = {
         imei: d.imei,
         device_type: d.deviceType,
         status: d.status,
+        liveStatus: d.liveStatus || (d.status === "ONLINE" ? "Online" : "Offline"),
         model: d.dashcamProfile?.dashcamType || d.obdProfile?.protocol || d.j42Profile?.protocol || "",
         fwVersion: "N/A",
         iccid: d.simNumber || "N/A",
-        lastSeen: d.updatedAt ? new Date(d.updatedAt).toLocaleString() : "N/A"
+        lastSeen: d.lastSeenAt ? new Date(d.lastSeenAt).toLocaleString() : "Never"
       };
     });
     return { success: true, data: mapped };

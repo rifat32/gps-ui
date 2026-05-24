@@ -61,7 +61,7 @@ const mapApiVehicle = (v) => {
   }
 
   const speed = Number(v.speed || 0);
-  const lastSeen = v.last_seen || v.lastSeen || v.received_at || v.receivedAt || v.timestamp || null;
+  const lastSeen = v.last_seen || v.lastSeen || v.lastSeenAt || v.received_at || v.receivedAt || v.timestamp || null;
   const gpsTime = v.gps_time || v.gpsTime || v.time || v.timestamp || null;
 
   return {
@@ -71,7 +71,7 @@ const mapApiVehicle = (v) => {
     lng,
     speed,
     heading: Number(v.direction ?? v.heading ?? 0),
-    status: formatStatus(v.status, speed),
+    status: formatStatus(v.liveStatus || v.status, speed),
     timestamp: gpsTime,
     gpsTime,
     lastSeen,
@@ -90,7 +90,7 @@ const mapSocketVehicle = (update) => {
   }
 
   const speed = Number(update.speed || 0);
-  const lastSeen = update.receivedAt || update.received_at || update.lastSeen || new Date().toISOString();
+  const lastSeen = update.receivedAt || update.received_at || update.lastSeen || update.lastSeenAt || new Date().toISOString();
   const gpsTime = update.gpsTime || update.gps_time || update.time || null;
 
   return {
@@ -100,7 +100,7 @@ const mapSocketVehicle = (update) => {
     lng,
     speed,
     heading: Number(update.direction ?? update.heading ?? 0),
-    status: formatStatus(update.status, speed),
+    status: formatStatus(update.liveStatus || update.status, speed),
     timestamp: gpsTime,
     gpsTime,
     lastSeen,

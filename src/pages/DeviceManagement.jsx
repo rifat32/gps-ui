@@ -175,9 +175,9 @@ const DeviceManagement = ({ theme }) => {
           filteredDevices.map(device => (
             <div key={device.id} className="device-card glass-panel hover-lift">
               <div className="device-card-header">
-                <div className={`status-badge ${device.status?.toLowerCase()}`}>
+                <div className={`status-badge ${(device.liveStatus || device.status || "offline").toLowerCase()}`}>
                   {device.status?.toLowerCase() === "online" ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                  <span>{device.status}</span>
+                  <span>{device.liveStatus || device.status}</span>
                 </div>
                 <div className="device-type-tag">{device.device_type}</div>
               </div>
