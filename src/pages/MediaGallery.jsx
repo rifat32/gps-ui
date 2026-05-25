@@ -4,18 +4,6 @@ import "./MediaGallery.css";
 
 const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
 
-const getMediaUrl = (url) => {
-    if (!url) return "";
-    if (url.startsWith("http")) return url;
-    const cleanBase = API_BASE_URL.endsWith("/") ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
-    const cleanUrl = url.startsWith("/") ? url : `/${url}`;
-    let fullUrl = `${cleanBase}${cleanUrl}`;
-    if (fullUrl.includes("downloads/")) {
-        fullUrl = fullUrl.replace(":8040", ":4020");
-    }
-    return fullUrl;
-};
-
 const MediaGallery = () => {
     const [currentPath, setCurrentPath] = useState("");
     const [items, setItems] = useState([]);
@@ -139,7 +127,7 @@ const MediaGallery = () => {
                                 <Folder size={40} />
                             ) : isImage(item.name) ? (
                                 <div className="thumb-preview">
-                                    <img src={getMediaUrl(item.url)} alt={item.name} />
+                                    <img src={`${API_BASE_URL}${item.url}`} alt={item.name} />
                                     <Maximize2 className="hover-overlay-icon" size={24} />
                                 </div>
                             ) : isVideo(item.name) ? (
@@ -178,7 +166,7 @@ const MediaGallery = () => {
                             <h3>{previewItem.name}</h3>
                             <div className="modal-actions">
                                 <a 
-                                    href={getMediaUrl(previewItem.url)} 
+                                    href={`${API_BASE_URL}${previewItem.url}`} 
                                     download 
                                     className="download-link"
                                     target="_blank"
@@ -192,9 +180,9 @@ const MediaGallery = () => {
                         </div>
                         <div className="modal-body">
                             {isImage(previewItem.name) ? (
-                                <img src={getMediaUrl(previewItem.url)} alt={previewItem.name} />
+                                <img src={`${API_BASE_URL}${previewItem.url}`} alt={previewItem.name} />
                             ) : isVideo(previewItem.name) ? (
-                                <video controls autoPlay src={getMediaUrl(previewItem.url)}>
+                                <video controls autoPlay src={`${API_BASE_URL}${previewItem.url}`}>
                                     Your browser does not support the video tag.
                                 </video>
                             ) : (
