@@ -1,3 +1,4 @@
+import { formatDeviceDateTime } from "../utils/deviceTime";
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle, RefreshCw, ChevronDown, Activity, ShieldAlert, Search } from "lucide-react";
 import "./VehicleHealth.css";
@@ -75,7 +76,7 @@ const VehicleHealth = () => {
         d.device_id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
+    const formatDate = (dateStr) => formatDeviceDateTime(dateStr);
 
     const ACTIVE_COUNT = faults.filter(f => f.status === "ACTIVE").length;
     const CLEARED_COUNT = faults.filter(f => f.status === "CLEARED").length;

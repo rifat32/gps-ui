@@ -1,3 +1,4 @@
+import { formatDeviceDateTime } from "../utils/deviceTime";
 import React, { useState, useEffect } from "react";
 import { Folder, File, ImageIcon, Video, ChevronRight, Home, RefreshCw, ArrowLeft, Download, Maximize2 } from "lucide-react";
 import "./MediaGallery.css";
@@ -61,7 +62,7 @@ const MediaGallery = () => {
 
     const formatDate = (dateStr) => {
         if (!dateStr) return "N/A";
-        return new Date(dateStr).toLocaleString();
+        return formatDeviceDateTime(dateStr);
     };
 
     const isImage = (name) => /\.(jpg|jpeg|png|gif|webp)$/i.test(name);

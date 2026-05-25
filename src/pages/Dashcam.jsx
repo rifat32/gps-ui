@@ -1,3 +1,4 @@
+import { formatDeviceDateTime } from "../utils/deviceTime";
 import {
   ArrowLeft,
   Camera,
@@ -105,11 +106,7 @@ export default function Dashcam({ theme, toggleTheme }) {
     try {
       const data = await deviceApi.getAiEvents({ limit: 20 });
       const formatted = (data.events || []).map((event) => {
-        const date = new Date(event.event_time);
-        // Format as YYYY-MM-DD HH:mm:ss in local time
-        const timeStr = date
-          .toLocaleString("sv-SE", { timeZone: "UTC" })
-          .replace("T", " ");
+        const timeStr = formatDeviceDateTime(event.event_time);
         return {
           id: event.id,
           type: event.category,
@@ -165,7 +162,7 @@ export default function Dashcam({ theme, toggleTheme }) {
           message: event.friendly_name || event.code || event.event_code,
           friendly_name: event.friendly_name,
           description: event.description,
-          time: new Date().toLocaleString("sv-SE").replace("T", " "),
+          time: formatDeviceDateTime(event.event_time || event.gps_time || event.timestamp),
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
           file_path: event.file_path,

@@ -1,3 +1,4 @@
+import { formatDeviceDateTime } from "../utils/deviceTime";
 import { GRAPHQL_URL } from "./authApi";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -285,7 +286,7 @@ const deviceApi = {
         model: d.dashcamProfile?.dashcamType || d.obdProfile?.protocol || d.j42Profile?.protocol || "",
         fwVersion: "N/A",
         iccid: d.simNumber || "N/A",
-        lastSeen: d.lastSeenAt ? new Date(d.lastSeenAt).toLocaleString() : "Never"
+        lastSeen: d.lastSeenAt ? formatDeviceDateTime(d.lastSeenAt) : "Never"
       };
     });
     return { success: true, data: mapped };

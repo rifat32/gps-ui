@@ -1,3 +1,4 @@
+import { formatDeviceTime } from "../utils/deviceTime";
 import {
   GoogleMap,
   LoadScript,
@@ -95,7 +96,7 @@ export default function ObdPlayback({ theme }) {
   const formatTime = (dateInput) => {
     if (!dateInput) return "--";
     const d = new Date(dateInput);
-    return d.toLocaleTimeString([], { hour12: false });
+    return formatDeviceTime(dateInput);
   };
 
   // 2. Fetch Playback Data
@@ -440,7 +441,7 @@ export default function ObdPlayback({ theme }) {
                                             <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{parseFloat(trip.distance_km).toFixed(1)} km</span>
                                         </div>
                                         <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                                            {new Date(trip.start_time).toLocaleTimeString()} - {new Date(trip.end_time).toLocaleTimeString()}
+                                            {formatDeviceTime(trip.start_time)} - {formatDeviceTime(trip.end_time)}
                                         </div>
                                     </div>
                                 ))}

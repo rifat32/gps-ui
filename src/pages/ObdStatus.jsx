@@ -1,3 +1,4 @@
+import { formatDeviceDateTime } from "../utils/deviceTime";
 import { useEffect, useState, useCallback } from "react";
 import { Activity, Battery, Gauge, Signal, WifiOff, Zap, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -412,7 +413,7 @@ function DeviceStatusCard({ device, theme }) {
             {device.last_seen
               ? isNaN(new Date(device.last_seen).getTime())
                 ? device.last_seen
-                : new Date(device.last_seen).toLocaleString()
+                : formatDeviceDateTime(device.last_seen)
               : "Never"}
           </span>
         </div>

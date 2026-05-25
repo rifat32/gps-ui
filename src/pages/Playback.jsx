@@ -1,3 +1,4 @@
+import { formatDeviceTime } from "../utils/deviceTime";
 import {
   GoogleMap,
   LoadScript,
@@ -84,7 +85,7 @@ export default function Playback({ theme }) {
   const formatTime = (dateInput) => {
     if (!dateInput) return "--";
     const d = new Date(dateInput);
-    return d.toLocaleTimeString([], { hour12: false });
+    return formatDeviceTime(dateInput);
   };
 
   // 1. Fetch Device List
