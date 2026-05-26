@@ -3,11 +3,30 @@ import { X, ExternalLink, Download } from "lucide-react";
 export default function MediaViewer({ media, onClose }) {
   if (!media) return null;
 
-  const isVideo = media.url.toLowerCase().endsWith(".mp4") || media.url.toLowerCase().endsWith(".avi");
+  const cleanPath = media.url.split("?")[0];
+  const isVideo = cleanPath.toLowerCase().endsWith(".mp4") || cleanPath.toLowerCase().endsWith(".avi");
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+
+  // Build the full URL
   let fullUrl = media.url.startsWith("http") ? media.url : `${baseUrl}/${media.url}`;
   if (fullUrl.includes("downloads/")) {
     fullUrl = fullUrl.replace(":8040", ":4020");
+  }
+
+  // Append auth token for /downloads/ static routes (browser can't send auth headers for media src)
+  if (fullUrl.includes("downloads/") && !fullUrl.includes("?token=")) {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        const token = user.accessToken || user.token;
+        if (token) {
+          fullUrl = `${fullUrl}${fullUrl.includes("?") ? "&" : "?"}token=${token}`;
+        }
+      }
+    } catch (e) {
+      // silently ignore — video will fail with 401 if no token
+    }
   }
 
   return (
