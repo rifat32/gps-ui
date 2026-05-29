@@ -124,7 +124,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
 
     setVehicles((prev) => {
       const index = prev.findIndex((v) => normalizeId(v.id) === incoming.id);
-      if (index === -1) return [...prev, incoming];
+      if (index === -1) {
+        const incomingType = String(incoming.deviceType || "").toUpperCase();
+        if (incomingType !== String(deviceType).toUpperCase()) return prev;
+        return [...prev, incoming];
+      }
 
       const existing = prev[index];
       const existingTime = existing.lastUpdatedAt || getMillis(existing.lastSeen) || getMillis(existing.gpsTime);
