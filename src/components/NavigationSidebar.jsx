@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Terminal,
   MonitorSmartphone,
+  Command,
 } from "lucide-react";
 
 import { Link, useLocation } from "react-router-dom";
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { path: "/vehicle-health", icon: ShieldAlert, label: "Vehicle Health" },
   { path: "/container-logs", icon: Terminal, label: "Container Logs" },
   { path: "/remote-access", icon: MonitorSmartphone, label: "Remote Access" },
+  { path: "/device-commands", icon: Command, label: "Device Commands" },
 ];
 
 export default function NavigationSidebar() {

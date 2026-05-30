@@ -18,6 +18,7 @@ const MediaGallery = lazy(() => import("./pages/MediaGallery"));
 const VehicleHealth = lazy(() => import("./pages/VehicleHealth"));
 const ContainerLogs = lazy(() => import("./pages/ContainerLogs"));
 const RemoteAccess = lazy(() => import("./pages/RemoteAccess"));
+const DeviceCommands = lazy(() => import("./pages/DeviceCommands"));
 
 
 import LoginPage from "./pages/Auth/LoginPage";
@@ -139,6 +140,11 @@ function App() {
               path="/remote-access"
               element={<RemoteAccess theme={theme} />}
             />
+            <Route
+              path="/device-commands"
+              element={<DeviceCommands theme={theme} />}
+            />
+
 
 
             <Route

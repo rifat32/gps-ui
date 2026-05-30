@@ -2,6 +2,7 @@ import { formatDeviceDateTime } from "../utils/deviceTime";
 import { GRAPHQL_URL } from "./authApi";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const OBD_API_BASE_URL = import.meta.env.VITE_OBD_API_URL || "";
 
 const getAuthHeaders = (extraHeaders = {}) => {
   const userStr = localStorage.getItem("user");
@@ -222,6 +223,51 @@ const deviceApi = {
       throw new Error(errorData.message || "Failed to get telemetry");
     }
     return response.json();
+  },
+
+  getDeviceCommandCatalog: async () => {
+    const response = await fetchWithAuth(`${OBD_API_BASE_URL}/api/obd/device/commands/catalog`);
+    if (!response.ok) throw new Error("Failed to get OBD command catalog");
+    return response.json();
+  },
+
+  getOnlineObdCommandDevices: async () => {
+    const response = await fetchWithAuth(`${OBD_API_BASE_URL}/api/obd/device/commands/online`);
+    if (!response.ok) throw new Error("Failed to get online OBD devices");
+    return response.json();
+  },
+
+  sendTextCommand: async (deviceId, textCommand) => {
+    const response = await fetchWithAuth(`${OBD_API_BASE_URL}/api/obd/device/commands/send-text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, textCommand }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Failed to send OBD text command");
+    return data;
+  },
+
+  setTimeslotCommand: async (deviceId, values) => {
+    const response = await fetchWithAuth(`${OBD_API_BASE_URL}/api/obd/device/commands/set-timeslot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, values }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Failed to send OBD AT+TIMESLOT command");
+    return data;
+  },
+
+  setTerminalServerCommand: async (deviceId, serverHost, serverPort) => {
+    const response = await fetchWithAuth(`${OBD_API_BASE_URL}/api/obd/device/commands/set-server`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, serverHost, serverPort }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Failed to set OBD terminal server parameters");
+    return data;
   },
 
   // Get available parameter definitions
