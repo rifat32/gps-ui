@@ -163,6 +163,7 @@ const Logs = ({ theme }) => {
               className="logs-select"
             >
               <option value="">{devices.length > 0 ? "-- Select Device --" : "-- No devices found --"}</option>
+              {devices.length > 0 && <option value="all">-- All Devices --</option>}
               {devices.map((dev) => (
                 <option key={dev} value={dev}>{dev}</option>
               ))}
@@ -195,7 +196,7 @@ const Logs = ({ theme }) => {
       <div className="logs-viewer-container">
         <div className="logs-viewer-header">
           <span>raw_logs.log output</span>
-          {selectedDevice && <span>Device: {selectedDevice}</span>}
+          {selectedDevice && <span>Device: {selectedDevice === "all" ? "All Devices" : selectedDevice}</span>}
         </div>
         <div className="logs-viewport">
           {logContent ? (
