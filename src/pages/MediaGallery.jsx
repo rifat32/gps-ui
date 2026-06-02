@@ -7,6 +7,28 @@ const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000
 
 const MediaGallery = () => {
     const [currentPath, setCurrentPath] = useState("");
+    
+    const getMediaUrl = (urlPath) => {
+        if (!urlPath) return "";
+        let fullUrl = urlPath.startsWith("http") ? urlPath : `${API_BASE_URL}${urlPath}`;
+        
+        // Append auth token for downloads static route
+        if (fullUrl.includes("downloads/") && !fullUrl.includes("?token=")) {
+            try {
+                const userStr = localStorage.getItem("user");
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    const token = user.accessToken || user.token;
+                    if (token) {
+                        fullUrl = `${fullUrl}${fullUrl.includes("?") ? "&" : "?"}token=${token}`;
+                    }
+                }
+            } catch (e) {
+                console.error("Error attaching token:", e);
+            }
+        }
+        return fullUrl;
+    };
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -128,7 +150,7 @@ const MediaGallery = () => {
                                 <Folder size={40} />
                             ) : isImage(item.name) ? (
                                 <div className="thumb-preview">
-                                    <img src={`${API_BASE_URL}${item.url}`} alt={item.name} />
+                                    <img src={getMediaUrl(item.url)} alt={item.name} />
                                     <Maximize2 className="hover-overlay-icon" size={24} />
                                 </div>
                             ) : isVideo(item.name) ? (
@@ -167,7 +189,7 @@ const MediaGallery = () => {
                             <h3>{previewItem.name}</h3>
                             <div className="modal-actions">
                                 <a 
-                                    href={`${API_BASE_URL}${previewItem.url}`} 
+                                    href={getMediaUrl(previewItem.url)} 
                                     download 
                                     className="download-link"
                                     target="_blank"
@@ -181,9 +203,9 @@ const MediaGallery = () => {
                         </div>
                         <div className="modal-body">
                             {isImage(previewItem.name) ? (
-                                <img src={`${API_BASE_URL}${previewItem.url}`} alt={previewItem.name} />
+                                <img src={getMediaUrl(previewItem.url)} alt={previewItem.name} />
                             ) : isVideo(previewItem.name) ? (
-                                <video controls autoPlay src={`${API_BASE_URL}${previewItem.url}`}>
+                                <video controls autoPlay src={getMediaUrl(previewItem.url)}>
                                     Your browser does not support the video tag.
                                 </video>
                             ) : (
