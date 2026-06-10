@@ -73,7 +73,8 @@ const VehicleHealth = () => {
     };
 
     const filteredDevices = devices.filter(d => 
-        d.device_id.toLowerCase().includes(searchTerm.toLowerCase())
+        d.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (d.name && d.name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const formatDate = (dateStr) => formatDeviceDateTime(dateStr);
@@ -114,7 +115,7 @@ const VehicleHealth = () => {
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                         >
                             <Activity size={16} className="trigger-icon" />
-                            <span>{selectedDevice || "-- Select Device --"}</span>
+                            <span>{devices.find(d => d.device_id === selectedDevice)?.name || selectedDevice || "-- Select Device --"}</span>
                             <ChevronDown size={16} className={`chevron ${isDropdownOpen ? "rotated" : ""}`} />
                         </div>
 
@@ -140,7 +141,7 @@ const VehicleHealth = () => {
                                                 onClick={() => handleDeviceSelect(d.device_id)}
                                             >
                                                 <CheckCircle size={14} className="check-icon" />
-                                                {d.device_id}
+                                                {d.name || d.device_id}
                                             </div>
                                         ))
                                     ) : (

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./Playback.css";
+import deviceApi from "../services/deviceApi";
 
 // =========================================================================
 // 1. CONFIGURATION
@@ -92,10 +93,12 @@ export default function Playback({ theme }) {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const response = await fetch(`${DASHCAM_API_BASE_URL}/api/devices/logs?service=dashcam`);
-        if (!response.ok) throw new Error("Failed to fetch devices");
-        const data = await response.json();
-        setDeviceList(Array.isArray(data) ? data : (data.devices || data.data || []));
+        const response = await deviceApi.getDevicesV2({ device_type: "AI_DASHCAM" });
+        if (response.success) {
+          setDeviceList(response.data || []);
+        } else {
+          throw new Error("Failed to fetch devices");
+        }
       } catch (err) {
         console.error("Device fetch error:", err);
       }
@@ -167,7 +170,8 @@ export default function Playback({ theme }) {
   };
 
   const filteredDevices = deviceList.filter(dev => 
-    dev.toLowerCase().includes(searchTerm.toLowerCase())
+    dev.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (dev.name && dev.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // 3. Fetch Trip List (Analyze)
@@ -278,7 +282,7 @@ export default function Playback({ theme }) {
                             }}
                         >
                             <span style={{ color: selectedDeviceId ? (theme === "dark" ? "white" : "#1e293b") : "#94a3b8" }}>
-                                {selectedDeviceId || "Choose a device..."}
+                                {deviceList.find(d => d.id === selectedDeviceId)?.name || selectedDeviceId || "Choose a device..."}
                             </span>
                             <ChevronDown size={18} color="#64748b" />
                         </div>
@@ -326,19 +330,19 @@ export default function Playback({ theme }) {
                                     {filteredDevices.length > 0 ? (
                                         filteredDevices.map(dev => (
                                             <div 
-                                                key={dev} 
-                                                onClick={() => { setSelectedDeviceId(dev); setIsDeviceDropdownOpen(false); setSearchTerm(""); }}
+                                                key={dev.id} 
+                                                onClick={() => { setSelectedDeviceId(dev.id); setIsDeviceDropdownOpen(false); setSearchTerm(""); }}
                                                 style={{
                                                     padding: "12px 16px",
                                                     cursor: "pointer",
                                                     borderBottom: "1px solid #f1f5f9",
                                                     color: theme === "dark" ? "#f8fafc" : "#1e293b",
-                                                    backgroundColor: selectedDeviceId === dev ? "#3b82f6" : "transparent"
+                                                    backgroundColor: selectedDeviceId === dev.id ? "#3b82f6" : "transparent"
                                                 }}
-                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
-                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev ? "#3b82f6" : "transparent"}
+                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev.id ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
+                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev.id ? "#3b82f6" : "transparent"}
                                             >
-                                                {dev}
+                                                {dev.name || dev.id}
                                             </div>
                                         ))
                                     ) : (

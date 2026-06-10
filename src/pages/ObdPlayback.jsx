@@ -172,7 +172,8 @@ export default function ObdPlayback({ theme }) {
   };
 
   const filteredDevices = deviceList.filter(d => 
-    d.device_id.toLowerCase().includes(searchTerm.toLowerCase())
+    d.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (d.name && d.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleTripSelect = (trip, idx) => {
@@ -280,7 +281,7 @@ export default function ObdPlayback({ theme }) {
                             }}
                         >
                             <span style={{ color: selectedDeviceId ? (theme === "dark" ? "white" : "#1e293b") : "#94a3b8" }}>
-                                {selectedDeviceId || "Choose a device..."}
+                                {deviceList.find(d => d.device_id === selectedDeviceId)?.name || selectedDeviceId || "Choose a device..."}
                             </span>
                             <ChevronDown size={18} color="#64748b" />
                         </div>
@@ -340,7 +341,7 @@ export default function ObdPlayback({ theme }) {
                                                 onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev.device_id ? "#3b82f6" : (theme === "dark" ? "#334155" : "#f1f5f9")}
                                                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedDeviceId === dev.device_id ? "#3b82f6" : "transparent"}
                                             >
-                                                {dev.device_id}
+                                                {dev.name || dev.device_id}
                                             </div>
                                         ))
                                     ) : (
