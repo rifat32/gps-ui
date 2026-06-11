@@ -10,13 +10,14 @@ REMOTE_HOST="54.37.225.65"
 REMOTE_DIR="/home/ubuntu/gps-ui"
 LOCAL_DIR="."
 
-echo "🚀 Starting GPS UI Native Deployment to ${REMOTE_HOST}..."
+# 1. Build the application locally
+echo "🏗️ Building the application locally..."
+npm run build
 
-# 1. Sync files to remote
-echo "🔄 Syncing files..."
+# 2. Sync files to remote (including dist)
+echo "🔄 Syncing files to remote..."
 rsync -av --delete \
     --exclude='node_modules' \
-    --exclude='dist' \
     --exclude='.git' \
     --exclude='*.DS_Store' \
     --exclude='*.tmp' \
@@ -25,12 +26,12 @@ rsync -av --delete \
     --exclude='.env.local' \
     ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
-# 2. Upload the server environment file
+# 3. Upload the server environment file
 echo "🔑 Uploading server environment (.env.old)..."
 scp .env.old ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env.old
 
-# 3. Remote Execution: Build and Run with PM2
-echo "🔧 Executing remote build and restart..."
+# 4. Remote Execution: Restart with PM2
+echo "🔧 Executing remote restart..."
 ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << EOF
     # Load NVM
     export NVM_DIR="\$HOME/.nvm"
@@ -47,11 +48,11 @@ ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << EOF
     PM2_PORT=\${PM2_PORT:-4173}
     SERVICE_NAME=\${SERVICE_NAME:-gps-ui}
 
-    echo "📦 Installing dependencies..."
-    npm install
-
-    echo "🏗️ Building the application..."
-    npm run build
+    # Ensure a local static server is installed if node_modules is missing
+    if [ ! -d "node_modules" ]; then
+        echo "📦 Installing static file server..."
+        npm install serve
+    fi
 
     echo "🔄 Restarting service with PM2..."
     pm2 delete \${SERVICE_NAME} || true
