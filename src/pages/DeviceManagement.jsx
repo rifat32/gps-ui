@@ -202,6 +202,16 @@ const DeviceManagement = ({ theme }) => {
                     <span className="label">Model</span>
                     <span className="value">{device.model || "N/A"}</span>
                   </div>
+                  {(device.device_type === "J42" || device.device_type === "OBD") && (
+                    <div className="info-item">
+                      <span className="label">Battery</span>
+                      <span className="value">
+                        {device.batteryVoltage !== undefined && device.batteryVoltage !== null
+                          ? `${Number(device.batteryVoltage).toFixed(2)}V`
+                          : "N/A"}
+                      </span>
+                    </div>
+                  )}
                   <div className="info-item full-width">
                     <span className="label">Last Seen</span>
                     <span className="value">{device.lastSeen}</span>

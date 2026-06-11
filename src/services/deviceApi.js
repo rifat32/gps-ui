@@ -303,6 +303,7 @@ const deviceApi = {
             simNumber
             name
             status
+            batteryVoltage
             obdProfile {
               protocol
             }
@@ -332,7 +333,8 @@ const deviceApi = {
         model: d.dashcamProfile?.dashcamType || d.obdProfile?.protocol || d.j42Profile?.protocol || "",
         fwVersion: "N/A",
         iccid: d.simNumber || "N/A",
-        lastSeen: d.lastSeenAt ? formatDeviceDateTime(d.lastSeenAt) : "Never"
+        lastSeen: d.lastSeenAt ? formatDeviceDateTime(d.lastSeenAt) : "Never",
+        batteryVoltage: d.batteryVoltage || null
       };
     });
     return { success: true, data: mapped };

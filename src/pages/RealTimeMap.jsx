@@ -77,6 +77,7 @@ const mapApiVehicle = (v) => {
     lastSeen,
     lastUpdatedAt: getMillis(lastSeen) || Date.now(),
     deviceType: v.device_type || v.type,
+    batteryVoltage: v.battery_voltage ?? v.batteryVoltage ?? v.bettary ?? null,
   };
 };
 
@@ -106,6 +107,7 @@ const mapSocketVehicle = (update) => {
     lastSeen,
     lastUpdatedAt: Date.now(),
     deviceType: update.deviceType || update.device_type || "OBD",
+    batteryVoltage: update.batteryVoltage ?? update.battery_voltage ?? update.bettary ?? null,
   };
 };
 
@@ -285,10 +287,73 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
             boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
             overflow: "hidden",
             border: "1px solid #e2e8f0",
+            display: "flex",
+            flexDirection: "row",
           }}
         >
+          {deviceType === "J42" && (
+            <div style={{
+              width: "350px",
+              minWidth: "300px",
+              height: "100%",
+              backgroundColor: "white",
+              borderRight: "1px solid #e2e8f0",
+              display: "flex",
+              flexDirection: "column",
+              overflowY: "auto",
+              padding: "20px"
+            }}>
+              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "#1e293b" }}>J42 Trackers</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {vehicles.map((v) => (
+                  <div
+                    key={v.id}
+                    onClick={() => {
+                      setSelectedVehicle(v);
+                      if (mapRef.current) {
+                        mapRef.current.panTo({ lat: v.lat, lng: v.lng });
+                        mapRef.current.setZoom(15);
+                      }
+                    }}
+                    style={{
+                      padding: "16px",
+                      borderRadius: "12px",
+                      border: `1px solid ${selectedVehicle?.id === v.id ? "#3b82f6" : "#e2e8f0"}`,
+                      backgroundColor: selectedVehicle?.id === v.id ? "#f0f9ff" : "white",
+                      cursor: "pointer",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <span style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>{v.name}</span>
+                      <span style={{
+                        fontSize: "10px",
+                        fontWeight: "700",
+                        padding: "2px 8px",
+                        borderRadius: "9999px",
+                        backgroundColor: v.status?.toLowerCase() === "online" || v.status?.toLowerCase() === "moving" || v.status?.toLowerCase() === "stopped" ? "#dcfce7" : "#f1f5f9",
+                        color: v.status?.toLowerCase() === "online" || v.status?.toLowerCase() === "moving" || v.status?.toLowerCase() === "stopped" ? "#15803d" : "#475569"
+                      }}>
+                        {v.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#64748b", display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "2px 4px", borderRadius: "4px" }}>{v.id}</code></div>
+                      <div>Battery: <strong style={{ color: "#0f172a" }}>{v.batteryVoltage !== null && v.batteryVoltage !== undefined ? `${Number(v.batteryVoltage).toFixed(2)} V` : "N/A"}</strong></div>
+                      <div>Last Seen: {v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) : "Never"}</div>
+                      {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
+                    </div>
+                  </div>
+                ))}
+                {vehicles.length === 0 && (
+                  <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>No active J42 trackers found.</div>
+                )}
+              </div>
+            </div>
+          )}
+
           <GoogleMap
-            mapContainerStyle={{ width: "100%", height: "100%" }}
+            mapContainerStyle={{ flex: 1, height: "100%" }}
             center={defaultCenter}
             zoom={12}
             onLoad={(map) => (mapRef.current = map)}
@@ -339,6 +404,9 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                         {selectedVehicle.status}
                       </span>
                     </p>
+                    {selectedVehicle.batteryVoltage !== undefined && selectedVehicle.batteryVoltage !== null && (
+                      <p>Battery: {Number(selectedVehicle.batteryVoltage).toFixed(2)} V</p>
+                    )}
                     <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
                     {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
                   </div>
