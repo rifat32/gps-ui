@@ -20,6 +20,27 @@ const defaultCenter = { lat: 51.5074, lng: -0.1278 };
 
 const normalizeId = (value) => String(value || "").replace(/^device[_:-]/i, "");
 
+const getBatteryDisplay = (voltage, deviceType) => {
+  if (voltage === undefined || voltage === null || voltage === "") return "N/A";
+  const val = parseFloat(voltage);
+  if (isNaN(val) || val <= 0) return "N/A";
+
+  if (deviceType === "OBD") {
+    return `${val.toFixed(2)}V`;
+  }
+
+  // J42 device: Map voltage (2.6V - 3.1V or 3.4V - 4.2V) to percentage
+  let percent = 0;
+  if (val >= 3.5) {
+    percent = Math.round(((val - 3.4) / (4.2 - 3.4)) * 100);
+  } else {
+    percent = Math.round(((val - 2.6) / (3.1 - 2.6)) * 100);
+  }
+
+  percent = Math.max(0, Math.min(100, percent));
+  return `${percent}% (${val.toFixed(2)}V)`;
+};
+
 const getMillis = (value) => {
   if (!value) return 0;
   const parsed = new Date(value).getTime();
@@ -339,7 +360,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                     </div>
                     <div style={{ fontSize: "12px", color: "#64748b", display: "flex", flexDirection: "column", gap: "4px" }}>
                       <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "2px 4px", borderRadius: "4px" }}>{v.id}</code></div>
-                      <div>Battery: <strong style={{ color: "#0f172a" }}>{v.batteryVoltage !== null && v.batteryVoltage !== undefined ? `${Number(v.batteryVoltage).toFixed(2)} V` : "N/A"}</strong></div>
+                      <div>Battery: <strong style={{ color: "#0f172a" }}>{getBatteryDisplay(v.batteryVoltage, deviceType)}</strong></div>
                       <div>Last Seen: {v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) : "Never"}</div>
                       {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
                     </div>
@@ -405,7 +426,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                       </span>
                     </p>
                     {selectedVehicle.batteryVoltage !== undefined && selectedVehicle.batteryVoltage !== null && (
-                      <p>Battery: {Number(selectedVehicle.batteryVoltage).toFixed(2)} V</p>
+                      <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType)}</p>
                     )}
                     <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
                     {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}

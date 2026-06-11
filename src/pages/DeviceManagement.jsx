@@ -12,7 +12,26 @@ import {
   Filter
 } from "lucide-react";
 import deviceApi from "../services/deviceApi";
-import "./DeviceManagement.css";
+const getBatteryDisplay = (voltage, deviceType) => {
+  if (voltage === undefined || voltage === null || voltage === "") return "N/A";
+  const val = parseFloat(voltage);
+  if (isNaN(val) || val <= 0) return "N/A";
+
+  if (deviceType === "OBD") {
+    return `${val.toFixed(2)}V`;
+  }
+
+  // J42 device: Map voltage (2.6V - 3.1V or 3.4V - 4.2V) to percentage
+  let percent = 0;
+  if (val >= 3.5) {
+    percent = Math.round(((val - 3.4) / (4.2 - 3.4)) * 100);
+  } else {
+    percent = Math.round(((val - 2.6) / (3.1 - 2.6)) * 100);
+  }
+
+  percent = Math.max(0, Math.min(100, percent));
+  return `${percent}% (${val.toFixed(2)}V)`;
+};
 
 const DeviceManagement = ({ theme }) => {
   const [devices, setDevices] = useState([]);
@@ -206,9 +225,7 @@ const DeviceManagement = ({ theme }) => {
                     <div className="info-item">
                       <span className="label">Battery</span>
                       <span className="value">
-                        {device.batteryVoltage !== undefined && device.batteryVoltage !== null
-                          ? `${Number(device.batteryVoltage).toFixed(2)}V`
-                          : "N/A"}
+                        {getBatteryDisplay(device.batteryVoltage, device.device_type)}
                       </span>
                     </div>
                   )}
