@@ -54,7 +54,7 @@ const getBatteryDetails = (voltage) => {
 
   return {
     percent,
-    text: `${percent}% (${val.toFixed(2)}V)`,
+    text: `${percent}% (${val.toFixed(3)}V)`,
     color,
     icon: Icon
   };
