@@ -1,0 +1,134 @@
+/* J42 Battery Section Styling */
+.j42-battery-section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .j42-battery-section {
+  background: rgba(15, 23, 42, 0.3);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.battery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.battery-header .label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.battery-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.battery-level-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.battery-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.battery-progress-bg {
+  flex: 1;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dark-theme .battery-progress-bg {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.battery-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+.last-seen-item {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .last-seen-item {
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Sync Button and Counters */
+.stats-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-left: auto;
+}
+
+.dark-theme .stats-indicator {
+  color: #94a3b8;
+}
+
+.stats-indicator strong {
+  color: var(--text-primary);
+}
+
+.dark-theme .stats-indicator strong {
+  color: #f8fafc;
+}
+
+.online-count {
+  position: relative;
+  padding-left: 0.75rem;
+}
+
+.online-count::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+/* Animations */
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.inline {
+  display: inline;
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
+}

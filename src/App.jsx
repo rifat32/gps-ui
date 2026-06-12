@@ -13,6 +13,7 @@ const Logs = lazy(() => import("./pages/Logs"));
 const DeviceManagement = lazy(() => import("./pages/DeviceManagement"));
 const ObdPlayback = lazy(() => import("./pages/ObdPlayback"));
 const ObdStatus = lazy(() => import("./pages/ObdStatus"));
+const J42Status = lazy(() => import("./pages/J42Status"));
 const MediaLogs = lazy(() => import("./pages/MediaLogs"));
 const MediaGallery = lazy(() => import("./pages/MediaGallery"));
 const VehicleHealth = lazy(() => import("./pages/VehicleHealth"));
@@ -164,6 +165,10 @@ function App() {
             <Route
               path="/obd-status"
               element={<ObdStatus theme={theme} toggleTheme={toggleTheme} />}
+            />
+            <Route
+              path="/j42-status"
+              element={<J42Status theme={theme} toggleTheme={toggleTheme} />}
             />
             <Route
               path="/"

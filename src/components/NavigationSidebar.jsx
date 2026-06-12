@@ -31,6 +31,7 @@ const NAV_ITEMS = [
   { path: "/playback", icon: PlayCircle, label: "History Playback" },
   { path: "/obd-playback", icon: History, label: "OBD Playback" },
   { path: "/obd-status", icon: LayoutDashboard, label: "OBD Status" },
+  { path: "/j42-status", icon: LayoutDashboard, label: "J42 Status" },
   { path: "/saved-videos", icon: History, label: "Media Center" },
   { path: "/video-settings", icon: Settings, label: "Configuration" },
   { path: "/devices", icon: Cpu, label: "Device Management" },
