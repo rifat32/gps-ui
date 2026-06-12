@@ -12,7 +12,7 @@ LOCAL_DIR="."
 
 # 1. Build the application locally
 echo "🏗️ Building the application locally..."
-npm run build
+yarn build
 
 # 2. Sync files to remote (including dist)
 echo "🔄 Syncing files to remote..."
