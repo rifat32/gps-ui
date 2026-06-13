@@ -29,12 +29,12 @@ const getBatteryDisplay = (voltage, deviceType) => {
     return `${val.toFixed(2)}V`;
   }
 
-  // J42 device: Map voltage (2.6V - 3.1V or 3.4V - 4.2V) to percentage
+  // J42 device uses Li-SOCl2 3.6V nominal dry-cell (2.6V - 3.5V range) or rechargeable 3.7V/4.2V range
   let percent = 0;
-  if (val >= 3.5) {
+  if (val >= 3.65) {
     percent = Math.round(((val - 3.4) / (4.2 - 3.4)) * 100);
   } else {
-    percent = Math.round(((val - 2.6) / (3.1 - 2.6)) * 100);
+    percent = Math.round(((val - 2.6) / (3.5 - 2.6)) * 100);
   }
 
   percent = Math.max(0, Math.min(100, percent));

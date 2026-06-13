@@ -304,6 +304,7 @@ const deviceApi = {
             name
             status
             batteryVoltage
+            externalVoltage
             obdProfile {
               protocol
             }
@@ -334,7 +335,8 @@ const deviceApi = {
         fwVersion: "N/A",
         iccid: d.simNumber || "N/A",
         lastSeen: d.lastSeenAt ? formatDeviceDateTime(d.lastSeenAt) : "Never",
-        batteryVoltage: d.batteryVoltage || null
+        batteryVoltage: d.batteryVoltage || null,
+        externalVoltage: d.externalVoltage || null
       };
     });
     return { success: true, data: mapped };

@@ -27,12 +27,12 @@ const getBatteryDetails = (voltage) => {
     return { percent: null, text: "N/A", color: "#64748b", icon: Battery };
   }
 
-  // J42 device uses Li-MnO2 3.0V nominal batteries (2.6V - 3.1V range, or 3.4V - 4.2V range)
+  // J42 device uses Li-SOCl2 3.6V nominal dry-cell (2.6V - 3.5V range) or rechargeable 3.7V/4.2V range
   let percent = 0;
-  if (val >= 3.5) {
+  if (val >= 3.65) {
     percent = Math.round(((val - 3.4) / (4.2 - 3.4)) * 100);
   } else {
-    percent = Math.round(((val - 2.6) / (3.1 - 2.6)) * 100);
+    percent = Math.round(((val - 2.6) / (3.5 - 2.6)) * 100);
   }
 
   percent = Math.max(0, Math.min(100, percent));
@@ -57,6 +57,32 @@ const getBatteryDetails = (voltage) => {
     text: `${percent}% (${val.toFixed(3)}V)`,
     color,
     icon: Icon
+  };
+};
+
+const getExternalPowerDetails = (voltage) => {
+  if (voltage === undefined || voltage === null || voltage === "") {
+    return { isConnected: false, text: "N/A", color: "#64748b", icon: XCircle };
+  }
+  const val = parseFloat(voltage);
+  if (isNaN(val) || val < 5.0) {
+    return { isConnected: false, text: `Disconnected (${val > 0 ? val.toFixed(2) + "V" : "0V"})`, color: "#ef4444", icon: XCircle };
+  }
+
+  let statusText = "Connected";
+  if (val >= 13.0 && val <= 15.0) {
+    statusText = "Charging (12V System)";
+  } else if (val >= 26.0 && val <= 30.0) {
+    statusText = "Charging (24V System)";
+  } else {
+    statusText = `Connected (${val.toFixed(2)}V)`;
+  }
+
+  return {
+    isConnected: true,
+    text: `${statusText}`,
+    color: "#22c55e",
+    icon: BatteryCharging
   };
 };
 
@@ -171,6 +197,8 @@ export default function J42Status({ theme }) {
           filteredDevices.map((device) => {
             const battery = getBatteryDetails(device.batteryVoltage);
             const BatteryIcon = battery.icon;
+            const extPower = getExternalPowerDetails(device.externalVoltage);
+            const ExtPowerIcon = extPower.icon;
             const isOnline = device.status?.toLowerCase() === "online";
             
             return (
@@ -202,26 +230,47 @@ export default function J42Status({ theme }) {
                     </div>
                   </div>
 
-                  {/* Battery Health Section */}
-                  <div className="j42-battery-section">
-                    <div className="battery-header">
-                      <span className="label">Battery Status</span>
-                      <span className="battery-value" style={{ color: battery.color }}>
-                        {battery.text}
-                      </span>
-                    </div>
-                    <div className="battery-level-container">
-                      <div className="battery-icon-wrapper">
-                        <BatteryIcon size={22} style={{ color: battery.color }} />
+                  {/* Dual Power & Battery Status */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1rem" }}>
+                    {/* Internal Backup Battery */}
+                    <div className="j42-battery-section" style={{ margin: 0, padding: "0.75rem 1rem" }}>
+                      <div className="battery-header" style={{ marginBottom: "0.5rem" }}>
+                        <span className="label" style={{ fontSize: "0.6875rem" }}>Backup Battery</span>
+                        <span className="battery-value" style={{ color: battery.color, fontSize: "0.8125rem" }}>
+                          {battery.text}
+                        </span>
                       </div>
-                      <div className="battery-progress-bg">
-                        <div 
-                          className="battery-progress-fill" 
-                          style={{ 
-                            width: battery.percent !== null ? `${battery.percent}%` : "0%",
-                            backgroundColor: battery.color
-                          }}
-                        />
+                      <div className="battery-level-container" style={{ gap: "0.5rem" }}>
+                        <div className="battery-icon-wrapper" style={{ padding: 0 }}>
+                          <BatteryIcon size={18} style={{ color: battery.color }} />
+                        </div>
+                        <div className="battery-progress-bg" style={{ height: "6px" }}>
+                          <div 
+                            className="battery-progress-fill" 
+                            style={{ 
+                              width: battery.percent !== null ? `${battery.percent}%` : "0%",
+                              backgroundColor: battery.color
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* External Vehicle Power */}
+                    <div className="j42-battery-section" style={{ margin: 0, padding: "0.75rem 1rem" }}>
+                      <div className="battery-header" style={{ marginBottom: "0.5rem" }}>
+                        <span className="label" style={{ fontSize: "0.6875rem" }}>External Power</span>
+                        <span className="battery-value" style={{ color: extPower.color, fontSize: "0.8125rem" }}>
+                          {extPower.isConnected && device.externalVoltage ? `${device.externalVoltage.toFixed(2)}V` : extPower.text}
+                        </span>
+                      </div>
+                      <div className="battery-level-container" style={{ gap: "0.5rem" }}>
+                        <div className="battery-icon-wrapper" style={{ padding: 0 }}>
+                          <ExtPowerIcon size={18} style={{ color: extPower.color }} />
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: extPower.isConnected ? extPower.color : "#94a3b8", fontWeight: 600 }}>
+                          {extPower.isConnected ? extPower.text : "Backup Power Only"}
+                        </span>
                       </div>
                     </div>
                   </div>
