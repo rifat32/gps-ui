@@ -172,10 +172,7 @@ export default function J42Status({ theme }) {
         <div className="stats-indicator">
           <span>Total: <strong>{devices.length}</strong></span>
           <span className="online-count">Online: <strong>{
-            devices.filter(d => {
-              const lastSeenTime = d.lastSeenAt ? new Date(d.lastSeenAt).getTime() : 0;
-              return lastSeenTime ? (Date.now() - lastSeenTime <= 25 * 60 * 60 * 1000) : false;
-            }).length
+            devices.filter(d => d.status?.toLowerCase() === "online").length
           }</strong></span>
         </div>
       </div>
@@ -203,9 +200,7 @@ export default function J42Status({ theme }) {
             const battery = getBatteryDetails(device.batteryVoltage);
             const BatteryIcon = battery.icon;
             const extPower = getExternalPowerDetails(device.externalVoltage);
-            // J42 trackers send signals once a day; check if they reported within 25 hours to determine if online/active.
-            const lastSeenTime = device.lastSeenAt ? new Date(device.lastSeenAt).getTime() : 0;
-            const isOnline = lastSeenTime ? (Date.now() - lastSeenTime <= 25 * 60 * 60 * 1000) : false;
+            const isOnline = device.status?.toLowerCase() === "online";
             
             return (
               <div key={device.id} className="device-card glass-panel hover-lift">
