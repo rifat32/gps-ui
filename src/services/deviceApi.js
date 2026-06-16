@@ -335,6 +335,7 @@ const deviceApi = {
         fwVersion: "N/A",
         iccid: d.simNumber || "N/A",
         lastSeen: d.lastSeenAt ? formatDeviceDateTime(d.lastSeenAt) : "Never",
+        lastSeenAt: d.lastSeenAt || null,
         batteryVoltage: d.batteryVoltage || null,
         externalVoltage: d.externalVoltage || null
       };

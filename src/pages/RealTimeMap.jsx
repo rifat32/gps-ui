@@ -84,6 +84,14 @@ const mapApiVehicle = (v) => {
   const speed = Number(v.speed || 0);
   const lastSeen = v.last_seen || v.lastSeen || v.lastSeenAt || v.received_at || v.receivedAt || v.timestamp || null;
   const gpsTime = v.gps_time || v.gpsTime || v.time || v.timestamp || null;
+  const devType = v.device_type || v.type || "";
+
+  let resolvedStatus = formatStatus(v.liveStatus || v.status, speed);
+  if (String(devType).toUpperCase() === "J42" && lastSeen) {
+    const lastSeenTime = new Date(lastSeen).getTime();
+    const isStale = !lastSeenTime || (Date.now() - lastSeenTime > 25 * 60 * 60 * 1000);
+    resolvedStatus = isStale ? "Offline" : "Online";
+  }
 
   return {
     id,
@@ -92,12 +100,12 @@ const mapApiVehicle = (v) => {
     lng,
     speed,
     heading: Number(v.direction ?? v.heading ?? 0),
-    status: formatStatus(v.liveStatus || v.status, speed),
+    status: resolvedStatus,
     timestamp: gpsTime,
     gpsTime,
     lastSeen,
     lastUpdatedAt: getMillis(lastSeen) || Date.now(),
-    deviceType: v.device_type || v.type,
+    deviceType: devType,
     batteryVoltage: v.battery_voltage ?? v.batteryVoltage ?? v.bettary ?? null,
   };
 };
@@ -114,6 +122,14 @@ const mapSocketVehicle = (update) => {
   const speed = Number(update.speed || 0);
   const lastSeen = update.receivedAt || update.received_at || update.lastSeen || update.lastSeenAt || new Date().toISOString();
   const gpsTime = update.gpsTime || update.gps_time || update.time || null;
+  const devType = update.deviceType || update.device_type || "OBD";
+
+  let resolvedStatus = formatStatus(update.liveStatus || update.status, speed);
+  if (String(devType).toUpperCase() === "J42" && lastSeen) {
+    const lastSeenTime = new Date(lastSeen).getTime();
+    const isStale = !lastSeenTime || (Date.now() - lastSeenTime > 25 * 60 * 60 * 1000);
+    resolvedStatus = isStale ? "Offline" : "Online";
+  }
 
   return {
     id,
@@ -122,12 +138,12 @@ const mapSocketVehicle = (update) => {
     lng,
     speed,
     heading: Number(update.direction ?? update.heading ?? 0),
-    status: formatStatus(update.liveStatus || update.status, speed),
+    status: resolvedStatus,
     timestamp: gpsTime,
     gpsTime,
     lastSeen,
     lastUpdatedAt: Date.now(),
-    deviceType: update.deviceType || update.device_type || "OBD",
+    deviceType: devType,
     batteryVoltage: update.batteryVoltage ?? update.battery_voltage ?? update.bettary ?? null,
   };
 };
@@ -214,10 +230,13 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
 
     const stalenessInterval = setInterval(() => {
       const TEN_MINUTES = 10 * 60 * 1000;
+      const J42_WINDOW = 25 * 60 * 60 * 1000;
       setVehicles((prev) =>
         prev.map((v) => {
+          const isJ42 = String(v.deviceType || "").toUpperCase() === "J42";
+          const staleWindow = isJ42 ? J42_WINDOW : TEN_MINUTES;
           const lastUpdate = v.lastUpdatedAt || getMillis(v.lastSeen) || getMillis(v.gpsTime);
-          const isStale = !lastUpdate || Date.now() - lastUpdate > TEN_MINUTES;
+          const isStale = !lastUpdate || Date.now() - lastUpdate > staleWindow;
           if (isStale && String(v.status).toUpperCase() !== "OFFLINE") {
             return { ...v, status: "Offline" };
           }
