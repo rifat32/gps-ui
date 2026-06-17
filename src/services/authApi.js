@@ -38,7 +38,8 @@ const authApi = {
                 name
               }
               profile {
-                fullName
+                firstName
+                lastName
               }
             }
           }
@@ -82,12 +83,16 @@ const authApi = {
 
       const { accessToken, user } = result.data.login.data;
       
+      const firstName = user.profile?.firstName || "";
+      const lastName = user.profile?.lastName || "";
+      const fullName = [firstName, lastName].filter(Boolean).join(" ") || user.email;
+
       const userData = {
         accessToken,
         id: user.id,
         email: user.email,
         role: user.role?.name || "USER",
-        name: user.profile?.fullName || user.email,
+        name: fullName,
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
@@ -121,7 +126,8 @@ const authApi = {
                 name
               }
               profile {
-                fullName
+                firstName
+                lastName
               }
             }
           }
@@ -140,12 +146,16 @@ const authApi = {
     if (!result.data.login.success) throw new Error(result.data.login.message);
 
     const { accessToken, user } = result.data.login.data;
+    const firstName = user.profile?.firstName || "";
+    const lastName = user.profile?.lastName || "";
+    const fullName = [firstName, lastName].filter(Boolean).join(" ") || user.email;
+
     const userData = {
       accessToken,
       id: user.id,
       email: user.email,
       role: user.role?.name || "USER",
-      name: user.profile?.fullName || user.email,
+      name: fullName,
     };
     localStorage.setItem("user", JSON.stringify(userData));
     return userData;
