@@ -47,7 +47,9 @@ const getMillis = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const MOVING_SPEED_THRESHOLD = Number(import.meta.env.VITE_LIVE_DEVICE_MOVING_SPEED_THRESHOLD || 1);
+const MOVING_SPEED_THRESHOLD = Number(
+  import.meta.env.VITE_LIVE_DEVICE_MOVING_SPEED_THRESHOLD || 1,
+);
 
 const formatStatus = (status, speed) => {
   const normalized = String(status || "").toUpperCase();
@@ -77,12 +79,24 @@ const mapApiVehicle = (v) => {
   const lat = Number(v.latitude ?? v.lat ?? 0);
   const lng = Number(v.longitude ?? v.lng ?? v.lon ?? 0);
 
-  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+  if (
+    !id ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    (lat === 0 && lng === 0)
+  ) {
     return null;
   }
 
   const speed = Number(v.speed || 0);
-  const lastSeen = v.last_seen || v.lastSeen || v.lastSeenAt || v.received_at || v.receivedAt || v.timestamp || null;
+  const lastSeen =
+    v.last_seen ||
+    v.lastSeen ||
+    v.lastSeenAt ||
+    v.received_at ||
+    v.receivedAt ||
+    v.timestamp ||
+    null;
   const gpsTime = v.gps_time || v.gpsTime || v.time || v.timestamp || null;
   const devType = v.device_type || v.type || "";
 
@@ -110,12 +124,22 @@ const mapSocketVehicle = (update) => {
   const lat = Number(update.latitude ?? update.lat ?? 0);
   const lng = Number(update.longitude ?? update.lng ?? update.lon ?? 0);
 
-  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+  if (
+    !id ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    (lat === 0 && lng === 0)
+  ) {
     return null;
   }
 
   const speed = Number(update.speed || 0);
-  const lastSeen = update.receivedAt || update.received_at || update.lastSeen || update.lastSeenAt || new Date().toISOString();
+  const lastSeen =
+    update.receivedAt ||
+    update.received_at ||
+    update.lastSeen ||
+    update.lastSeenAt ||
+    new Date().toISOString();
   const gpsTime = update.gpsTime || update.gps_time || update.time || null;
   const devType = update.deviceType || update.device_type || "OBD";
 
@@ -134,7 +158,8 @@ const mapSocketVehicle = (update) => {
     lastSeen,
     lastUpdatedAt: Date.now(),
     deviceType: devType,
-    batteryVoltage: update.batteryVoltage ?? update.battery_voltage ?? update.bettary ?? null,
+    batteryVoltage:
+      update.batteryVoltage ?? update.battery_voltage ?? update.bettary ?? null,
   };
 };
 
@@ -160,14 +185,25 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
       }
 
       const existing = prev[index];
-      const existingTime = existing.lastUpdatedAt || getMillis(existing.lastSeen) || getMillis(existing.gpsTime);
-      const incomingTime = incoming.lastUpdatedAt || getMillis(incoming.lastSeen) || getMillis(incoming.gpsTime);
+      const existingTime =
+        existing.lastUpdatedAt ||
+        getMillis(existing.lastSeen) ||
+        getMillis(existing.gpsTime);
+      const incomingTime =
+        incoming.lastUpdatedAt ||
+        getMillis(incoming.lastSeen) ||
+        getMillis(incoming.gpsTime);
 
       // Do not let an older API/socket packet overwrite a newer live packet.
-      if (existingTime && incomingTime && incomingTime < existingTime) return prev;
+      if (existingTime && incomingTime && incomingTime < existingTime)
+        return prev;
 
       const next = [...prev];
-      next[index] = { ...existing, ...incoming, name: incoming.name || existing.name };
+      next[index] = {
+        ...existing,
+        ...incoming,
+        name: incoming.name || existing.name,
+      };
       return next;
     });
 
@@ -197,7 +233,13 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
     setSelectedVehicle(null);
     fetchInitialPositions();
 
-    socketRef.current = io(currentWsUrl, { transports: ["websocket", "polling"] });
+    socketRef.current = io("http://77.68.52.203", {
+      path:
+        deviceType === "OBD"
+          ? "/obd-http/socket.io"
+          : "/dashcam-http/socket.io",
+      transports: ["websocket", "polling"],
+    });
 
     socketRef.current.on("connect", () => {
       console.log("Connected to Socket.io server");
@@ -206,8 +248,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
     socketRef.current.on("gps_update", (update) => {
       console.log("Received GPS update:", update);
 
-      const incomingType = String(update.deviceType || update.device_type || "").toUpperCase();
-      if (incomingType && incomingType !== String(deviceType).toUpperCase()) return;
+      const incomingType = String(
+        update.deviceType || update.device_type || "",
+      ).toUpperCase();
+      if (incomingType && incomingType !== String(deviceType).toUpperCase())
+        return;
 
       const vehicle = mapSocketVehicle(update);
       if (!vehicle) {
@@ -222,13 +267,14 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
       const TEN_MINUTES = 10 * 60 * 1000;
       setVehicles((prev) =>
         prev.map((v) => {
-          const lastUpdate = v.lastUpdatedAt || getMillis(v.lastSeen) || getMillis(v.gpsTime);
+          const lastUpdate =
+            v.lastUpdatedAt || getMillis(v.lastSeen) || getMillis(v.gpsTime);
           const isStale = !lastUpdate || Date.now() - lastUpdate > TEN_MINUTES;
           if (isStale && String(v.status).toUpperCase() !== "OFFLINE") {
             return { ...v, status: "Offline" };
           }
           return v;
-        })
+        }),
       );
     }, 60000);
 
@@ -236,7 +282,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
       if (socketRef.current) socketRef.current.disconnect();
       clearInterval(stalenessInterval);
     };
-  }, [deviceType, currentWsUrl]);
+  }, [deviceType]);
 
   useEffect(() => {
     if (vehicles.length > 0 && mapRef.current && window.google) {
@@ -299,7 +345,18 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
         )}
 
         {error && (
-          <div style={{ position: "absolute", top: 16, left: 16, zIndex: 60, color: "#dc2626", background: "white", padding: 8, borderRadius: 8 }}>
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              zIndex: 60,
+              color: "#dc2626",
+              background: "white",
+              padding: 8,
+              borderRadius: 8,
+            }}
+          >
             {error}
           </div>
         )}
@@ -311,7 +368,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
             height: "calc(100% - 60px)",
             backgroundColor: "white",
             borderRadius: "16px",
-            boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+            boxShadow:
+              "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
             overflow: "hidden",
             border: "1px solid #e2e8f0",
             display: "flex",
@@ -319,19 +377,36 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
           }}
         >
           {deviceType === "J42" && (
-            <div style={{
-              width: "350px",
-              minWidth: "300px",
-              height: "100%",
-              backgroundColor: "white",
-              borderRight: "1px solid #e2e8f0",
-              display: "flex",
-              flexDirection: "column",
-              overflowY: "auto",
-              padding: "20px"
-            }}>
-              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "#1e293b" }}>J42 Trackers</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div
+              style={{
+                width: "350px",
+                minWidth: "300px",
+                height: "100%",
+                backgroundColor: "white",
+                borderRight: "1px solid #e2e8f0",
+                display: "flex",
+                flexDirection: "column",
+                overflowY: "auto",
+                padding: "20px",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "700",
+                  marginBottom: "16px",
+                  color: "#1e293b",
+                }}
+              >
+                J42 Trackers
+              </h2>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                }}
+              >
                 {vehicles.map((v) => (
                   <div
                     key={v.id}
@@ -346,34 +421,105 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                       padding: "16px",
                       borderRadius: "12px",
                       border: `1px solid ${selectedVehicle?.id === v.id ? "#3b82f6" : "#e2e8f0"}`,
-                      backgroundColor: selectedVehicle?.id === v.id ? "#f0f9ff" : "white",
+                      backgroundColor:
+                        selectedVehicle?.id === v.id ? "#f0f9ff" : "white",
                       cursor: "pointer",
-                      transition: "all 0.2s"
+                      transition: "all 0.2s",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>{v.name}</span>
-                      <span style={{
-                        fontSize: "10px",
-                        fontWeight: "700",
-                        padding: "2px 8px",
-                        borderRadius: "9999px",
-                        backgroundColor: v.status?.toLowerCase() === "online" || v.status?.toLowerCase() === "moving" || v.status?.toLowerCase() === "stopped" ? "#dcfce7" : "#f1f5f9",
-                        color: v.status?.toLowerCase() === "online" || v.status?.toLowerCase() === "moving" || v.status?.toLowerCase() === "stopped" ? "#15803d" : "#475569"
-                      }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: "700",
+                          fontSize: "14px",
+                          color: "#1e293b",
+                        }}
+                      >
+                        {v.name}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          padding: "2px 8px",
+                          borderRadius: "9999px",
+                          backgroundColor:
+                            v.status?.toLowerCase() === "online" ||
+                            v.status?.toLowerCase() === "moving" ||
+                            v.status?.toLowerCase() === "stopped"
+                              ? "#dcfce7"
+                              : "#f1f5f9",
+                          color:
+                            v.status?.toLowerCase() === "online" ||
+                            v.status?.toLowerCase() === "moving" ||
+                            v.status?.toLowerCase() === "stopped"
+                              ? "#15803d"
+                              : "#475569",
+                        }}
+                      >
                         {v.status}
                       </span>
                     </div>
-                    <div style={{ fontSize: "12px", color: "#64748b", display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "2px 4px", borderRadius: "4px" }}>{v.id}</code></div>
-                      <div>Battery: <strong style={{ color: "#0f172a" }}>{getBatteryDisplay(v.batteryVoltage, deviceType)}</strong></div>
-                      <div>Last Seen: {v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) : "Never"}</div>
-                      {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#64748b",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                      }}
+                    >
+                      <div>
+                        ID:{" "}
+                        <code
+                          style={{
+                            backgroundColor: "#f1f5f9",
+                            padding: "2px 4px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {v.id}
+                        </code>
+                      </div>
+                      <div>
+                        Battery:{" "}
+                        <strong style={{ color: "#0f172a" }}>
+                          {getBatteryDisplay(v.batteryVoltage, deviceType)}
+                        </strong>
+                      </div>
+                      <div>
+                        Last Seen:{" "}
+                        {v.lastSeen
+                          ? new Date(v.lastSeen).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                            })
+                          : "Never"}
+                      </div>
+                      {v.speed > 0 && (
+                        <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>
+                      )}
                     </div>
                   </div>
                 ))}
                 {vehicles.length === 0 && (
-                  <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>No active J42 trackers found.</div>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px",
+                      color: "#94a3b8",
+                    }}
+                  >
+                    No active J42 trackers found.
+                  </div>
                 )}
               </div>
             </div>
@@ -400,22 +546,29 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                 key={vehicle.id}
                 position={{ lat: vehicle.lat, lng: vehicle.lng }}
                 onClick={() => setSelectedVehicle(vehicle)}
-                icon={window.google ? {
-                  path: "M25,50 L50,5 L75,50 L50,40 Z",
-                  fillColor: markerColor(vehicle.status),
-                  fillOpacity: 1,
-                  strokeColor: "white",
-                  strokeWeight: 2,
-                  scale: 1,
-                  rotation: vehicle.heading || 0,
-                  anchor: new window.google.maps.Point(50, 25),
-                } : null}
+                icon={
+                  window.google
+                    ? {
+                        path: "M25,50 L50,5 L75,50 L50,40 Z",
+                        fillColor: markerColor(vehicle.status),
+                        fillOpacity: 1,
+                        strokeColor: "white",
+                        strokeWeight: 2,
+                        scale: 1,
+                        rotation: vehicle.heading || 0,
+                        anchor: new window.google.maps.Point(50, 25),
+                      }
+                    : null
+                }
               />
             ))}
 
             {selectedVehicle && (
               <InfoWindow
-                position={{ lat: selectedVehicle.lat, lng: selectedVehicle.lng }}
+                position={{
+                  lat: selectedVehicle.lat,
+                  lng: selectedVehicle.lng,
+                }}
                 onCloseClick={() => setSelectedVehicle(null)}
               >
                 <div style={{ padding: "8px", minWidth: "190px" }}>
@@ -424,18 +577,34 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                   </h3>
                   <div style={{ fontSize: "12px", color: "#555" }}>
                     <p>ID: {selectedVehicle.id}</p>
-                    <p>Speed: {Math.round(selectedVehicle.speed * 0.621371)} mph</p>
+                    <p>
+                      Speed: {Math.round(selectedVehicle.speed * 0.621371)} mph
+                    </p>
                     <p>
                       Status:{" "}
-                      <span style={{ color: markerColor(selectedVehicle.status), fontWeight: "bold" }}>
+                      <span
+                        style={{
+                          color: markerColor(selectedVehicle.status),
+                          fontWeight: "bold",
+                        }}
+                      >
                         {selectedVehicle.status}
                       </span>
                     </p>
-                    {selectedVehicle.batteryVoltage !== undefined && selectedVehicle.batteryVoltage !== null && (
-                      <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType)}</p>
-                    )}
+                    {selectedVehicle.batteryVoltage !== undefined &&
+                      selectedVehicle.batteryVoltage !== null && (
+                        <p>
+                          Battery:{" "}
+                          {getBatteryDisplay(
+                            selectedVehicle.batteryVoltage,
+                            deviceType,
+                          )}
+                        </p>
+                      )}
                     <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
-                    {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
+                    {selectedVehicle.gpsTime && (
+                      <p>GPS Time: {selectedVehicle.gpsTime}</p>
+                    )}
                   </div>
                 </div>
               </InfoWindow>
@@ -457,11 +626,14 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
               gap: "10px",
               textDecoration: "none",
               fontWeight: "600",
-              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+              boxShadow:
+                "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
               zIndex: 1000,
               transition: "transform 0.2s",
             }}
-            onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+            onMouseOver={(e) =>
+              (e.currentTarget.style.transform = "scale(1.05)")
+            }
             onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
             <Bell size={20} />

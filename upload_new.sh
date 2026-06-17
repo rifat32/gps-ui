@@ -1,64 +1,63 @@
 #!/bin/bash
 
-# Project Upload Script for GPS UI (React/Vite)
+# Project Upload Script - Full Project
 set -e
 
 # Configuration
-REMOTE_USER="rifat"
+REMOTE_USER="ronymia"
 REMOTE_HOST="77.68.52.203"
+REMOTE_DIR="/home/deploy/gps-test-app"
 LOCAL_DIR="."
 
-# Load .env file (for SERVER_PASSWORD, PORT, SERVICE_NAME)
-if [ -f ../final-dashcam/.env ]; then
-    export $(grep -v '^#' ../final-dashcam/.env | xargs)
-elif [ -f .env ]; then
-    # Note: gps-ui/.env might not have SERVER_PASSWORD, so we check final-dashcam first
-    export $(grep -v '^#' .env | xargs)
-fi
 
-# Set SSHPASS for sshpass tool
-export SSHPASS=$SERVER_PASSWORD
+echo "🚀 Deploying full project..."
 
-# Set default PM2_PORT, SERVICE_NAME, and REMOTE_DIR if not defined
-PM2_PORT=${PM2_PORT:-4173}
-SERVICE_NAME=${SERVICE_NAME:-gps-ui}
-# Hardcode REMOTE_DIR for the old server to avoid conflicts with .env
-REMOTE_DIR="/home/rifat/gps-ui"
 
-# --- Connectivity Check ---
-SSH_PORT=22
-echo "🔍 Testing connection to ${REMOTE_HOST} on port ${SSH_PORT}..."
-if ! nc -z -w5 ${REMOTE_HOST} ${SSH_PORT}; then
-    echo "❌ Error: Cannot reach ${REMOTE_HOST} on port ${SSH_PORT}."
-    echo "   Your IP might be blocked or the port is incorrect."
-    exit 1
-fi
-echo "✅ Connection reached!"
+echo "🔄 Syncing full project to ${REMOTE_HOST}..."
 
-echo "🔄 Syncing files to ${REMOTE_HOST}..."
-
-# Sync files only, using sshpass for authentication
-sshpass -e rsync -av --delete \
+# Step 2: Sync files
+echo "📁 Syncing all files..."
+rsync -av --delete \
     --exclude='node_modules' \
-    --exclude='dist' \
     --exclude='.git' \
     --exclude='*.DS_Store' \
     --exclude='*.tmp' \
     --exclude='*.log' \
-    -e ssh \
-    ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
+    --exclude='.env.local' \
+    ./ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
 echo "✅ Files synced successfully!"
 
-echo "🔑 Uploading server environment (.env.new)..."
-sshpass -e scp .env.new ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env
+# Step 3: Remote Execution (Build and PM2 Restart)
+echo "🔧 Executing remote build and restart..."
+ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << EOF
+    # Load NVM if available
+    export NVM_DIR="\$HOME/.nvm"
+    [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
+    
+    set -e
+    cd ${REMOTE_DIR}
+    
+    echo "📦 Installing dependencies..."
+    yarn install
+    
+    echo "🏗️ Building the project..."
+    yarn build
+    
+    # Load variables for PM2
+    if [ -f .env ]; then
+        export \$(grep -v '^#' .env | xargs)
+    fi
+    PM2_PORT=\${PM2_PORT:-4173}
+    SERVICE_NAME=\${SERVICE_NAME:-gps-ui-test}
 
-echo "📦 Installing dependencies and building on remote..."
-sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && npm install && npm run build"
+    echo "🔄 Restarting service with PM2..."
+    pm2 delete \${SERVICE_NAME} || true
+    pm2 start "node_modules/.bin/serve -s dist -l \${PM2_PORT}" --name \${SERVICE_NAME}
+    
+    # Save PM2 state
+    pm2 save
+EOF
 
-echo "🔄 Starting UI service with PM2..."
-# Using 'vite preview' to serve the build on configured port
-sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run serve -- -l ${PM2_PORT}' --name ${SERVICE_NAME}"
-
-echo "🚀 Deployment successful!"
-echo "🔗 UI should be accessible at: http://${REMOTE_HOST}:${PM2_PORT}"
+echo ""
+echo "✅ Deployment and build completed successfully!"
