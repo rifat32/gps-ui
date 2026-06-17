@@ -123,7 +123,11 @@ export default function AiNotifications({ theme, toggleTheme }) {
   }, [activeCategory]);
 
   // Fetch AI events with pagination and filter
-  const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
+  const fetchAlerts = async (
+    page = 1,
+    deviceId = filterDeviceId,
+    category = activeCategory,
+  ) => {
     try {
       const params = { page, perPage: 20, device_type: "AI_DASHCAM" };
       if (deviceId) params.deviceId = deviceId;
@@ -161,10 +165,16 @@ export default function AiNotifications({ theme, toggleTheme }) {
     try {
       const data = await deviceApi.getDevicesV2({ device_type: "AI_DASHCAM" });
       const allDevices = data.data || [];
-      const dashcamDevices = allDevices.filter(d => d.device_type === "AI_DASHCAM");
-      
-      const activeDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "online");
-      const historicalDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "offline");
+      const dashcamDevices = allDevices.filter(
+        (d) => d.device_type === "AI_DASHCAM",
+      );
+
+      const activeDevices = dashcamDevices.filter(
+        (d) => d.status?.toLowerCase() === "online",
+      );
+      const historicalDevices = dashcamDevices.filter(
+        (d) => d.status?.toLowerCase() === "offline",
+      );
       setDevices({ active: activeDevices, historical: historicalDevices });
       // COMMENTED OUT: Stop "ghost" live stream requests on page load
       // if (!selectedDevice && activeDevices.length > 0) {
@@ -180,7 +190,11 @@ export default function AiNotifications({ theme, toggleTheme }) {
     fetchAlerts(1);
     fetchDevices();
 
-    const socket = io(WS_URL);
+    // const socket = io(WS_URL);
+    const socket = io("http://77.68.52.203", {
+      path: "/dashcam-http/socket.io",
+      transports: ["websocket"],
+    });
     socketRef.current = socket;
 
     socketRef.current.on("ai_event", (event) => {
@@ -190,14 +204,24 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
       const eventDeviceId = event.deviceId || event.device_id;
       // Respect filter if active
-      if (filterDeviceIdRef.current && eventDeviceId !== filterDeviceIdRef.current) {
-        console.log(`Skipping real-time event for ${eventDeviceId} due to filter ${filterDeviceIdRef.current}`);
+      if (
+        filterDeviceIdRef.current &&
+        eventDeviceId !== filterDeviceIdRef.current
+      ) {
+        console.log(
+          `Skipping real-time event for ${eventDeviceId} due to filter ${filterDeviceIdRef.current}`,
+        );
         return;
       }
 
       // Respect category filter if active
-      if (activeCategoryRef.current && event.category !== activeCategoryRef.current) {
-        console.log(`Skipping real-time event due to category filter ${activeCategoryRef.current}`);
+      if (
+        activeCategoryRef.current &&
+        event.category !== activeCategoryRef.current
+      ) {
+        console.log(
+          `Skipping real-time event due to category filter ${activeCategoryRef.current}`,
+        );
         return;
       }
 
@@ -208,7 +232,9 @@ export default function AiNotifications({ theme, toggleTheme }) {
           message: event.friendly_name || event.code || event.event_code,
           friendly_name: event.friendly_name,
           description: event.description,
-          time: formatDeviceDateTime(event.event_time || event.gps_time || event.timestamp),
+          time: formatDeviceDateTime(
+            event.event_time || event.gps_time || event.timestamp,
+          ),
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
           speed: event.speed,

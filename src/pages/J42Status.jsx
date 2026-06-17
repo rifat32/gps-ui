@@ -200,6 +200,7 @@ export default function J42Status({ theme }) {
             const battery = getBatteryDetails(device.batteryVoltage);
             const BatteryIcon = battery.icon;
             const extPower = getExternalPowerDetails(device.externalVoltage);
+            const ExtPowerIcon = extPower.icon;
             const isOnline = device.status?.toLowerCase() === "online";
             
             return (
