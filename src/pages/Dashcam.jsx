@@ -99,7 +99,8 @@ export default function Dashcam({ theme, toggleTheme }) {
   const lastRequestTimesRef = useRef({}); // { [key]: timestamp }
   const socketRef = useRef(null);
 
-  const isDeviceOnline = (device) => String(device?.status || "").toLowerCase() === "online";
+  const isDeviceOnline = (device) =>
+    String(device?.status || "").toLowerCase() === "online";
 
   // Fetch initial AI events
   const fetchInitialAlerts = async () => {
@@ -131,9 +132,13 @@ export default function Dashcam({ theme, toggleTheme }) {
   const fetchDevices = async () => {
     setIsLoadingDevices(true);
     try {
-      const data = await deviceApi.getDevicesV2({ device_type: 'AI_DASHCAM' });
-      const activeDevices = data.data.filter((d) => d.status?.toLowerCase() === "online");
-      const historicalDevices = data.data.filter((d) => d.status?.toLowerCase() === "offline");
+      const data = await deviceApi.getDevicesV2({ device_type: "AI_DASHCAM" });
+      const activeDevices = data.data.filter(
+        (d) => d.status?.toLowerCase() === "online",
+      );
+      const historicalDevices = data.data.filter(
+        (d) => d.status?.toLowerCase() === "offline",
+      );
       setDevices({ active: activeDevices, historical: historicalDevices });
       if (!selectedDevice && activeDevices.length > 0) {
         setSelectedDevice(activeDevices[0]);
@@ -150,7 +155,11 @@ export default function Dashcam({ theme, toggleTheme }) {
     fetchInitialAlerts();
     fetchDevices();
 
-    const socket = io(WS_URL);
+    // const socket = io(WS_URL);
+    const socket = io("http://77.68.52.203", {
+      path: "/dashcam-http/socket.io",
+      transports: ["websocket"],
+    });
     socketRef.current = socket;
 
     socketRef.current.on("ai_event", (event) => {
@@ -162,7 +171,9 @@ export default function Dashcam({ theme, toggleTheme }) {
           message: event.friendly_name || event.code || event.event_code,
           friendly_name: event.friendly_name,
           description: event.description,
-          time: formatDeviceDateTime(event.event_time || event.gps_time || event.timestamp),
+          time: formatDeviceDateTime(
+            event.event_time || event.gps_time || event.timestamp,
+          ),
           deviceId: event.deviceId || event.device_id,
           serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
           file_path: event.file_path,
@@ -214,69 +225,75 @@ export default function Dashcam({ theme, toggleTheme }) {
       );
     });
 
-      // Re-register active streams on reconnect
-      socketRef.current.on("connect", () => {
-        console.log("🔌 [Socket.io] Connected/Reconnected. Syncing viewer state...");
-        Object.entries(activeStreamsRef.current).forEach(([key, status]) => {
-            if (status === "loading" || status === "live") {
-                const [deviceId, chPart] = key.split("_ch");
-                const channel = parseInt(chPart) || 1;
-                socketRef.current.emit("register_viewer", { deviceId, channel });
-                console.log(`📡 [Socket.io] Re-registered viewer for ${key}`);
-            }
-        });
-      });
-
-      // Log incoming stream_ready events
-      socketRef.current.onAny((event, ...args) => {
-        if (event.startsWith('stream_ready_')) {
-          const { deviceId, channel, webrtcUrl, hlsUrl } = args[0];
-          const key = `${deviceId}_ch${channel}`;
-
-          setLiveStreams((prev) => {
-            const existing = prev[key];
-            // Harden: Only update if not already live OR if URL changed
-            if (existing && existing.status === "live" && existing.webrtcUrl === webrtcUrl) {
-                return prev;
-            }
-            
-            console.log(`📡 [Socket.io] Stream ready for ${key}:`, webrtcUrl);
-            return {
-              ...prev,
-              [key]: { 
-                url: hlsUrl || (existing ? existing.url : "null"), 
-                webrtcUrl, 
-                channel, 
-                status: "live", 
-                error: null 
-              },
-            };
-          });
-          activeStreamsRef.current[key] = "live";
+    // Re-register active streams on reconnect
+    socketRef.current.on("connect", () => {
+      console.log(
+        "🔌 [Socket.io] Connected/Reconnected. Syncing viewer state...",
+      );
+      Object.entries(activeStreamsRef.current).forEach(([key, status]) => {
+        if (status === "loading" || status === "live") {
+          const [deviceId, chPart] = key.split("_ch");
+          const channel = parseInt(chPart) || 1;
+          socketRef.current.emit("register_viewer", { deviceId, channel });
+          console.log(`📡 [Socket.io] Re-registered viewer for ${key}`);
         }
       });
+    });
 
-      return () => {
-        if (socketRef.current) socketRef.current.disconnect();
-      };
-    }, []);
+    // Log incoming stream_ready events
+    socketRef.current.onAny((event, ...args) => {
+      if (event.startsWith("stream_ready_")) {
+        const { deviceId, channel, webrtcUrl, hlsUrl } = args[0];
+        const key = `${deviceId}_ch${channel}`;
+
+        setLiveStreams((prev) => {
+          const existing = prev[key];
+          // Harden: Only update if not already live OR if URL changed
+          if (
+            existing &&
+            existing.status === "live" &&
+            existing.webrtcUrl === webrtcUrl
+          ) {
+            return prev;
+          }
+
+          console.log(`📡 [Socket.io] Stream ready for ${key}:`, webrtcUrl);
+          return {
+            ...prev,
+            [key]: {
+              url: hlsUrl || (existing ? existing.url : "null"),
+              webrtcUrl,
+              channel,
+              status: "live",
+              error: null,
+            },
+          };
+        });
+        activeStreamsRef.current[key] = "live";
+      }
+    });
+
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, []);
 
   // Start live stream for a device
   const startLiveStream = async (device, channel, force = false) => {
     const key = `${device.id}_ch${channel}`;
     const now = Date.now();
     const lastRequest = lastRequestTimesRef.current[key] || 0;
-    
+
     // Debounce: ignore multiple requests for the same stream within 2 seconds
     if (!force && now - lastRequest < 2000) {
-        console.log(`⏳ [START_LIVE] Debounced request for ${key}`);
-        return;
+      console.log(`⏳ [START_LIVE] Debounced request for ${key}`);
+      return;
     }
     lastRequestTimesRef.current[key] = now;
 
     console.log({ key, force });
-    
-    // Allow retrying if 'loading' (stuck) or 'error'. 
+
+    // Allow retrying if 'loading' (stuck) or 'error'.
     // Only skip if already 'live' (and not forcing).
     if (!force && activeStreamsRef.current[key] === "live") return;
 
@@ -297,56 +314,70 @@ export default function Dashcam({ theme, toggleTheme }) {
       return;
     }
 
-    // Clear all other channels for this device since the simulator/device 
+    // Clear all other channels for this device since the simulator/device
     // usually only supports one active stream at a time or we want a fresh start.
-    Object.keys(activeStreamsRef.current).forEach(k => {
-        if (k.startsWith(`${device.id}_ch`)) {
-            delete activeStreamsRef.current[k];
-        }
+    Object.keys(activeStreamsRef.current).forEach((k) => {
+      if (k.startsWith(`${device.id}_ch`)) {
+        delete activeStreamsRef.current[k];
+      }
     });
 
     setLiveStreams((prev) => {
-        const next = { ...prev };
-        Object.keys(next).forEach(k => {
-            if (k.startsWith(`${device.id}_ch`)) {
-                delete next[k];
-            }
-        });
-        next[key] = { url: null, webrtcUrl: null, channel, status: "loading", error: null };
-        return next;
+      const next = { ...prev };
+      Object.keys(next).forEach((k) => {
+        if (k.startsWith(`${device.id}_ch`)) {
+          delete next[k];
+        }
+      });
+      next[key] = {
+        url: null,
+        webrtcUrl: null,
+        channel,
+        status: "loading",
+        error: null,
+      };
+      return next;
     });
 
     try {
       activeStreamsRef.current[key] = "loading";
-      
+
       // ⏳ WAIT FOR SOCKET: Wait up to 3s for the socket to connect if it hasn't yet
       let socket = socketRef.current;
       if (socket && !socket.connected) {
-          console.log(`⏳ [START_LIVE] Socket connecting for ${key}...`);
-          await new Promise((resolve) => {
-              const timeout = setTimeout(resolve, 3000);
-              socket.once("connect", () => {
-                  clearTimeout(timeout);
-                  resolve();
-              });
+        console.log(`⏳ [START_LIVE] Socket connecting for ${key}...`);
+        await new Promise((resolve) => {
+          const timeout = setTimeout(resolve, 3000);
+          socket.once("connect", () => {
+            clearTimeout(timeout);
+            resolve();
           });
+        });
       }
 
       if (!socket || !socket.connected) {
-          console.warn(`⚠️ [START_LIVE] Proceeding without stable socket for ${key}. Registration might fail.`);
+        console.warn(
+          `⚠️ [START_LIVE] Proceeding without stable socket for ${key}. Registration might fail.`,
+        );
       }
-      
+
       const socketId = socket?.id;
       const response = await deviceApi.startLive(device.id, channel, socketId);
       const hlsUrl = response.streamUrl;
-      
-      console.log(`📡 [START_LIVE] API Response (socketId: ${socketId}):`, response);
 
-      setLiveStreams((prev) => (prev[key]?.status === "loading" ? {
-          ...prev,
-          [key]: { ...prev[key], url: hlsUrl, status: "loading" }
-      } : prev));
+      console.log(
+        `📡 [START_LIVE] API Response (socketId: ${socketId}):`,
+        response,
+      );
 
+      setLiveStreams((prev) =>
+        prev[key]?.status === "loading"
+          ? {
+              ...prev,
+              [key]: { ...prev[key], url: hlsUrl, status: "loading" },
+            }
+          : prev,
+      );
     } catch (err) {
       console.error(`Failed to start live stream for ${device.id}:`, err);
       activeStreamsRef.current[key] = "error";
@@ -431,7 +462,9 @@ export default function Dashcam({ theme, toggleTheme }) {
               setSelectedDevice={setSelectedDevice}
               devices={devices}
               streamState={stream}
-              onRetry={() => device && startLiveStream(device, activeChannel, true)}
+              onRetry={() =>
+                device && startLiveStream(device, activeChannel, true)
+              }
             />
           );
         })}
@@ -745,11 +778,18 @@ export default function Dashcam({ theme, toggleTheme }) {
                       left: 0,
                       width: "100%",
                       height: "100%",
-                      background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent)",
+                      background:
+                        "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent)",
                       animation: "shimmer 1.8s infinite",
                     }}
                   />
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
                     <div
                       style={{
                         width: "36px",
@@ -798,7 +838,10 @@ export default function Dashcam({ theme, toggleTheme }) {
                   dev={dev}
                   selectedDevice={selectedDevice}
                   setSelectedDevice={handleDeviceSelect}
-                  streamStatus={liveStreams[`${dev.id}_ch${activeChannel}`]?.status || "idle"}
+                  streamStatus={
+                    liveStreams[`${dev.id}_ch${activeChannel}`]?.status ||
+                    "idle"
+                  }
                 />
               ))
             )}
