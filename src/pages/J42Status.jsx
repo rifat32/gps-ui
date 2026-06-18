@@ -18,7 +18,7 @@ import deviceApi from "../services/deviceApi";
 import "./DeviceManagement.css";
 import "./J42Status.css";
 
-const getBatteryDetails = (voltage) => {
+const getBatteryDetails = (voltage, rawVoltage = null) => {
   if (voltage === undefined || voltage === null || voltage === "") {
     return { percent: null, text: "N/A", color: "#64748b", icon: Battery };
   }
@@ -27,12 +27,23 @@ const getBatteryDetails = (voltage) => {
     return { percent: null, text: "N/A", color: "#64748b", icon: Battery };
   }
 
-  // J42 device uses Li-SOCl2 3.6V nominal dry-cell (official range 2.4V - 3.6V) or rechargeable (range 3.0V - 4.2V)
   let percent = 0;
-  if (val >= 3.65) {
-    percent = Math.round(((val - 3.0) / (4.2 - 3.0)) * 100);
+  let displayVolts = "";
+
+  // If the parsed value is greater than 5.0, it is already the percentage (0-100)
+  if (val > 5.0) {
+    percent = Math.round(val);
+    if (rawVoltage && parseFloat(rawVoltage) > 0) {
+      displayVolts = ` (${parseFloat(rawVoltage).toFixed(3)}V)`;
+    }
   } else {
-    percent = Math.round(((val - 2.4) / (3.6 - 2.4)) * 100);
+    // Fallback/legacy calculation based on voltage range
+    if (val >= 3.65) {
+      percent = Math.round(((val - 3.0) / (4.2 - 3.0)) * 100);
+    } else {
+      percent = Math.round(((val - 2.4) / (3.6 - 2.4)) * 100);
+    }
+    displayVolts = ` (${val.toFixed(3)}V)`;
   }
 
   percent = Math.max(0, Math.min(100, percent));
@@ -54,7 +65,7 @@ const getBatteryDetails = (voltage) => {
 
   return {
     percent,
-    text: `${percent}% (${val.toFixed(3)}V)`,
+    text: `${percent}%${displayVolts}`,
     color,
     icon: Icon
   };
@@ -197,7 +208,7 @@ export default function J42Status({ theme }) {
           </div>
         ) : (
           filteredDevices.map((device) => {
-            const battery = getBatteryDetails(device.batteryVoltage);
+            const battery = getBatteryDetails(device.batteryVoltage, device.externalVoltage);
             const BatteryIcon = battery.icon;
             const extPower = getExternalPowerDetails(device.externalVoltage);
             const ExtPowerIcon = extPower.icon;
@@ -258,7 +269,7 @@ export default function J42Status({ theme }) {
                       </div>
                     </div>
 
-                    {/* External Vehicle Power */}
+                    {/* External Vehicle Power (Commented Out)
                     <div className="j42-battery-section" style={{ margin: 0, padding: "0.75rem 1rem" }}>
                       <div className="battery-header" style={{ marginBottom: "0.5rem" }}>
                         <span className="label" style={{ fontSize: "0.6875rem" }}>External Power</span>
@@ -275,6 +286,7 @@ export default function J42Status({ theme }) {
                         </span>
                       </div>
                     </div>
+                    */}
                   </div>
 
                   <div className="info-item full-width last-seen-item">
