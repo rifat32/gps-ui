@@ -87,7 +87,12 @@ export default function ObdLive({ theme }) {
   const [bearing, setBearing] = useState(0);
 
   useEffect(() => {
-    socketRef.current = io(OBD_WS_URL);
+    socketRef.current = import.meta.env.VITE_SERVER_TYPE === "new"
+      ? io("http://77.68.52.203", {
+          path: "/obd-http/socket.io",
+          transports: ["websocket", "polling"],
+        })
+      : io(OBD_WS_URL);
 
     // Fetch initial state only if we have a deviceId (or skip and wait for live)
     const fetchInitialData = async (devId) => {

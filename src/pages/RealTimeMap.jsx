@@ -197,7 +197,15 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
     setSelectedVehicle(null);
     fetchInitialPositions();
 
-    socketRef.current = io(currentWsUrl, { transports: ["websocket", "polling"] });
+    socketRef.current = import.meta.env.VITE_SERVER_TYPE === "new"
+      ? io("http://77.68.52.203", {
+          path:
+            deviceType === "OBD"
+              ? "/obd-http/socket.io"
+              : "/dashcam-http/socket.io",
+          transports: ["websocket", "polling"],
+        })
+      : io(currentWsUrl, { transports: ["websocket", "polling"] });
 
     socketRef.current.on("connect", () => {
       console.log("Connected to Socket.io server");

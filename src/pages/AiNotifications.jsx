@@ -180,7 +180,12 @@ export default function AiNotifications({ theme, toggleTheme }) {
     fetchAlerts(1);
     fetchDevices();
 
-    const socket = io(WS_URL);
+    const socket = import.meta.env.VITE_SERVER_TYPE === "new"
+      ? io("http://77.68.52.203", {
+          path: "/dashcam-http/socket.io",
+          transports: ["websocket"],
+        })
+      : io(WS_URL);
     socketRef.current = socket;
 
     socketRef.current.on("ai_event", (event) => {
