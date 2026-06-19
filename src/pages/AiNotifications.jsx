@@ -22,6 +22,7 @@ import DashcamAlert from "../components/DashcamAlert";
 import VideoPlayer from "../components/VideoPlayer";
 import MediaViewer from "../components/MediaViewer";
 import NotificationTable from "../components/NotificationTable";
+import SystemAlertsTable from "../components/SystemAlertsTable";
 import deviceApi from "../services/deviceApi";
 
 const WS_URL = import.meta.env.VITE_WS_URL;
@@ -101,13 +102,31 @@ export default function AiNotifications({ theme, toggleTheme }) {
     hasPrev: false,
   });
 
+  // Tab state: "ai-events" or "system-alerts"
+  const [activeTab, setActiveTab] = useState("ai-events");
+
+  // System Alerts state
+  const [systemAlerts, setSystemAlerts] = useState([]);
+  const [systemStatusFilter, setSystemStatusFilter] = useState("UNREAD");
+  const [systemLoading, setSystemLoading] = useState(false);
+  const [systemPagination, setSystemPagination] = useState({
+    page: 1,
+    perPage: 20,
+    total: 0,
+    totalPages: 1,
+  });
+
   // Live stream state: { [deviceId]: { url, channel, status: 'idle'|'loading'|'live'|'error', error } }
   const [liveStreams, setLiveStreams] = useState({});
   const activeStreamsRef = useRef({});
   const socketRef = useRef(null);
+  const apiSocketRef = useRef(null);
   const paginationRef = useRef(pagination);
   const filterDeviceIdRef = useRef(filterDeviceId);
   const activeCategoryRef = useRef(activeCategory);
+
+  const systemStatusFilterRef = useRef(systemStatusFilter);
+  const systemPaginationRef = useRef(systemPagination);
 
   // Sync refs with state
   useEffect(() => {
@@ -121,6 +140,14 @@ export default function AiNotifications({ theme, toggleTheme }) {
   useEffect(() => {
     activeCategoryRef.current = activeCategory;
   }, [activeCategory]);
+
+  useEffect(() => {
+    systemStatusFilterRef.current = systemStatusFilter;
+  }, [systemStatusFilter]);
+
+  useEffect(() => {
+    systemPaginationRef.current = systemPagination;
+  }, [systemPagination]);
 
   // Fetch AI events with pagination and filter
   const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
@@ -175,11 +202,62 @@ export default function AiNotifications({ theme, toggleTheme }) {
     }
   };
 
-  // Initialize Socket.io and fetch data
+  // Fetch general system/policy alerts
+  const fetchSystemAlerts = async (page = 1, status = systemStatusFilter) => {
+    setSystemLoading(true);
+    try {
+      const res = await deviceApi.getAlertEvents({
+        page,
+        perPage: 20,
+        status,
+      });
+      if (res && res.success) {
+        setSystemAlerts(res.data || []);
+        if (res.meta) {
+          setSystemPagination({
+            page: res.meta.page,
+            perPage: res.meta.limit,
+            total: res.meta.total,
+            totalPages: Math.ceil(res.meta.total / res.meta.limit),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch system alerts:", err);
+    } finally {
+      setSystemLoading(false);
+    }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      const res = await deviceApi.markAlertEventAsRead(id);
+      if (res && res.success) {
+        fetchSystemAlerts(systemPagination.page);
+      }
+    } catch (err) {
+      console.error("Failed to mark alert as read:", err);
+    }
+  };
+
+  const handleResolve = async (id) => {
+    try {
+      const res = await deviceApi.markAlertEventAsResolved(id);
+      if (res && res.success) {
+        fetchSystemAlerts(systemPagination.page);
+      }
+    } catch (err) {
+      console.error("Failed to resolve alert:", err);
+    }
+  };
+
+  // Initialize Sockets and fetch data
   useEffect(() => {
     fetchAlerts(1);
+    fetchSystemAlerts(1);
     fetchDevices();
 
+    // 1. Dashcam Socket
     const socket = import.meta.env.VITE_SERVER_TYPE === "new"
       ? io("http://77.68.52.203", {
           path: "/dashcam-http/socket.io",
@@ -190,21 +268,11 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
     socketRef.current.on("ai_event", (event) => {
       console.log("Real-time AI event:", event);
-      // Only prepend if on first page
       if (paginationRef.current.page !== 1) return;
 
       const eventDeviceId = event.deviceId || event.device_id;
-      // Respect filter if active
-      if (filterDeviceIdRef.current && eventDeviceId !== filterDeviceIdRef.current) {
-        console.log(`Skipping real-time event for ${eventDeviceId} due to filter ${filterDeviceIdRef.current}`);
-        return;
-      }
-
-      // Respect category filter if active
-      if (activeCategoryRef.current && event.category !== activeCategoryRef.current) {
-        console.log(`Skipping real-time event due to category filter ${activeCategoryRef.current}`);
-        return;
-      }
+      if (filterDeviceIdRef.current && eventDeviceId !== filterDeviceIdRef.current) return;
+      if (activeCategoryRef.current && event.category !== activeCategoryRef.current) return;
 
       setAlerts((prev) => {
         const newAlert = {
@@ -215,7 +283,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
           description: event.description,
           time: formatDeviceDateTime(event.event_time || event.gps_time || event.timestamp),
           deviceId: event.deviceId || event.device_id,
-          serial_no: event.hex_id || event.alarm_serial, // STORE THIS FOR MATCHING
+          serial_no: event.hex_id || event.alarm_serial,
           speed: event.speed,
           event_code: event.code || event.event_code,
           file_path: event.file_path,
@@ -223,17 +291,13 @@ export default function AiNotifications({ theme, toggleTheme }) {
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
         };
-        // Avoid adding if same alert arrived via polling/refresh?
-        // For simplicity, just unshift
         return [newAlert, ...prev].slice(0, paginationRef.current.perPage);
       });
     });
 
     socketRef.current.on("ai_file_complete", (data) => {
-      console.log("Media upload complete:", data);
       setAlerts((prev) =>
         prev.map((alert) => {
-          // Match by serial_no (hex ID) and device_id
           if (
             alert.deviceId === data.device_id &&
             (String(alert.id).includes(data.serial_no) ||
@@ -248,27 +312,76 @@ export default function AiNotifications({ theme, toggleTheme }) {
               video_path_back: data.video_path_back || alert.video_path_back,
             };
           }
-          // The 'id' might be Date.now() for new real-time alerts, so also match by serial_no if we stored it
-          // Let's ensure 'serial_no' is stored in the alert object
-          if (
-            alert.deviceId === data.device_id &&
-            alert.serial_no === data.serial_no
-          ) {
-            return {
-              ...alert,
-              file_path: data.file_path || alert.file_path,
-              video_path: data.video_path || alert.video_path,
-              file_path_back: data.file_path_back || alert.file_path_back,
-              video_path_back: data.video_path_back || alert.video_path_back,
-            };
-          }
           return alert;
         }),
       );
     });
 
+    // 2. API/Alerts Socket
+    const userStr = localStorage.getItem("user");
+    let token = null;
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        token = user.accessToken || user.token;
+      } catch (e) {}
+    }
+
+    const serverType = import.meta.env.VITE_SERVER_TYPE;
+    let apiSocketUrl = "";
+    let apiSocketPath = "";
+
+    if (serverType === "new") {
+      apiSocketUrl = "http://77.68.52.203";
+      apiSocketPath = "/api-backend/socket.io";
+    } else {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://54.37.225.65:8040";
+      try {
+        const parsed = new URL(apiBaseUrl);
+        apiSocketUrl = `${parsed.protocol}//${parsed.host}`;
+        const basePath = parsed.pathname && parsed.pathname !== "/" ? parsed.pathname.replace(/\/$/, "") : "";
+        apiSocketPath = `${basePath}/socket.io`;
+      } catch {
+        apiSocketUrl = apiBaseUrl;
+        apiSocketPath = "/socket.io";
+      }
+    }
+
+    const apiSocket = io(apiSocketUrl, {
+      path: apiSocketPath,
+      reconnectionAttempts: 10,
+      auth: token ? { token } : undefined,
+      transports: ["websocket", "polling"],
+    });
+
+    apiSocketRef.current = apiSocket;
+
+    const handleSystemAlert = (alert) => {
+      console.log("Real-time System Alert page event:", alert);
+      if (systemPaginationRef.current.page !== 1) return;
+      if (systemStatusFilterRef.current !== "UNREAD") return;
+
+      setSystemAlerts((prev) => {
+        if (prev.some((a) => a.id === alert.id)) return prev;
+        return [alert, ...prev].slice(0, 20);
+      });
+
+      setSystemPagination((prev) => ({
+        ...prev,
+        total: prev.total + 1,
+      }));
+    };
+
+    apiSocket.on("connect", () => {
+      apiSocket.emit("alert:subscribe");
+    });
+
+    apiSocket.on("alert_notification", handleSystemAlert);
+    apiSocket.on("alert:event", handleSystemAlert);
+
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
+      if (apiSocketRef.current) apiSocketRef.current.disconnect();
     };
   }, []);
 
@@ -506,25 +619,83 @@ export default function AiNotifications({ theme, toggleTheme }) {
               background: "#ffffffff",
               borderTop: "1px solid var(--surface-border)",
               padding: "16px",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <NotificationTable
-              alerts={alerts}
-              onOpenMedia={setSelectedMedia}
-              pagination={pagination}
-              onPageChange={(page) => fetchAlerts(page)}
-              devices={[...devices.active, ...devices.historical]}
-              filterDeviceId={filterDeviceId}
-              onDeviceChange={(id) => {
-                setFilterDeviceId(id);
-                fetchAlerts(1, id);
-              }}
-              activeCategory={activeCategory}
-              onCategoryChange={(cat) => {
-                setActiveCategory(cat);
-                fetchAlerts(1, filterDeviceId, cat);
-              }}
-            />
+            {/* Tab Navigation */}
+            <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+              <button
+                onClick={() => setActiveTab("ai-events")}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  background: activeTab === "ai-events" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
+                  color: "#ffffff",
+                  border: activeTab === "ai-events" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+                  fontWeight: "bold",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  boxShadow: activeTab === "ai-events" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
+                  transition: "all 0.2s",
+                }}
+              >
+                AI Dashcam Events
+              </button>
+              <button
+                onClick={() => setActiveTab("system-alerts")}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  background: activeTab === "system-alerts" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
+                  color: "#ffffff",
+                  border: activeTab === "system-alerts" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+                  fontWeight: "bold",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  boxShadow: activeTab === "system-alerts" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
+                  transition: "all 0.2s",
+                }}
+              >
+                System Alerts Log
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              {activeTab === "ai-events" ? (
+                <NotificationTable
+                  alerts={alerts}
+                  onOpenMedia={setSelectedMedia}
+                  pagination={pagination}
+                  onPageChange={(page) => fetchAlerts(page)}
+                  devices={[...devices.active, ...devices.historical]}
+                  filterDeviceId={filterDeviceId}
+                  onDeviceChange={(id) => {
+                    setFilterDeviceId(id);
+                    fetchAlerts(1, id);
+                  }}
+                  activeCategory={activeCategory}
+                  onCategoryChange={(cat) => {
+                    setActiveCategory(cat);
+                    fetchAlerts(1, filterDeviceId, cat);
+                  }}
+                />
+              ) : (
+                <SystemAlertsTable
+                  alerts={systemAlerts}
+                  pagination={systemPagination}
+                  onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter)}
+                  onMarkAsRead={handleMarkAsRead}
+                  onResolve={handleResolve}
+                  statusFilter={systemStatusFilter}
+                  onStatusFilterChange={(status) => {
+                    setSystemStatusFilter(status);
+                    fetchSystemAlerts(1, status);
+                  }}
+                  loading={systemLoading}
+                />
+              )}
+            </div>
           </div>
         </main>
       </div>

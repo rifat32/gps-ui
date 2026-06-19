@@ -24,6 +24,7 @@ const DeviceManagement = ({ theme }) => {
   const [filterType, setFilterType] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState(null);
+  const [togglingDevices, setTogglingDevices] = useState(new Set());
   const [formData, setFormData] = useState({
     deviceId: "",
     name: "",
@@ -111,6 +112,26 @@ const DeviceManagement = ({ theme }) => {
     }
   };
 
+  const handleToggleRealDevice = async (deviceId, currentValue) => {
+    setTogglingDevices(prev => new Set(prev).add(deviceId));
+    try {
+      await deviceApi.toggleRealDevice(deviceId, !currentValue);
+      setDevices(prev =>
+        prev.map(d =>
+          d.id === deviceId ? { ...d, isRealDevice: !currentValue } : d
+        )
+      );
+    } catch (err) {
+      alert(err.message || "Failed to toggle real device status");
+    } finally {
+      setTogglingDevices(prev => {
+        const next = new Set(prev);
+        next.delete(deviceId);
+        return next;
+      });
+    }
+  };
+
   const filteredDevices = devices.filter(device => {
     const matchesSearch = 
       device.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -181,7 +202,15 @@ const DeviceManagement = ({ theme }) => {
                   {device.status?.toLowerCase() === "online" ? <CheckCircle size={12} /> : <XCircle size={12} />}
                   <span>{device.liveStatus || device.status}</span>
                 </div>
-                <div className="device-type-tag">{device.device_type}</div>
+                <div className="device-card-header-right">
+                  {device.isRealDevice && (
+                    <div className="real-device-badge">
+                      <span className="real-device-dot"></span>
+                      Real
+                    </div>
+                  )}
+                  <div className="device-type-tag">{device.device_type}</div>
+                </div>
               </div>
               
               <div className="device-info">
@@ -210,6 +239,22 @@ const DeviceManagement = ({ theme }) => {
                     <span className="value">{device.lastSeen}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Real Device Toggle */}
+              <div className="real-device-toggle-row">
+                <span className="toggle-label">
+                  {device.isRealDevice ? "Real Device" : "Simulator"}
+                </span>
+                <button
+                  className={`toggle-switch ${device.isRealDevice ? "active" : ""} ${togglingDevices.has(device.id) ? "toggling" : ""}`}
+                  onClick={() => handleToggleRealDevice(device.id, device.isRealDevice)}
+                  disabled={togglingDevices.has(device.id)}
+                  title={device.isRealDevice ? "Mark as Simulator" : "Mark as Real Device"}
+                  id={`toggle-real-${device.id}`}
+                >
+                  <span className="toggle-knob"></span>
+                </button>
               </div>
 
               <div className="device-actions">

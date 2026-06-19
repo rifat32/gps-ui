@@ -303,6 +303,7 @@ const deviceApi = {
             simNumber
             name
             status
+            isRealDevice
             batteryVoltage
             externalVoltage
             obdProfile {
@@ -326,11 +327,13 @@ const deviceApi = {
       deviceIdToUuidMap.set(d.deviceId, d.id);
       return {
         id: d.deviceId,
+        uuid: d.id,
         name: d.name,
         imei: d.imei,
         device_type: d.deviceType,
         status: d.status,
         liveStatus: d.liveStatus || (d.status === "ONLINE" ? "Online" : "Offline"),
+        isRealDevice: d.isRealDevice || false,
         model: d.dashcamProfile?.dashcamType || d.obdProfile?.protocol || d.j42Profile?.protocol || "",
         fwVersion: "N/A",
         iccid: d.simNumber || "N/A",
@@ -482,6 +485,37 @@ const deviceApi = {
     throw new Error("Failed to delete device");
   },
 
+  toggleRealDevice: async (deviceId, isRealDevice) => {
+    const uuid = deviceIdToUuidMap.get(deviceId) || await findUuidByDeviceId(deviceId);
+    if (!uuid) {
+      throw new Error(`Could not find internal ID for device ${deviceId}`);
+    }
+
+    const mutation = `
+      mutation UpdateDevice($id: ID!, $updateDeviceInput: UpdateDeviceInput!) {
+        updateDevice(id: $id, updateDeviceInput: $updateDeviceInput) {
+          success
+          message
+          data {
+            id
+            deviceId
+            isRealDevice
+          }
+        }
+      }
+    `;
+
+    const res = await fetchGraphql(mutation, {
+      id: uuid,
+      updateDeviceInput: { isRealDevice },
+    });
+    const updatedDevice = res.updateDevice?.data;
+    if (updatedDevice) {
+      return { success: true, data: updatedDevice };
+    }
+    throw new Error("Failed to toggle real device status");
+  },
+
   // Trigger FRP tunnel — sends wake-up command to dashcam and returns the login URL
   triggerRemoteSettings: async (deviceId) => {
     const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings`, {
@@ -494,6 +528,107 @@ const deviceApi = {
       throw new Error(data.error || "Failed to trigger remote settings tunnel");
     }
     return data;
+  },
+
+  getAlertEvents: async (params = {}) => {
+    const query = `
+      query GetAllAlertEvents($alertEventQueryInput: AlertEventQueryInput!) {
+        getAllAlertEvents(alertEventQueryInput: $alertEventQueryInput) {
+          statusCode
+          success
+          message
+          meta {
+            page
+            limit
+            total
+            skip
+            sortBy
+            sortOrder
+          }
+          data {
+            id
+            alertPolicyId
+            alertPolicyName
+            eventType
+            severity
+            status
+            deviceId
+            vehicleId
+            driverId
+            licensePlate
+            driverName
+            latitude
+            longitude
+            speed
+            heading
+            acceleration
+            eventTime
+            metadata
+            createdAt
+            readAt
+            resolvedAt
+          }
+        }
+      }
+    `;
+
+    const input = {
+      pagination: {
+        page: params.page || 1,
+        limit: params.perPage || 20,
+      },
+    };
+
+    if (params.deviceId) {
+      input.deviceId = params.deviceId;
+    }
+    if (params.status) {
+      input.status = params.status;
+    }
+    if (params.eventType) {
+      input.eventType = params.eventType;
+    }
+
+    const data = await fetchGraphql(query, { alertEventQueryInput: input });
+    return data.getAllAlertEvents;
+  },
+
+  markAlertEventAsRead: async (id) => {
+    const mutation = `
+      mutation MarkAlertEventAsRead($id: ID!) {
+        markAlertEventAsRead(id: $id) {
+          statusCode
+          success
+          message
+          data {
+            id
+            status
+            readAt
+          }
+        }
+      }
+    `;
+    const res = await fetchGraphql(mutation, { id });
+    return res.markAlertEventAsRead;
+  },
+
+  markAlertEventAsResolved: async (id) => {
+    const mutation = `
+      mutation MarkAlertEventAsResolved($id: ID!) {
+        markAlertEventAsResolved(id: $id) {
+          statusCode
+          success
+          message
+          data {
+            id
+            status
+            resolvedAt
+          }
+        }
+      }
+    `;
+    const res = await fetchGraphql(mutation, { id });
+    return res.markAlertEventAsResolved;
   },
 };
 

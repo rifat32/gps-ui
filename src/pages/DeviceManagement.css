@@ -453,3 +453,135 @@
 
 .error-icon { color: #ef4444; }
 .empty-icon { color: #64748b; opacity: 0.5; }
+
+/* Device Card Header Right */
+.device-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Real Device Badge */
+.real-device-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dark-theme .real-device-badge {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+
+.real-device-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* Real Device Toggle Row */
+.real-device-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .real-device-toggle-row {
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.dark-theme .toggle-label {
+  color: #94a3b8;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  border: none;
+  background: #cbd5e1;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.dark-theme .toggle-switch {
+  background: #475569;
+}
+
+.toggle-switch.active {
+  background: #10b981;
+}
+
+.dark-theme .toggle-switch.active {
+  background: #059669;
+}
+
+.toggle-switch:hover {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.toggle-switch:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toggle-switch.toggling .toggle-knob {
+  animation: toggle-pulse 0.6s ease-in-out;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-switch.active .toggle-knob {
+  transform: translateX(20px);
+}
+
+@keyframes toggle-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.85); }
+}
+
+.toggle-switch.active.toggling .toggle-knob {
+  animation: toggle-pulse-active 0.6s ease-in-out;
+}
+
+@keyframes toggle-pulse-active {
+  0%, 100% { transform: translateX(20px) scale(1); }
+  50% { transform: translateX(20px) scale(0.85); }
+}
