@@ -205,7 +205,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
               : "/dashcam-http/socket.io",
           transports: ["websocket", "polling"],
         })
-      : io(currentWsUrl, { transports: ["websocket", "polling"] });
+      : io(currentWsUrl);
 
     socketRef.current.on("connect", () => {
       console.log("Connected to Socket.io server");
