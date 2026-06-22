@@ -119,8 +119,9 @@ export default function MediaViewer({ media, onClose }) {
             controls
             autoPlay
             style={{
-              width: "100%",
-              height: "auto",
+              maxWidth: "100%",
+              maxHeight: "80vh",
+              objectFit: "contain",
               display: "block"
             }}
           />
