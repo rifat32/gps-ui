@@ -530,6 +530,20 @@ const deviceApi = {
     return data;
   },
 
+  // Trigger FRP tunnel V2 (Self-Hosted)
+  triggerRemoteSettingsV2: async (deviceId) => {
+    const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings-v2`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to trigger V2 remote settings tunnel");
+    }
+    return data;
+  },
+
   getAlertEvents: async (params = {}) => {
     const query = `
       query GetAllAlertEvents($alertEventQueryInput: AlertEventQueryInput!) {

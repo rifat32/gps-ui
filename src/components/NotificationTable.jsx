@@ -169,11 +169,14 @@ export default function NotificationTable({
             }}
           >
             <option value="">-- All AI Dashcams --</option>
-            {devices.map(dev => (
-              <option key={dev.device_id || dev.id} value={dev.device_id || dev.id}>
-                {dev.device_id || dev.id} {dev.status === 'online' ? '(Online)' : '(Offline)'}
-              </option>
-            ))}
+            {devices.map(dev => {
+              const isOnline = String(dev.status).toUpperCase() === 'ONLINE' || String(dev.liveStatus).toUpperCase() === 'ONLINE';
+              return (
+                <option key={dev.device_id || dev.id} value={dev.device_id || dev.id}>
+                  {dev.device_id || dev.id} {isOnline ? '(Online)' : '(Offline)'}
+                </option>
+              );
+            })}
           </select>
 
           {/* Category Tabs / Dropdown for Mobile */}
