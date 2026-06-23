@@ -138,7 +138,7 @@ const mapSocketVehicle = (update) => {
   };
 };
 
-export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
+export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly = false }) {
   const currentWsUrl = deviceType === "OBD" ? WS_URL_OBD : WS_URL_DASHCAM;
 
   const [vehicles, setVehicles] = useState([]);
@@ -147,6 +147,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
   const [error, setError] = useState(null);
   const mapRef = useRef(null);
   const socketRef = useRef(null);
+  const realDeviceIdsRef = useRef(new Set()); // Set of deviceId strings that are real
 
   const mergeVehicle = (incoming) => {
     if (!incoming) return;
@@ -180,6 +181,18 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
   const fetchInitialPositions = async () => {
     try {
       setError(null);
+
+      // Fetch device registry to know which IDs are real
+      try {
+        const devRes = await deviceApi.getDevicesV2({ device_type: deviceType });
+        const realIds = new Set(
+          (devRes.data || []).filter(d => d.isRealDevice).map(d => normalizeId(d.id))
+        );
+        realDeviceIdsRef.current = realIds;
+      } catch (e) {
+        console.warn("Could not fetch device registry for real-device filter:", e);
+      }
+
       const json = await deviceApi.getLiveGpsData({ device_type: deviceType });
       const apiVehicles = (json.data || []).map(mapApiVehicle).filter(Boolean);
       setVehicles(apiVehicles);
@@ -269,6 +282,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
     }
   }, [vehicles.length]);
 
+  // Derive the list of vehicles to render, filtered when showRealOnly is active
+  const visibleVehicles = showRealOnly
+    ? vehicles.filter(v => realDeviceIdsRef.current.has(normalizeId(v.id)))
+    : vehicles;
+
   const markerColor = (status) => {
     const normalized = String(status).toUpperCase();
     if (normalized === "OFFLINE") return "#94a3b8";
@@ -290,6 +308,32 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
           alignItems: "center",
         }}
       >
+        {/* Real Devices Only Banner */}
+        {showRealOnly && (
+          <div style={{
+            position: "absolute",
+            top: "12px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 200,
+            backgroundColor: "#f0fdf4",
+            border: "1.5px solid #22c55e",
+            borderRadius: "9999px",
+            padding: "4px 14px",
+            fontSize: "12px",
+            fontWeight: "700",
+            color: "#15803d",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            boxShadow: "0 2px 8px rgba(34,197,94,0.15)",
+            pointerEvents: "none",
+          }}>
+            <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "#22c55e", display: "inline-block" }} />
+            Showing real devices only ({visibleVehicles.length})
+          </div>
+        )}
+
         {loading && (
           <div
             style={{
@@ -340,7 +384,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
             }}>
               <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "#1e293b" }}>J42 Trackers</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {vehicles.map((v) => (
+                {visibleVehicles.map((v) => (
                   <div
                     key={v.id}
                     onClick={() => {
@@ -380,7 +424,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
                     </div>
                   </div>
                 ))}
-                {vehicles.length === 0 && (
+                {visibleVehicles.length === 0 && (
                   <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>No active J42 trackers found.</div>
                 )}
               </div>
@@ -403,7 +447,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM" }) {
               ],
             }}
           >
-            {vehicles.map((vehicle) => (
+            {visibleVehicles.map((vehicle) => (
               <Marker
                 key={vehicle.id}
                 position={{ lat: vehicle.lat, lng: vehicle.lng }}
