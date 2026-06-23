@@ -1,5 +1,5 @@
 import { Image, PlaySquare, Copy, Check, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -40,6 +40,13 @@ export default function NotificationTable({
   onCategoryChange
 }) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const getProperUrl = (path) => {
     if (!path) return "";
@@ -110,39 +117,55 @@ export default function NotificationTable({
           background: "var(--header-bg)",
           borderBottom: "1px solid var(--surface-border)",
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
-          alignItems: "center",
-          gap: "20px"
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? "12px" : "20px"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: "14px",
-              fontWeight: "700",
-              color: "var(--header-text)",
-              whiteSpace: "nowrap"
-            }}
-          >
-            AI Notifications
-          </h3>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? "12px" : "20px", flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "var(--header-text)",
+                whiteSpace: "nowrap"
+              }}
+            >
+              AI Notifications
+            </h3>
+            {isMobile && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: "var(--header-text)",
+                  opacity: 0.8,
+                  fontWeight: "600",
+                }}
+              >
+                Total: {pagination?.total || alerts.length}
+              </span>
+            )}
+          </div>
 
           <select
             value={filterDeviceId}
             onChange={(e) => onDeviceChange && onDeviceChange(e.target.value)}
             style={{
-              padding: "6px 12px",
+              padding: "8px 12px",
               borderRadius: "8px",
               background: "var(--card-bg)",
               border: "1px solid var(--surface-border)",
               color: "var(--text-primary)",
-              fontSize: "12px",
+              fontSize: "13px",
               fontWeight: "600",
               outline: "none",
               cursor: "pointer",
-              minWidth: "180px",
-              maxWidth: "250px"
+              width: isMobile ? "100%" : "auto",
+              minWidth: isMobile ? "none" : "180px",
+              maxWidth: isMobile ? "none" : "250px"
             }}
           >
             <option value="">-- All AI Dashcams --</option>
@@ -153,66 +176,93 @@ export default function NotificationTable({
             ))}
           </select>
 
-          {/* Category Tabs */}
-          <div style={{ 
-            display: "flex", 
-            gap: "2px", 
-            marginLeft: "24px",
-            background: "rgba(15, 23, 42, 0.45)", // Semi-transparent dark slate
-            padding: "3px",
-            borderRadius: "10px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            flexWrap: "wrap",
-            maxWidth: "720px",
-          }}>
-            {ALERT_CATEGORY_TABS.map(tab => {
-              const active = activeCategory === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => onCategoryChange && onCategoryChange(tab.id)}
-                  style={{
-                    padding: "6px 16px",
-                    borderRadius: "7px",
-                    background: active ? "#ffffff" : "transparent",
-                    color: active ? "#1e293b" : "rgba(255, 255, 255, 0.8)",
-                    border: "none",
-                    fontSize: "11px",
-                    fontWeight: active ? "800" : "600",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    boxShadow: active ? "0 4px 12px rgba(0, 0, 0, 0.2)" : "none",
-                  }}
-                  onMouseOver={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.color = "#ffffff";
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
-                      e.currentTarget.style.background = "transparent";
-                    }
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+          {/* Category Tabs / Dropdown for Mobile */}
+          {isMobile ? (
+            <select
+              value={activeCategory}
+              onChange={(e) => onCategoryChange && onCategoryChange(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                background: "var(--card-bg)",
+                border: "1px solid var(--surface-border)",
+                color: "var(--text-primary)",
+                fontSize: "13px",
+                fontWeight: "600",
+                outline: "none",
+                cursor: "pointer",
+                width: "100%"
+              }}
+            >
+              {ALERT_CATEGORY_TABS.map(tab => (
+                <option key={tab.id} value={tab.id}>
+                  {tab.label === "All Alerts" ? "All Alert Categories" : tab.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div style={{ 
+              display: "flex", 
+              gap: "2px", 
+              marginLeft: "24px",
+              background: "rgba(15, 23, 42, 0.45)", // Semi-transparent dark slate
+              padding: "3px",
+              borderRadius: "10px",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              flexWrap: "wrap",
+              maxWidth: "720px",
+            }}>
+              {ALERT_CATEGORY_TABS.map(tab => {
+                const active = activeCategory === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => onCategoryChange && onCategoryChange(tab.id)}
+                    style={{
+                      padding: "6px 16px",
+                      borderRadius: "7px",
+                      background: active ? "#ffffff" : "transparent",
+                      color: active ? "#1e293b" : "rgba(255, 255, 255, 0.8)",
+                      border: "none",
+                      fontSize: "11px",
+                      fontWeight: active ? "800" : "600",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      boxShadow: active ? "0 4px 12px rgba(0, 0, 0, 0.2)" : "none",
+                    }}
+                    onMouseOver={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.color = "#ffffff";
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
+                        e.currentTarget.style.background = "transparent";
+                      }
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <span
-          style={{
-            fontSize: "11px",
-            color: "var(--header-text)",
-            opacity: 0.8,
-            fontWeight: "600",
-          }}
-        >
-          Total: {pagination?.total || alerts.length}
-        </span>
+        {!isMobile && (
+          <span
+            style={{
+              fontSize: "11px",
+              color: "var(--header-text)",
+              opacity: 0.8,
+              fontWeight: "600",
+            }}
+          >
+            Total: {pagination?.total || alerts.length}
+          </span>
+        )}
       </div>
 
       <div style={{ flex: 1, overflow: "auto" }} className="custom-scrollbar">

@@ -104,6 +104,13 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
   // Tab state: "ai-events" or "system-alerts"
   const [activeTab, setActiveTab] = useState("ai-events");
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // System Alerts state
   const [systemAlerts, setSystemAlerts] = useState([]);
@@ -623,43 +630,71 @@ export default function AiNotifications({ theme, toggleTheme }) {
               flexDirection: "column",
             }}
           >
-            {/* Tab Navigation */}
-            <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
-              <button
-                onClick={() => setActiveTab("ai-events")}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "8px",
-                  background: activeTab === "ai-events" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
-                  color: "#ffffff",
-                  border: activeTab === "ai-events" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
-                  fontWeight: "bold",
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  boxShadow: activeTab === "ai-events" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
-                  transition: "all 0.2s",
-                }}
-              >
-                AI Dashcam Events
-              </button>
-              <button
-                onClick={() => setActiveTab("system-alerts")}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "8px",
-                  background: activeTab === "system-alerts" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
-                  color: "#ffffff",
-                  border: activeTab === "system-alerts" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
-                  fontWeight: "bold",
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  boxShadow: activeTab === "system-alerts" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
-                  transition: "all 0.2s",
-                }}
-              >
-                System Alerts Log
-              </button>
-            </div>
+            {/* Tab Navigation / Dropdown on Mobile */}
+            {isMobile ? (
+              <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>
+                  Select View Mode
+                </label>
+                <select
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    background: "linear-gradient(135deg, #1e293b, #0f172a)",
+                    border: "1.5px solid #3b82f6",
+                    color: "#ffffff",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    outline: "none",
+                    cursor: "pointer",
+                    width: "100%",
+                    boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
+                  }}
+                >
+                  <option value="ai-events">AI Dashcam Events</option>
+                  <option value="system-alerts">System Alerts Log</option>
+                </select>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                <button
+                  onClick={() => setActiveTab("ai-events")}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    background: activeTab === "ai-events" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
+                    color: "#ffffff",
+                    border: activeTab === "ai-events" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+                    fontWeight: "bold",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    boxShadow: activeTab === "ai-events" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  AI Dashcam Events
+                </button>
+                <button
+                  onClick={() => setActiveTab("system-alerts")}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "8px",
+                    background: activeTab === "system-alerts" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
+                    color: "#ffffff",
+                    border: activeTab === "system-alerts" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+                    fontWeight: "bold",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    boxShadow: activeTab === "system-alerts" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  System Alerts Log
+                </button>
+              </div>
+            )}
 
             <div style={{ flex: 1, overflow: "hidden" }}>
               {activeTab === "ai-events" ? (

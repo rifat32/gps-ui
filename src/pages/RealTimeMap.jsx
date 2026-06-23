@@ -5,7 +5,7 @@ import {
   Marker,
   InfoWindow,
 } from "@react-google-maps/api";
-import { Loader2, Bell } from "lucide-react";
+import { Loader2, Bell, ChevronDown, Search, Shield, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 
@@ -138,16 +138,38 @@ const mapSocketVehicle = (update) => {
   };
 };
 
-export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly = false }) {
+export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: initialShowRealOnly = false }) {
   const currentWsUrl = deviceType === "OBD" ? WS_URL_OBD : WS_URL_DASHCAM;
 
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showRealOnly, setShowRealOnly] = useState(initialShowRealOnly);
+  const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
   const mapRef = useRef(null);
   const socketRef = useRef(null);
   const realDeviceIdsRef = useRef(new Set()); // Set of deviceId strings that are real
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDeviceDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const mergeVehicle = (incoming) => {
     if (!incoming) return;
@@ -287,6 +309,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly = 
     ? vehicles.filter(v => realDeviceIdsRef.current.has(normalizeId(v.id)))
     : vehicles;
 
+  const filteredVehiclesForDropdown = visibleVehicles.filter(v =>
+    v.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (v.name && v.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   const markerColor = (status) => {
     const normalized = String(status).toUpperCase();
     if (normalized === "OFFLINE") return "#94a3b8";
@@ -306,6 +333,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly = 
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
+          padding: isMobile ? "0px" : "30px",
+          boxSizing: "border-box"
         }}
       >
         {/* Real Devices Only Banner */}
@@ -359,31 +388,33 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly = 
         <div
           className="realtime-map-card"
           style={{
-            width: "calc(100% - 60px)",
-            height: "calc(100% - 60px)",
+            width: isMobile ? "100%" : "calc(100% - 60px)",
+            height: isMobile ? "100%" : "calc(100% - 60px)",
             backgroundColor: "white",
-            borderRadius: "16px",
-            boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+            borderRadius: isMobile ? "0px" : "16px",
+            boxShadow: isMobile ? "none" : "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
             overflow: "hidden",
-            border: "1px solid #e2e8f0",
+            border: isMobile ? "none" : "1px solid #e2e8f0",
             display: "flex",
-            flexDirection: "row",
+            flexDirection: isMobile ? "column" : "row",
           }}
         >
           {deviceType === "J42" && (
             <div style={{
-              width: "350px",
-              minWidth: "300px",
-              height: "100%",
+              width: isMobile ? "100%" : "350px",
+              minWidth: isMobile ? "100%" : "300px",
+              height: isMobile ? "220px" : "100%",
               backgroundColor: "white",
-              borderRight: "1px solid #e2e8f0",
+              borderRight: isMobile ? "none" : "1px solid #e2e8f0",
+              borderBottom: isMobile ? "1px solid #e2e8f0" : "none",
               display: "flex",
               flexDirection: "column",
               overflowY: "auto",
-              padding: "20px"
+              padding: "16px",
+              boxSizing: "border-box"
             }}>
-              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "#1e293b" }}>J42 Trackers</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <h2 style={{ fontSize: "16px", fontWeight: "700", marginBottom: "12px", color: "#1e293b", marginTop: 0 }}>J42 Trackers</h2>
+              <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: "12px", overflowX: isMobile ? "auto" : "visible" }}>
                 {visibleVehicles.map((v) => (
                   <div
                     key={v.id}
@@ -395,20 +426,22 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly = 
                       }
                     }}
                     style={{
-                      padding: "16px",
+                      padding: "12px",
                       borderRadius: "12px",
                       border: `1px solid ${selectedVehicle?.id === v.id ? "#3b82f6" : "#e2e8f0"}`,
                       backgroundColor: selectedVehicle?.id === v.id ? "#f0f9ff" : "white",
                       cursor: "pointer",
-                      transition: "all 0.2s"
+                      transition: "all 0.2s",
+                      minWidth: isMobile ? "220px" : "auto",
+                      flexShrink: 0
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontWeight: "700", fontSize: "14px", color: "#1e293b" }}>{v.name}</span>
+                      <span style={{ fontWeight: "700", fontSize: "13px", color: "#1e293b" }}>{v.name}</span>
                       <span style={{
-                        fontSize: "10px",
+                        fontSize: "9px",
                         fontWeight: "700",
-                        padding: "2px 8px",
+                        padding: "2px 6px",
                         borderRadius: "9999px",
                         backgroundColor: v.status?.toLowerCase() === "online" || v.status?.toLowerCase() === "moving" || v.status?.toLowerCase() === "stopped" ? "#dcfce7" : "#f1f5f9",
                         color: v.status?.toLowerCase() === "online" || v.status?.toLowerCase() === "moving" || v.status?.toLowerCase() === "stopped" ? "#15803d" : "#475569"
@@ -416,83 +449,277 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly = 
                         {v.status}
                       </span>
                     </div>
-                    <div style={{ fontSize: "12px", color: "#64748b", display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "2px 4px", borderRadius: "4px" }}>{v.id}</code></div>
+                    <div style={{ fontSize: "11px", color: "#64748b", display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "1px 3px", borderRadius: "4px" }}>{v.id}</code></div>
                       <div>Battery: <strong style={{ color: "#0f172a" }}>{getBatteryDisplay(v.batteryVoltage, deviceType)}</strong></div>
-                      <div>Last Seen: {v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}) : "Never"}</div>
+                      <div>Last Seen: {v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "Never"}</div>
                       {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
                     </div>
                   </div>
                 ))}
                 {visibleVehicles.length === 0 && (
-                  <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8" }}>No active J42 trackers found.</div>
+                  <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", width: "100%" }}>No active J42 trackers found.</div>
                 )}
               </div>
             </div>
           )}
 
-          <GoogleMap
-            mapContainerStyle={{ flex: 1, height: "100%" }}
-            center={defaultCenter}
-            zoom={12}
-            onLoad={(map) => (mapRef.current = map)}
-            options={{
-              disableDefaultUI: false,
-              styles: [
-                {
-                  featureType: "poi",
-                  elementType: "labels",
-                  stylers: [{ visibility: "off" }],
-                },
-              ],
-            }}
-          >
-            {visibleVehicles.map((vehicle) => (
-              <Marker
-                key={vehicle.id}
-                position={{ lat: vehicle.lat, lng: vehicle.lng }}
-                onClick={() => setSelectedVehicle(vehicle)}
-                icon={window.google ? {
-                  path: "M25,50 L50,5 L75,50 L50,40 Z",
-                  fillColor: markerColor(vehicle.status),
-                  fillOpacity: 1,
-                  strokeColor: "white",
-                  strokeWeight: 2,
-                  scale: 1,
-                  rotation: vehicle.heading || 0,
-                  anchor: new window.google.maps.Point(50, 25),
-                } : null}
-              />
-            ))}
-
-            {selectedVehicle && (
-              <InfoWindow
-                position={{ lat: selectedVehicle.lat, lng: selectedVehicle.lng }}
-                onCloseClick={() => setSelectedVehicle(null)}
-              >
-                <div style={{ padding: "8px", minWidth: "190px" }}>
-                  <h3 style={{ fontWeight: "bold", marginBottom: "4px" }}>
-                    {selectedVehicle.name}
-                  </h3>
-                  <div style={{ fontSize: "12px", color: "#555" }}>
-                    <p>ID: {selectedVehicle.id}</p>
-                    <p>Speed: {Math.round(selectedVehicle.speed * 0.621371)} mph</p>
-                    <p>
-                      Status:{" "}
-                      <span style={{ color: markerColor(selectedVehicle.status), fontWeight: "bold" }}>
-                        {selectedVehicle.status}
-                      </span>
-                    </p>
-                    {selectedVehicle.batteryVoltage !== undefined && selectedVehicle.batteryVoltage !== null && (
-                      <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType)}</p>
-                    )}
-                    <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
-                    {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
-                  </div>
+          <div style={{ position: "relative", flex: 1, height: "100%" }}>
+            {/* Custom Responsive Controls Bar */}
+            <div style={{
+              position: "absolute",
+              top: "16px",
+              left: "16px",
+              zIndex: 10,
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              gap: "10px",
+              alignItems: isMobile ? "stretch" : "center",
+              width: isMobile ? "calc(100% - 32px)" : "auto",
+              pointerEvents: "none"
+            }}>
+              {/* Device Search Dropdown */}
+              <div ref={dropdownRef} style={{ pointerEvents: "auto", position: "relative", width: isMobile ? "100%" : "260px" }}>
+                <div 
+                  onClick={() => setIsDeviceDropdownOpen(!isDeviceDropdownOpen)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "10px",
+                    border: "1.5px solid #e2e8f0",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    backgroundColor: "white",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
+                    gap: "10px",
+                    minHeight: "38px"
+                  }}
+                >
+                  <span style={{ 
+                    color: selectedVehicle ? "#1e293b" : "#94a3b8",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: isMobile ? "none" : "180px"
+                  }}>
+                    {selectedVehicle ? selectedVehicle.name : `Select ${deviceType === "AI_DASHCAM" ? "Dashcam" : deviceType === "OBD" ? "OBD" : "Tracker"}...`}
+                  </span>
+                  <ChevronDown size={16} color="#64748b" style={{ flexShrink: 0 }} />
                 </div>
-              </InfoWindow>
-            )}
-          </GoogleMap>
+                {isDeviceDropdownOpen && (
+                  <div style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    marginTop: "8px",
+                    backgroundColor: "white",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "12px",
+                    boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)",
+                    zIndex: 110,
+                    maxHeight: "250px",
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden"
+                  }}>
+                    <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0" }}>
+                      <div style={{ position: "relative" }}>
+                        <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                        <input 
+                          type="text" 
+                          placeholder={`Search ${deviceType === "AI_DASHCAM" ? "Dashcam" : deviceType === "OBD" ? "OBD" : "Tracker"}...`}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                          style={{
+                            width: "100%",
+                            padding: "8px 8px 8px 32px",
+                            borderRadius: "8px",
+                            border: "1px solid #e2e8f0",
+                            fontSize: "13px",
+                            backgroundColor: "#f8fafc",
+                            color: "black",
+                            outline: "none",
+                            boxSizing: "border-box"
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ overflowY: "auto", flex: 1 }}>
+                      {filteredVehiclesForDropdown.length > 0 ? (
+                        filteredVehiclesForDropdown.map(v => (
+                          <div 
+                            key={v.id} 
+                            onClick={() => { 
+                              setSelectedVehicle(v); 
+                              setIsDeviceDropdownOpen(false); 
+                              setSearchTerm(""); 
+                              if (mapRef.current) {
+                                mapRef.current.panTo({ lat: v.lat, lng: v.lng });
+                                mapRef.current.setZoom(15);
+                              }
+                            }}
+                            style={{
+                              padding: "10px 14px",
+                              cursor: "pointer",
+                              borderBottom: "1px solid #f1f5f9",
+                              color: "#1e293b",
+                              backgroundColor: selectedVehicle?.id === v.id ? "#f0f9ff" : "transparent",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              transition: "background-color 0.15s"
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = selectedVehicle?.id === v.id ? "#e0f2fe" : "#f8fafc"}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = selectedVehicle?.id === v.id ? "#f0f9ff" : "transparent"}
+                          >
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }}>
+                              <span style={{ fontWeight: "600", fontSize: "13px" }}>{v.name}</span>
+                              <span style={{ fontSize: "11px", color: "#64748b" }}>ID: {v.id}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ 
+                                width: "8px", 
+                                height: "8px", 
+                                borderRadius: "50%", 
+                                backgroundColor: markerColor(v.status) 
+                              }} />
+                              <span style={{ fontSize: "11px", fontWeight: "500", color: "#64748b" }}>{v.status}</span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: "12px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>
+                          No devices found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Real Devices Only Toggle */}
+              <button
+                onClick={() => setShowRealOnly(prev => !prev)}
+                title={showRealOnly ? "Showing real devices only — click to show all" : "Click to show real devices only"}
+                style={{
+                  pointerEvents: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "8px 14px",
+                  height: "38px",
+                  border: `1.5px solid ${showRealOnly ? "#22c55e" : "#e2e8f0"}`,
+                  borderRadius: "10px",
+                  backgroundColor: showRealOnly ? "#f0fdf4" : "white",
+                  cursor: "pointer",
+                  color: showRealOnly ? "#15803d" : "#64748b",
+                  fontWeight: "600",
+                  fontSize: "12px",
+                  transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
+                  boxShadow: showRealOnly ? "0 0 0 3px rgba(34,197,94,0.15)" : "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+                  userSelect: "none",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                <Shield size={14} style={{ flexShrink: 0 }} />
+                {/* Toggle pill */}
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  width: "30px",
+                  height: "16px",
+                  borderRadius: "9999px",
+                  backgroundColor: showRealOnly ? "#22c55e" : "#cbd5e1",
+                  transition: "background-color 0.25s",
+                  position: "relative",
+                  flexShrink: 0,
+                }}>
+                  <span style={{
+                    position: "absolute",
+                    left: showRealOnly ? "15px" : "2px",
+                    width: "12px",
+                    height: "12px",
+                    borderRadius: "50%",
+                    backgroundColor: "white",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    transition: "left 0.25s cubic-bezier(0.4,0,0.2,1)",
+                  }} />
+                </span>
+                <span>Real Devices Only</span>
+              </button>
+            </div>
+
+            <GoogleMap
+              mapContainerStyle={{ width: "100%", height: "100%" }}
+              center={defaultCenter}
+              zoom={12}
+              onLoad={(map) => (mapRef.current = map)}
+              options={{
+                disableDefaultUI: false,
+                styles: [
+                  {
+                    featureType: "poi",
+                    elementType: "labels",
+                    stylers: [{ visibility: "off" }],
+                  },
+                ],
+              }}
+            >
+              {visibleVehicles.map((vehicle) => (
+                <Marker
+                  key={vehicle.id}
+                  position={{ lat: vehicle.lat, lng: vehicle.lng }}
+                  onClick={() => setSelectedVehicle(vehicle)}
+                  icon={window.google ? {
+                    path: "M25,50 L50,5 L75,50 L50,40 Z",
+                    fillColor: markerColor(vehicle.status),
+                    fillOpacity: 1,
+                    strokeColor: "white",
+                    strokeWeight: 2,
+                    scale: 1,
+                    rotation: vehicle.heading || 0,
+                    anchor: new window.google.maps.Point(50, 25),
+                  } : null}
+                />
+              ))}
+
+              {selectedVehicle && (
+                <InfoWindow
+                  position={{ lat: selectedVehicle.lat, lng: selectedVehicle.lng }}
+                  onCloseClick={() => setSelectedVehicle(null)}
+                >
+                  <div style={{ padding: "8px", minWidth: "190px" }}>
+                    <h3 style={{ fontWeight: "bold", marginBottom: "4px" }}>
+                      {selectedVehicle.name}
+                    </h3>
+                    <div style={{ fontSize: "12px", color: "#555" }}>
+                      <p>ID: {selectedVehicle.id}</p>
+                      <p>Speed: {Math.round(selectedVehicle.speed * 0.621371)} mph</p>
+                      <p>
+                        Status:{" "}
+                        <span style={{ color: markerColor(selectedVehicle.status), fontWeight: "bold" }}>
+                          {selectedVehicle.status}
+                        </span>
+                      </p>
+                      {selectedVehicle.batteryVoltage !== undefined && selectedVehicle.batteryVoltage !== null && (
+                        <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType)}</p>
+                      )}
+                      <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
+                      {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
+                    </div>
+                  </div>
+                </InfoWindow>
+              )}
+            </GoogleMap>
+          </div>
 
           <Link
             to="/dashcam"

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Check, CheckCircle2, AlertOctagon, HelpCircle, MapPin } from "lucide-react";
 import { formatDeviceDateTime } from "../utils/deviceTime";
 
@@ -46,6 +46,13 @@ export default function SystemAlertsTable({
   onStatusFilterChange,
   loading,
 }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   return (
     <div
       style={{
@@ -66,53 +73,86 @@ export default function SystemAlertsTable({
           background: "var(--header-bg)",
           borderBottom: "1px solid var(--surface-border)",
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
-          alignItems: "center",
-          gap: "20px",
+          alignItems: isMobile ? "stretch" : "center",
+          gap: isMobile ? "12px" : "20px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: "14px",
-              fontWeight: "700",
-              color: "var(--header-text)",
-            }}
-          >
-            System Alarm Logs
-          </h3>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? "12px" : "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "var(--header-text)",
+              }}
+            >
+              System Alarm Logs
+            </h3>
+            {isMobile && (
+              <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600" }}>
+                Total: {pagination?.total || alerts.length}
+              </span>
+            )}
+          </div>
 
           {/* Status Filters */}
-          <div style={{ display: "flex", gap: "4px", background: "rgba(15, 23, 42, 0.45)", padding: "3px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-            {["UNREAD", "READ", "RESOLVED"].map((status) => {
-              const active = statusFilter === status;
-              return (
-                <button
-                  key={status}
-                  onClick={() => onStatusFilterChange && onStatusFilterChange(status)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    background: active ? "#ffffff" : "transparent",
-                    color: active ? "#1e293b" : "rgba(255, 255, 255, 0.7)",
-                    border: "none",
-                    fontSize: "11px",
-                    fontWeight: active ? "800" : "600",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {status}
-                </button>
-              );
-            })}
-          </div>
+          {isMobile ? (
+            <select
+              value={statusFilter}
+              onChange={(e) => onStatusFilterChange && onStatusFilterChange(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                background: "var(--card-bg)",
+                border: "1px solid var(--surface-border)",
+                color: "var(--text-primary)",
+                fontSize: "13px",
+                fontWeight: "600",
+                outline: "none",
+                cursor: "pointer",
+                width: "100%"
+              }}
+            >
+              <option value="UNREAD">UNREAD</option>
+              <option value="READ">READ</option>
+              <option value="RESOLVED">RESOLVED</option>
+            </select>
+          ) : (
+            <div style={{ display: "flex", gap: "4px", background: "rgba(15, 23, 42, 0.45)", padding: "3px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+              {["UNREAD", "READ", "RESOLVED"].map((status) => {
+                const active = statusFilter === status;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => onStatusFilterChange && onStatusFilterChange(status)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      background: active ? "#ffffff" : "transparent",
+                      color: active ? "#1e293b" : "rgba(255, 255, 255, 0.7)",
+                      border: "none",
+                      fontSize: "11px",
+                      fontWeight: active ? "800" : "600",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {status}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600" }}>
-          Total Alerts: {pagination?.total || alerts.length}
-        </span>
+        {!isMobile && (
+          <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600" }}>
+            Total Alerts: {pagination?.total || alerts.length}
+          </span>
+        )}
       </div>
 
       {/* Table Container */}
