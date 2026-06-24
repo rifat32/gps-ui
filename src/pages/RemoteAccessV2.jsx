@@ -10,6 +10,7 @@ export default function RemoteAccessV2() {
     const [notification, setNotification] = useState(null);
     const [copied, setCopied] = useState(false);
     const [tunnelAge, setTunnelAge] = useState(0); // seconds since tunnel established
+    const [legacy, setLegacy] = useState(false);
     const timerRef = useRef(null);
 
     const showNotification = (message, type = 'success') => {
@@ -49,7 +50,7 @@ export default function RemoteAccessV2() {
         setResult(null);
         showNotification('Sending V2 wake-up command (Self-Hosted FRP) to camera...', 'info');
         try {
-            const res = await deviceApi.triggerRemoteSettingsV2(selectedDevice);
+            const res = await deviceApi.triggerRemoteSettingsV2(selectedDevice, legacy);
             if (res.success) {
                 setResult({ url: res.url, deviceId: selectedDevice });
                 showNotification('V2 Tunnel established! Self-hosted routing link generated.', 'success');
@@ -217,6 +218,20 @@ export default function RemoteAccessV2() {
                             ⚠ This device is offline. The camera may not respond to the wake-up command.
                         </p>
                     )}
+
+                    {/* Legacy mode checkbox */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                        <input
+                            type="checkbox"
+                            id="legacy-mode"
+                            checked={legacy}
+                            onChange={e => setLegacy(e.target.checked)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="legacy-mode" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary, #f1f1f1)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            Use Legacy FRP Version (for older camera firmware)
+                        </label>
+                    </div>
                 </div>
 
                 {/* Generate Button */}

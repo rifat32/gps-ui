@@ -531,8 +531,8 @@ const deviceApi = {
   },
 
   // Trigger FRP tunnel V2 (Self-Hosted)
-  triggerRemoteSettingsV2: async (deviceId) => {
-    const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings-v2`, {
+  triggerRemoteSettingsV2: async (deviceId, legacy = false) => {
+    const response = await fetchWithAuth(`${BASE_URL}/api/v2/devices/${deviceId}/remote-settings-v2?legacy=${legacy}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
