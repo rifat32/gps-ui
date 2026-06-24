@@ -179,6 +179,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          media_files: event.media_files,
         };
       });
       setAlerts(formatted);
@@ -297,6 +298,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          media_files: event.media_files,
         };
         return [newAlert, ...prev].slice(0, paginationRef.current.perPage);
       });
@@ -311,12 +313,37 @@ export default function AiNotifications({ theme, toggleTheme }) {
               alert.id === data.serial_no ||
               alert.serial_no === data.serial_no)
           ) {
+            const newFields = {};
+            const mediaList = (() => {
+              if (!alert.media_files) return [];
+              let parsed = alert.media_files;
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } catch (e) { return []; }
+              }
+              return Array.isArray(parsed) ? [...parsed] : [];
+            })();
+
+            const cols = ['file_path', 'video_path', 'file_path_back', 'video_path_back'];
+            for (const col of cols) {
+              if (data[col]) {
+                newFields[col] = data[col];
+                const exists = mediaList.some(m => m.path === data[col]);
+                if (!exists) {
+                  mediaList.push({
+                    path: data[col],
+                    column: col,
+                    channel: col.includes('back') ? 2 : 1,
+                    media_type: col.includes('file') ? 'image' : 'video',
+                    saved_at: new Date().toISOString()
+                  });
+                }
+              }
+            }
+
             return {
               ...alert,
-              file_path: data.file_path || alert.file_path,
-              video_path: data.video_path || alert.video_path,
-              file_path_back: data.file_path_back || alert.file_path_back,
-              video_path_back: data.video_path_back || alert.video_path_back,
+              ...newFields,
+              media_files: mediaList,
             };
           }
           return alert;

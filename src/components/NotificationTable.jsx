@@ -297,7 +297,48 @@ export default function NotificationTable({
           </thead>
           <tbody>
             {alerts.length > 0 ? (
-              alerts.map((alert) => (
+            alerts.map((alert) => {
+              const mediaList = (() => {
+                if (!alert.media_files) return [];
+                let parsed = alert.media_files;
+                if (typeof parsed === 'string') {
+                  try {
+                    parsed = JSON.parse(parsed);
+                  } catch (e) {
+                    return [];
+                  }
+                }
+                return Array.isArray(parsed) ? parsed : [];
+              })();
+
+              const normalizedMediaList = [...mediaList];
+              const addIfMissing = (path, col, channel, type) => {
+                if (path && !normalizedMediaList.some(m => m.path === path)) {
+                  normalizedMediaList.push({
+                    path,
+                    column: col,
+                    channel,
+                    media_type: type,
+                    file_name: path.split('/').pop()
+                  });
+                }
+              };
+              addIfMissing(alert.file_path, 'file_path', 1, 'image');
+              addIfMissing(alert.video_path, 'video_path', 1, 'video');
+              addIfMissing(alert.file_path_back, 'file_path_back', 2, 'image');
+              addIfMissing(alert.video_path_back, 'video_path_back', 2, 'video');
+
+              const frontImages = normalizedMediaList.filter(m => m.channel === 1 && m.media_type === 'image');
+              const frontVideos = normalizedMediaList.filter(m => m.channel === 1 && m.media_type === 'video');
+              const cabinImages = normalizedMediaList.filter(m => m.channel === 2 && m.media_type === 'image');
+              const cabinVideos = normalizedMediaList.filter(m => m.channel === 2 && m.media_type === 'video');
+
+              const filePath = frontImages[0]?.path || null;
+              const videoPath = frontVideos[0]?.path || null;
+              const filePathBack = cabinImages[0]?.path || null;
+              const videoPathBack = cabinVideos[0]?.path || null;
+
+              return (
                 <tr
                   key={alert.id}
                   className="table-row-hover"
@@ -375,16 +416,18 @@ export default function NotificationTable({
                   </td>
                   <td style={tdStyle}>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                      {alert.file_path ? (
+                      {frontImages.length > 0 ? (
                         <button
                           onClick={() =>
                             onOpenMedia &&
                             onOpenMedia({
-                              url: getProperUrl(alert.file_path),
-                              title: `${alert.message || alert.friendly_name} (Front)`,
+                              url: getProperUrl(frontImages[0].path),
+                              title: `${alert.message || alert.friendly_name} (Front Image)`,
                               time: alert.time,
                               deviceId: alert.deviceId,
                               type: "image",
+                              mediaList: normalizedMediaList,
+                              initialIndex: normalizedMediaList.indexOf(frontImages[0])
                             })
                           }
                           className="media-btn image"
@@ -397,16 +440,18 @@ export default function NotificationTable({
                           <Image size={14} />
                         </div>
                       )}
-                      {alert.video_path ? (
+                      {frontVideos.length > 0 ? (
                         <button
                           onClick={() =>
                             onOpenMedia &&
                             onOpenMedia({
-                              url: getProperUrl(alert.video_path),
-                              title: `${alert.message || alert.friendly_name} (Front)`,
+                              url: getProperUrl(frontVideos[0].path),
+                              title: `${alert.message || alert.friendly_name} (Front Video)`,
                               time: alert.time,
                               deviceId: alert.deviceId,
                               type: "video",
+                              mediaList: normalizedMediaList,
+                              initialIndex: normalizedMediaList.indexOf(frontVideos[0])
                             })
                           }
                           className="media-btn video"
@@ -420,16 +465,18 @@ export default function NotificationTable({
                         </div>
                       )}
 
-                      {alert.file_path_back ? (
+                      {cabinImages.length > 0 ? (
                         <button
                           onClick={() =>
                             onOpenMedia &&
                             onOpenMedia({
-                              url: getProperUrl(alert.file_path_back),
-                              title: `${alert.message || alert.friendly_name} (Cabin/Back)`,
+                              url: getProperUrl(cabinImages[0].path),
+                              title: `${alert.message || alert.friendly_name} (Cabin/Back Image)`,
                               time: alert.time,
                               deviceId: alert.deviceId,
                               type: "image",
+                              mediaList: normalizedMediaList,
+                              initialIndex: normalizedMediaList.indexOf(cabinImages[0])
                             })
                           }
                           className="media-btn cabin-image"
@@ -443,16 +490,18 @@ export default function NotificationTable({
                         </div>
                       )}
 
-                      {alert.video_path_back ? (
+                      {cabinVideos.length > 0 ? (
                         <button
                           onClick={() =>
                             onOpenMedia &&
                             onOpenMedia({
-                              url: getProperUrl(alert.video_path_back),
-                              title: `${alert.message || alert.friendly_name} (Cabin/Back)`,
+                              url: getProperUrl(cabinVideos[0].path),
+                              title: `${alert.message || alert.friendly_name} (Cabin/Back Video)`,
                               time: alert.time,
                               deviceId: alert.deviceId,
                               type: "video",
+                              mediaList: normalizedMediaList,
+                              initialIndex: normalizedMediaList.indexOf(cabinVideos[0])
                             })
                           }
                           className="media-btn cabin-video"
@@ -469,10 +518,10 @@ export default function NotificationTable({
                   </td>
                   <td style={tdStyle}>
                     <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                      {alert.file_path && (
+                      {filePath && (
                         <button
                           onClick={() =>
-                            handleCopy(alert.file_path, alert.id, "image")
+                            handleCopy(filePath, alert.id, "image")
                           }
                           style={{
                             background: "transparent",
@@ -498,10 +547,10 @@ export default function NotificationTable({
                           Front Image
                         </button>
                       )}
-                      {alert.video_path && (
+                      {videoPath && (
                         <button
                           onClick={() =>
-                            handleCopy(alert.video_path, alert.id, "video")
+                            handleCopy(videoPath, alert.id, "video")
                           }
                           style={{
                             background: "transparent",
@@ -528,10 +577,10 @@ export default function NotificationTable({
                         </button>
                       )}
 
-                      {alert.file_path_back && (
+                      {filePathBack && (
                         <button
                           onClick={() =>
-                            handleCopy(alert.file_path_back, alert.id, "image_back")
+                            handleCopy(filePathBack, alert.id, "image_back")
                           }
                           style={{
                             background: "transparent",
@@ -557,10 +606,10 @@ export default function NotificationTable({
                           Cabin Image
                         </button>
                       )}
-                      {alert.video_path_back && (
+                      {videoPathBack && (
                         <button
                           onClick={() =>
-                            handleCopy(alert.video_path_back, alert.id, "video_back")
+                            handleCopy(videoPathBack, alert.id, "video_back")
                           }
                           style={{
                             background: "transparent",
@@ -587,7 +636,7 @@ export default function NotificationTable({
                         </button>
                       )}
 
-                      {!alert.file_path && !alert.video_path && !alert.file_path_back && !alert.video_path_back && (
+                      {!filePath && !videoPath && !filePathBack && !videoPathBack && (
                         <span style={{ color: "#475569", fontSize: "11px" }}>
                           No Links
                         </span>
@@ -595,7 +644,8 @@ export default function NotificationTable({
                     </div>
                   </td>
                 </tr>
-              ))
+              );
+            })
             ) : (
               <tr>
                 <td
