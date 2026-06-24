@@ -1,4 +1,4 @@
-import { Image, PlaySquare, Copy, Check, ExternalLink, Eye } from "lucide-react";
+import { Image, PlaySquare, Copy, Check, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -415,62 +415,103 @@ export default function NotificationTable({
                     </div>
                   </td>
                   <td style={tdStyle}>
-                    <div style={{ display: "flex", justifyContent: "center" }}>
-                      {normalizedMediaList.length > 0 ? (
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      {frontImages.length > 0 ? (
                         <button
                           onClick={() =>
                             onOpenMedia &&
                             onOpenMedia({
-                              url: getProperUrl(normalizedMediaList[0].path),
-                              title: `${alert.message || alert.friendly_name} (${normalizedMediaList[0].channel === 2 ? 'Cabin' : 'Front'} ${normalizedMediaList[0].media_type === 'video' ? 'Video' : 'Image'})`,
+                              url: getProperUrl(frontImages[0].path),
+                              title: `${alert.message || alert.friendly_name} (Front Image)`,
                               time: alert.time,
                               deviceId: alert.deviceId,
-                              type: normalizedMediaList[0].media_type,
+                              type: "image",
                               mediaList: normalizedMediaList,
-                              initialIndex: 0
+                              initialIndex: normalizedMediaList.indexOf(frontImages[0])
                             })
                           }
-                          className="media-btn view-all"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: "#1e293b",
-                            border: "1px solid #334155",
-                            borderRadius: "6px",
-                            padding: "6px 12px",
-                            color: "#38bdf8",
-                            cursor: "pointer",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            gap: "6px",
-                            transition: "all 0.2s"
-                          }}
-                          title={`View Media (${normalizedMediaList.length} files)`}
+                          className="media-btn image"
+                          title="View Front Image"
                         >
-                          <Eye size={14} />
-                          <span>View ({normalizedMediaList.length})</span>
+                          <Image size={14} />
                         </button>
                       ) : (
-                        <div
-                          className="media-btn disabled"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: "#0f172a",
-                            border: "1px solid #1e293b",
-                            borderRadius: "6px",
-                            padding: "6px 12px",
-                            color: "#475569",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            gap: "6px"
-                          }}
-                          title="No Media Available"
+                        <div className="media-btn disabled" title="No Front Image">
+                          <Image size={14} />
+                        </div>
+                      )}
+                      {frontVideos.length > 0 ? (
+                        <button
+                          onClick={() =>
+                            onOpenMedia &&
+                            onOpenMedia({
+                              url: getProperUrl(frontVideos[0].path),
+                              title: `${alert.message || alert.friendly_name} (Front Video)`,
+                              time: alert.time,
+                              deviceId: alert.deviceId,
+                              type: "video",
+                              mediaList: normalizedMediaList,
+                              initialIndex: normalizedMediaList.indexOf(frontVideos[0])
+                            })
+                          }
+                          className="media-btn video"
+                          title="Play Front Video"
                         >
-                          <Eye size={14} />
-                          <span>No Media</span>
+                          <PlaySquare size={14} />
+                        </button>
+                      ) : (
+                        <div className="media-btn disabled" title="No Front Video">
+                          <PlaySquare size={14} />
+                        </div>
+                      )}
+
+                      {cabinImages.length > 0 ? (
+                        <button
+                          onClick={() =>
+                            onOpenMedia &&
+                            onOpenMedia({
+                              url: getProperUrl(cabinImages[0].path),
+                              title: `${alert.message || alert.friendly_name} (Cabin/Back Image)`,
+                              time: alert.time,
+                              deviceId: alert.deviceId,
+                              type: "image",
+                              mediaList: normalizedMediaList,
+                              initialIndex: normalizedMediaList.indexOf(cabinImages[0])
+                            })
+                          }
+                          className="media-btn cabin-image"
+                          title="View Cabin Image"
+                        >
+                          <Image size={14} />
+                        </button>
+                      ) : (
+                        <div className="media-btn disabled" title="No Cabin Image">
+                          <Image size={14} />
+                        </div>
+                      )}
+
+                      {cabinVideos.length > 0 ? (
+                        <button
+                          onClick={() =>
+                            onOpenMedia &&
+                            onOpenMedia({
+                              url: getProperUrl(cabinVideos[0].path),
+                              title: `${alert.message || alert.friendly_name} (Cabin/Back Video)`,
+                              time: alert.time,
+                              deviceId: alert.deviceId,
+                              type: "video",
+                              mediaList: normalizedMediaList,
+                              initialIndex: normalizedMediaList.indexOf(cabinVideos[0])
+                            })
+                          }
+                          className="media-btn cabin-video"
+                          title="Play Cabin Video"
+                        >
+                          <PlaySquare size={14} />
+                        </button>
+                      ) : (
+                        <div className="media-btn disabled" title="No Cabin Video">
+                          <PlaySquare size={14} />
                         </div>
                       )}
                     </div>
