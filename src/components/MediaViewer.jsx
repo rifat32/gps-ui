@@ -61,9 +61,6 @@ export default function MediaViewer({ media, onClose }) {
   const getFullUrl = (path) => {
     if (!path) return "";
     let url = path.startsWith("http") ? path : `${baseUrl}/${path}`;
-    if (url.includes("downloads/")) {
-      url = url.replace(":8040", ":4020");
-    }
     if (url.includes("downloads/") && !url.includes("?token=")) {
       try {
         const userStr = localStorage.getItem("user");
