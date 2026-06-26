@@ -88,7 +88,7 @@ export default function ObdLive({ theme }) {
   const [bearing, setBearing] = useState(0);
 
   useEffect(() => {
-    if (!selected || !deviceData || !window.google) {
+    if (!selected || !deviceData) {
       setResolvedAddress("");
       return;
     }
@@ -98,18 +98,26 @@ export default function ObdLive({ theme }) {
       setResolvedAddress("");
       return;
     }
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode(
-      { location: { lat, lng } },
-      (results, status) => {
-        if (status === "OK" && results[0]) {
-          setResolvedAddress(results[0].formatted_address);
-        } else {
-          console.warn("Geocoding failed with status:", status);
-          setResolvedAddress(`Address not available (${status})`);
-        }
+    setResolvedAddress("Loading...");
+    const fetchAddress = async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2`,
+          {
+            headers: {
+              "User-Agent": "FleetManagement/1.0"
+            }
+          }
+        );
+        if (!response.ok) throw new Error("Failed to fetch address");
+        const data = await response.json();
+        setResolvedAddress(data.display_name || "Address not available");
+      } catch (e) {
+        console.warn("Geocoding failed:", e);
+        setResolvedAddress("Address not available");
       }
-    );
+    };
+    fetchAddress();
   }, [selected, deviceData]);
 
   useEffect(() => {

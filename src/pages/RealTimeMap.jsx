@@ -173,22 +173,30 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
   }, []);
 
   useEffect(() => {
-    if (!selectedVehicle || !window.google) {
+    if (!selectedVehicle) {
       setResolvedAddress("");
       return;
     }
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode(
-      { location: { lat: selectedVehicle.lat, lng: selectedVehicle.lng } },
-      (results, status) => {
-        if (status === "OK" && results[0]) {
-          setResolvedAddress(results[0].formatted_address);
-        } else {
-          console.warn("Geocoding failed with status:", status);
-          setResolvedAddress(`Address not available (${status})`);
-        }
+    setResolvedAddress("Loading...");
+    const fetchAddress = async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${selectedVehicle.lat}&lon=${selectedVehicle.lng}&format=jsonv2`,
+          {
+            headers: {
+              "User-Agent": "FleetManagement/1.0"
+            }
+          }
+        );
+        if (!response.ok) throw new Error("Failed to fetch address");
+        const data = await response.json();
+        setResolvedAddress(data.display_name || "Address not available");
+      } catch (e) {
+        console.warn("Geocoding failed:", e);
+        setResolvedAddress("Address not available");
       }
-    );
+    };
+    fetchAddress();
   }, [selectedVehicle]);
 
   const mergeVehicle = (incoming) => {
