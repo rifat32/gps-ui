@@ -644,6 +644,60 @@ const deviceApi = {
     const res = await fetchGraphql(mutation, { id });
     return res.markAlertEventAsResolved;
   },
+
+  getLatestAlertsForDevices: async (deviceIds) => {
+    if (!deviceIds || deviceIds.length === 0) return { success: true, data: {} };
+    
+    const queryFields = deviceIds.map((id, index) => `
+      dev_${index}: getAllAlertEvents(alertEventQueryInput: { deviceId: "${id}", pagination: { limit: 1 } }) {
+        success
+        data {
+          id
+          alertPolicyId
+          alertPolicyName
+          eventType
+          severity
+          status
+          deviceId
+          vehicleId
+          driverId
+          licensePlate
+          driverName
+          latitude
+          longitude
+          speed
+          heading
+          acceleration
+          eventTime
+          metadata
+          createdAt
+          readAt
+          resolvedAt
+        }
+      }
+    `).join('\n');
+
+    const query = `
+      query GetLatestAlertsForEachDevice {
+        ${queryFields}
+      }
+    `;
+
+    try {
+      const data = await fetchGraphql(query, {});
+      const alertsMap = {};
+      deviceIds.forEach((id, index) => {
+        const res = data[`dev_${index}`];
+        if (res && res.success && res.data && res.data.length > 0) {
+          alertsMap[id] = res.data[0];
+        }
+      });
+      return { success: true, data: alertsMap };
+    } catch (err) {
+      console.error("Failed to query latest alerts for devices", err);
+      return { success: false, error: err.message };
+    }
+  },
 };
 
 export default deviceApi;

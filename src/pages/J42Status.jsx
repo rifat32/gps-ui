@@ -103,18 +103,43 @@ export default function J42Status({ theme }) {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deviceAlerts, setDeviceAlerts] = useState({});
+  const [lastGlobalAlert, setLastGlobalAlert] = useState(null);
 
   const fetchDevices = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const response = await deviceApi.getDevicesV2();
-      if (response.success) {
+      const deviceResponse = await deviceApi.getDevicesV2();
+
+      if (deviceResponse.success) {
         // Filter specifically for J42 devices
-        const j42Devices = response.data.filter(d => d.device_type === "J42");
+        const j42Devices = deviceResponse.data.filter(d => d.device_type === "J42");
         setDevices(j42Devices);
         setError(null);
+
+        // Fetch latest alerts for all these J42 devices in parallel/batch
+        if (j42Devices.length > 0) {
+          const deviceIds = j42Devices.map(d => d.id);
+          const alertsResponse = await deviceApi.getLatestAlertsForDevices(deviceIds);
+
+          if (alertsResponse.success) {
+            const alertsMap = alertsResponse.data || {};
+            setDeviceAlerts(alertsMap);
+
+            // Find the most recent overall alert from J42 devices
+            const alertsList = Object.values(alertsMap);
+            if (alertsList.length > 0) {
+              const sorted = [...alertsList].sort(
+                (a, b) => new Date(b.eventTime) - new Date(a.eventTime)
+              );
+              setLastGlobalAlert(sorted[0]);
+            } else {
+              setLastGlobalAlert(null);
+            }
+          }
+        }
       } else {
-        throw new Error(response.message || "Failed to load devices");
+        throw new Error(deviceResponse.message || "Failed to load devices");
       }
     } catch (err) {
       setError(err.message || "Could not retrieve tracker telemetry data.");
@@ -139,6 +164,7 @@ export default function J42Status({ theme }) {
     setIsRefreshing(true);
     fetchDevices(false);
   };
+
 
   const filteredDevices = devices.filter(
     (device) =>
@@ -168,6 +194,58 @@ export default function J42Status({ theme }) {
           </button>
         </div>
       </div>
+
+      {/* Latest Alert Banner */}
+      {lastGlobalAlert && (() => {
+        const globalAlertDevice = devices.find(d => d.id === lastGlobalAlert.deviceId);
+        const globalAlertDeviceName = globalAlertDevice ? globalAlertDevice.name : lastGlobalAlert.deviceId;
+        return (
+          <div className="last-alert-banner glass-panel animate-fade-in" style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            padding: "1rem 1.5rem",
+            marginBottom: "1.5rem",
+            background: lastGlobalAlert.severity === "CRITICAL" 
+              ? "rgba(239, 68, 68, 0.08)" 
+              : "rgba(245, 158, 11, 0.08)",
+            border: `1px solid ${lastGlobalAlert.severity === "CRITICAL" ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)"}`,
+            borderRadius: "12px",
+            color: lastGlobalAlert.severity === "CRITICAL" ? "#ef4444" : "#f59e0b"
+          }}>
+            <AlertCircle size={20} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: "0.875rem" }}>
+              <span style={{ fontWeight: 700, textTransform: "uppercase", marginRight: "0.5rem" }}>
+                Last Alert:
+              </span>
+              <span style={{ fontWeight: 600, color: theme === "dark" ? "#f8fafc" : "#0f172a" }}>
+                {lastGlobalAlert.eventType?.replace(/_/g, " ")}
+              </span>
+              <span style={{ margin: "0 0.5rem", color: "#64748b" }}>•</span>
+              <span style={{ color: "#64748b" }}>Device:</span> <strong style={{ color: theme === "dark" ? "#f8fafc" : "#0f172a" }}>{globalAlertDeviceName}</strong>
+              {lastGlobalAlert.licensePlate && (
+                <>
+                  <span style={{ margin: "0 0.5rem", color: "#64748b" }}>•</span>
+                  <span style={{ color: "#64748b" }}>Vehicle:</span> <strong style={{ color: theme === "dark" ? "#f8fafc" : "#0f172a" }}>{lastGlobalAlert.licensePlate}</strong>
+                </>
+              )}
+              <span style={{ margin: "0 0.5rem", color: "#64748b" }}>•</span>
+              <span style={{ color: "#64748b" }}>{new Date(lastGlobalAlert.eventTime).toLocaleString()}</span>
+            </div>
+            <div className="status-badge" style={{ 
+              background: lastGlobalAlert.status === "UNREAD" ? "rgba(59, 130, 246, 0.15)" : "rgba(148, 163, 184, 0.15)",
+              color: lastGlobalAlert.status === "UNREAD" ? "#3b82f6" : "#64748b",
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              border: "none",
+              padding: "0.25rem 0.5rem",
+              borderRadius: "6px"
+            }}>
+              {lastGlobalAlert.status}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Control Filters */}
       <div className="controls-section glass-panel animate-fade-in">
@@ -289,7 +367,35 @@ export default function J42Status({ theme }) {
                     */}
                   </div>
 
-                  <div className="info-item full-width last-seen-item">
+                  {/* Device Last Alert */}
+                  {(() => {
+                    const deviceAlert = deviceAlerts[device.id];
+                    return deviceAlert ? (
+                      <div className="info-item full-width last-seen-item" style={{ borderTop: "1px dashed rgba(0, 0, 0, 0.05)", marginTop: "0.5rem", paddingTop: "0.5rem" }}>
+                        <span className="label"><AlertCircle size={12} className="inline mr-1" /> Last Alert</span>
+                        <span className="value" style={{ 
+                          color: deviceAlert.severity === "CRITICAL" ? "#ef4444" : "#f59e0b", 
+                          fontWeight: 600,
+                          fontSize: "0.8125rem",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between"
+                        }}>
+                          <span>{deviceAlert.eventType?.replace(/_/g, ' ')}</span>
+                          <span style={{ fontSize: "0.6875rem", color: "#64748b", fontWeight: 400 }}>
+                            {new Date(deviceAlert.eventTime).toLocaleDateString()}
+                          </span>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="info-item full-width last-seen-item" style={{ borderTop: "1px dashed rgba(0, 0, 0, 0.05)", marginTop: "0.5rem", paddingTop: "0.5rem" }}>
+                        <span className="label"><AlertCircle size={12} className="inline mr-1" /> Last Alert</span>
+                        <span className="value" style={{ color: "#94a3b8", fontSize: "0.8125rem" }}>No recent alerts</span>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="info-item full-width last-seen-item" style={{ marginTop: "0.5rem", paddingTop: "0.5rem" }}>
                     <span className="label"><Clock size={12} className="inline mr-1" /> Last Report</span>
                     <span className="value">{device.lastSeen}</span>
                   </div>
