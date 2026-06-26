@@ -143,6 +143,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
 
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [resolvedAddress, setResolvedAddress] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showRealOnly, setShowRealOnly] = useState(initialShowRealOnly);
@@ -170,6 +171,25 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!selectedVehicle || !window.google) {
+      setResolvedAddress("");
+      return;
+    }
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode(
+      { location: { lat: selectedVehicle.lat, lng: selectedVehicle.lng } },
+      (results, status) => {
+        if (status === "OK" && results[0]) {
+          setResolvedAddress(results[0].formatted_address);
+        } else {
+          console.warn("Geocoding failed with status:", status);
+          setResolvedAddress(`Address not available (${status})`);
+        }
+      }
+    );
+  }, [selectedVehicle]);
 
   const mergeVehicle = (incoming) => {
     if (!incoming) return;
@@ -714,6 +734,9 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                       )}
                       <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
                       {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
+                      <p style={{ marginTop: "6px", borderTop: "1px dashed #e2e8f0", paddingTop: "6px" }}>
+                        <strong>Address:</strong> {resolvedAddress || "Loading..."}
+                      </p>
                     </div>
                   </div>
                 </InfoWindow>

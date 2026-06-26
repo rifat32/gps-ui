@@ -81,10 +81,36 @@ export default function ObdLive({ theme }) {
   const [isOnline, setIsOnline] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(true);
+  const [resolvedAddress, setResolvedAddress] = useState("");
   const mapRef = useRef(null);
   const socketRef = useRef(null);
   const prevPosRef = useRef(null);
   const [bearing, setBearing] = useState(0);
+
+  useEffect(() => {
+    if (!selected || !deviceData || !window.google) {
+      setResolvedAddress("");
+      return;
+    }
+    const lat = parseFloat(deviceData.lat || deviceData.latitude);
+    const lng = parseFloat(deviceData.lng || deviceData.longitude);
+    if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+      setResolvedAddress("");
+      return;
+    }
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode(
+      { location: { lat, lng } },
+      (results, status) => {
+        if (status === "OK" && results[0]) {
+          setResolvedAddress(results[0].formatted_address);
+        } else {
+          console.warn("Geocoding failed with status:", status);
+          setResolvedAddress(`Address not available (${status})`);
+        }
+      }
+    );
+  }, [selected, deviceData]);
 
   useEffect(() => {
     socketRef.current = import.meta.env.VITE_SERVER_TYPE === "new"
@@ -320,9 +346,10 @@ export default function ObdLive({ theme }) {
                                 position={{ lat: deviceData.lat, lng: deviceData.lng }}
                                 onCloseClick={() => setSelected(false)}
                             >
-                                <div style={{ padding: "5px" }}>
+                                <div style={{ padding: "5px", minWidth: "150px" }}>
                                     <strong>Device ID:</strong> {activeDeviceId}<br/>
-                                    <strong>Speed:</strong> {Math.round((deviceData.speed || 0) * 0.621371)} mph
+                                    <strong>Speed:</strong> {Math.round((deviceData.speed || 0) * 0.621371)} mph<br/>
+                                    <strong>Address:</strong> {resolvedAddress || "Loading..."}
                                 </div>
                             </InfoWindow>
                         )}
