@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Folder, File, ImageIcon, Video, ChevronRight, Home, RefreshCw, ArrowLeft, Download, Maximize2 } from "lucide-react";
 import "./MediaGallery.css";
 
-const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
 
 const MediaGallery = () => {
     const [currentPath, setCurrentPath] = useState("");
