@@ -28,7 +28,7 @@ import deviceApi from "../services/deviceApi";
 // 1. CONFIGURATION
 // =========================================================================
 const GOOGLE_MAP_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
-const DASHCAM_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const DASHCAM_API_BASE_URL = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_API_BASE_URL;
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 const defaultCenter = { lat: 51.5074, lng: -0.1278 };

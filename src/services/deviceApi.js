@@ -1,7 +1,7 @@
 import { formatDeviceDateTime } from "../utils/deviceTime";
 import { GRAPHQL_URL } from "./authApi";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const BASE_URL = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_API_BASE_URL || "";
 const OBD_API_BASE_URL = import.meta.env.VITE_OBD_API_URL || "";
 
 const getAuthHeaders = (extraHeaders = {}) => {

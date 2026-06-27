@@ -25,7 +25,7 @@ import NotificationTable from "../components/NotificationTable";
 import SystemAlertsTable from "../components/SystemAlertsTable";
 import deviceApi from "../services/deviceApi";
 
-const WS_URL = import.meta.env.VITE_WS_URL;
+const WS_URL = import.meta.env.VITE_DASHCAM_WS_URL || import.meta.env.VITE_WS_URL;
 
 // Mock Data
 const MOCK_ALERTS = [

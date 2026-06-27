@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 import deviceApi from "../services/deviceApi";
 import DeviceCard from "../components/DeviceCard";
 
-const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
+const API_URL = `${import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_API_BASE_URL}/api/live/gps`;
 
 // Helpers for data formatting
 const formatTimestamp = (ts) => {
