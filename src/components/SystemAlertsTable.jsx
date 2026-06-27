@@ -151,9 +151,13 @@ export default function SystemAlertsTable({
               <option value="">All Devices</option>
               {(() => {
                 console.log("SystemAlertsTable devicesList:", devicesList, "typeFilter:", deviceTypeFilter);
-                return (devicesList || [])
-                  .filter((d) => d.deviceType === deviceTypeFilter || (deviceTypeFilter === "J42" && d.deviceType === "TRACKER"))
-                  .map((d) => (
+                if (devicesList && devicesList.length > 0) {
+                  console.log("First device keys & values:", Object.keys(devicesList[0]), "deviceType:", devicesList[0].deviceType, "typeFilter:", deviceTypeFilter);
+                }
+                const filtered = (devicesList || [])
+                  .filter((d) => d.deviceType === deviceTypeFilter || (deviceTypeFilter === "J42" && d.deviceType === "TRACKER"));
+                console.log("Filtered devices:", filtered);
+                return filtered.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
                       {d.name || d.deviceId}
                     </option>
