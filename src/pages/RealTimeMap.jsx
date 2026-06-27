@@ -150,9 +150,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
   const [isDeviceDropdownOpen, setIsDeviceDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
 
   const mapRef = useRef(null);
   const socketRef = useRef(null);
+  const alertsSocketRef = useRef(null);
   const realDeviceIdsRef = useRef(new Set()); // Set of deviceId strings that are real
   const dropdownRef = useRef(null);
 
@@ -303,8 +305,59 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       );
     }, 60000);
 
+    // Fetch initial unread alerts count
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await deviceApi.getAlertEvents({ page: 1, perPage: 1, status: "UNREAD" });
+        if (res && res.success && res.meta) {
+          setUnreadAlertsCount(res.meta.total);
+        }
+      } catch (err) {
+        console.error("Failed to fetch initial unread alerts count:", err);
+      }
+    };
+    fetchUnreadCount();
+
+    // Setup alerts socket for real-time counts
+    let alertsSocketUrl = WS_URL_DASHCAM || "http://77.68.52.203";
+    let alertsSocketPath = "/socket.io";
+
+    // Retrieve token for authentication
+    const userStr = localStorage.getItem("user");
+    let token = null;
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        token = user.accessToken || user.token;
+      } catch (e) {
+        console.error("Error parsing user for alerts socket:", e);
+      }
+    }
+
+    const alertsSocket = io(alertsSocketUrl, {
+      path: alertsSocketPath,
+      reconnectionAttempts: 10,
+      auth: token ? { token } : undefined,
+      transports: ["websocket", "polling"],
+    });
+
+    alertsSocketRef.current = alertsSocket;
+
+    alertsSocket.on("connect", () => {
+      alertsSocket.emit("alert:subscribe");
+    });
+
+    const handleSystemAlert = (alert) => {
+      console.log("Real-time alert received on map:", alert);
+      setUnreadAlertsCount((prev) => prev + 1);
+    };
+
+    alertsSocket.on("alert_notification", handleSystemAlert);
+    alertsSocket.on("alert:event", handleSystemAlert);
+
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
+      if (alertsSocketRef.current) alertsSocketRef.current.disconnect();
       clearInterval(stalenessInterval);
     };
   }, [deviceType, currentWsUrl]);
@@ -753,7 +806,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
           </div>
 
           <Link
-            to="/dashcam"
+            to="/ai-notifications"
             style={{
               position: "fixed",
               bottom: "24px",
@@ -774,7 +827,26 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
             onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
             onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
-            <Bell size={20} />
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <Bell size={20} />
+              {unreadAlertsCount > 0 && (
+                <span style={{
+                  position: "absolute",
+                  top: "-8px",
+                  right: "-8px",
+                  backgroundColor: "#ef4444",
+                  color: "white",
+                  borderRadius: "50%",
+                  padding: "2px 6px",
+                  fontSize: "10px",
+                  fontWeight: "bold",
+                  minWidth: "16px",
+                  textAlign: "center"
+                }}>
+                  {unreadAlertsCount}
+                </span>
+              )}
+            </div>
             AI Notifications
           </Link>
         </div>

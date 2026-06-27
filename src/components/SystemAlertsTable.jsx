@@ -45,6 +45,13 @@ export default function SystemAlertsTable({
   statusFilter,
   onStatusFilterChange,
   loading,
+  
+  deviceTypeFilter,
+  onDeviceTypeFilterChange,
+  deviceIdFilter,
+  onDeviceIdFilterChange,
+  devicesList,
+  onMarkAllAsRead,
 }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -79,7 +86,7 @@ export default function SystemAlertsTable({
           gap: isMobile ? "12px" : "20px",
         }}
       >
-        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? "12px" : "20px" }}>
+        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? "12px" : "20px", flexWrap: "wrap" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3
               style={{
@@ -92,10 +99,64 @@ export default function SystemAlertsTable({
               System Alarm Logs
             </h3>
             {isMobile && (
-              <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600" }}>
+              <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600", marginLeft: "10px" }}>
                 Total: {pagination?.total || alerts.length}
               </span>
             )}
+          </div>
+
+          {/* Device Type Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>Type:</span>
+            <select
+              value={deviceTypeFilter}
+              onChange={(e) => onDeviceTypeFilterChange && onDeviceTypeFilterChange(e.target.value)}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "6px",
+                background: "rgba(15, 23, 42, 0.45)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: "600",
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="AI_DASHCAM">Dashcam</option>
+              <option value="OBD">OBD</option>
+              <option value="J42">Tracker</option>
+            </select>
+          </div>
+
+          {/* Device ID Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>Device:</span>
+            <select
+              value={deviceIdFilter}
+              onChange={(e) => onDeviceIdFilterChange && onDeviceIdFilterChange(e.target.value)}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "6px",
+                background: "rgba(15, 23, 42, 0.45)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: "600",
+                outline: "none",
+                cursor: "pointer",
+                maxWidth: "180px",
+              }}
+            >
+              <option value="">All Devices</option>
+              {(devicesList || [])
+                .filter((d) => d.deviceType === deviceTypeFilter || (deviceTypeFilter === "J42" && d.deviceType === "TRACKER"))
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name || d.id}
+                  </option>
+                ))}
+            </select>
           </div>
 
           {/* Status Filters */}
@@ -148,11 +209,37 @@ export default function SystemAlertsTable({
           )}
         </div>
 
-        {!isMobile && (
-          <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600" }}>
-            Total Alerts: {pagination?.total || alerts.length}
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          {statusFilter === "UNREAD" && (
+            <button
+              onClick={() => onMarkAllAsRead && onMarkAllAsRead()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                color: "#ffffff",
+                border: "none",
+                fontWeight: "bold",
+                fontSize: "12px",
+                cursor: "pointer",
+                boxShadow: "0 4px 10px rgba(239, 68, 68, 0.2)",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <CheckCircle2 size={14} />
+              Mark All as Read
+            </button>
+          )}
+
+          {!isMobile && (
+            <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600" }}>
+              Total Alerts: {pagination?.total || alerts.length}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Table Container */}

@@ -103,7 +103,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   });
 
   // Tab state: "ai-events" or "system-alerts"
-  const [activeTab, setActiveTab] = useState("ai-events");
+  const [activeTab, setActiveTab] = useState("system-alerts");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -115,6 +115,9 @@ export default function AiNotifications({ theme, toggleTheme }) {
   // System Alerts state
   const [systemAlerts, setSystemAlerts] = useState([]);
   const [systemStatusFilter, setSystemStatusFilter] = useState("UNREAD");
+  const [systemDeviceType, setSystemDeviceType] = useState("AI_DASHCAM");
+  const [systemDeviceId, setSystemDeviceId] = useState("");
+  const [allDevices, setAllDevices] = useState([]);
   const [systemLoading, setSystemLoading] = useState(false);
   const [systemPagination, setSystemPagination] = useState({
     page: 1,
@@ -134,6 +137,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
   const systemStatusFilterRef = useRef(systemStatusFilter);
   const systemPaginationRef = useRef(systemPagination);
+  const systemDeviceTypeRef = useRef(systemDeviceType);
+  const systemDeviceIdRef = useRef(systemDeviceId);
 
   // Sync refs with state
   useEffect(() => {
@@ -155,6 +160,14 @@ export default function AiNotifications({ theme, toggleTheme }) {
   useEffect(() => {
     systemPaginationRef.current = systemPagination;
   }, [systemPagination]);
+
+  useEffect(() => {
+    systemDeviceTypeRef.current = systemDeviceType;
+  }, [systemDeviceType]);
+
+  useEffect(() => {
+    systemDeviceIdRef.current = systemDeviceId;
+  }, [systemDeviceId]);
 
   // Fetch AI events with pagination and filter
   const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
@@ -194,30 +207,34 @@ export default function AiNotifications({ theme, toggleTheme }) {
   // Fetch devices
   const fetchDevices = async () => {
     try {
-      const data = await deviceApi.getDevicesV2({ device_type: "AI_DASHCAM" });
-      const allDevices = data.data || [];
-      const dashcamDevices = allDevices.filter(d => d.device_type === "AI_DASHCAM");
+      const data = await deviceApi.getDevicesV2({});
+      const allDevs = data.data || [];
+      setAllDevices(allDevs);
       
+      const dashcamDevices = allDevs.filter(d => d.deviceType === "AI_DASHCAM");
       const activeDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "online");
       const historicalDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
-      // COMMENTED OUT: Stop "ghost" live stream requests on page load
-      // if (!selectedDevice && activeDevices.length > 0) {
-      //   setSelectedDevice(activeDevices[0]);
-      // }
     } catch (err) {
       console.error("Failed to fetch devices:", err);
     }
   };
 
   // Fetch general system/policy alerts
-  const fetchSystemAlerts = async (page = 1, status = systemStatusFilter) => {
+  const fetchSystemAlerts = async (
+    page = 1,
+    status = systemStatusFilter,
+    deviceType = systemDeviceType,
+    deviceId = systemDeviceId
+  ) => {
     setSystemLoading(true);
     try {
       const res = await deviceApi.getAlertEvents({
         page,
         perPage: 20,
         status,
+        deviceType,
+        deviceId,
       });
       if (res && res.success) {
         setSystemAlerts(res.data || []);
@@ -241,7 +258,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
     try {
       const res = await deviceApi.markAlertEventAsRead(id);
       if (res && res.success) {
-        fetchSystemAlerts(systemPagination.page);
+        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId);
       }
     } catch (err) {
       console.error("Failed to mark alert as read:", err);
@@ -252,17 +269,28 @@ export default function AiNotifications({ theme, toggleTheme }) {
     try {
       const res = await deviceApi.markAlertEventAsResolved(id);
       if (res && res.success) {
-        fetchSystemAlerts(systemPagination.page);
+        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId);
       }
     } catch (err) {
       console.error("Failed to resolve alert:", err);
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      const res = await deviceApi.markAllAlertEventsAsRead();
+      if (res && res.success) {
+        fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId);
+      }
+    } catch (err) {
+      console.error("Failed to mark all alerts as read:", err);
+    }
+  };
+
   // Initialize Sockets and fetch data
   useEffect(() => {
     fetchAlerts(1);
-    fetchSystemAlerts(1);
+    fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId);
     fetchDevices();
 
     // 1. Dashcam Socket
@@ -394,6 +422,25 @@ export default function AiNotifications({ theme, toggleTheme }) {
       console.log("Real-time System Alert page event:", alert);
       if (systemPaginationRef.current.page !== 1) return;
       if (systemStatusFilterRef.current !== "UNREAD") return;
+
+      if (systemDeviceTypeRef.current) {
+        const idStr = String(alert.deviceId || alert.device_id || "");
+        let alertType = "";
+        if (idStr.startsWith("868120") || idStr.startsWith("DASH")) {
+          alertType = "AI_DASHCAM";
+        } else if (idStr.startsWith("200000") || idStr.startsWith("OBD")) {
+          alertType = "OBD";
+        } else if (idStr.startsWith("300000") || idStr.startsWith("TRK") || idStr.startsWith("3000")) {
+          alertType = "J42";
+        }
+
+        if (alertType !== systemDeviceTypeRef.current) return;
+      }
+
+      if (systemDeviceIdRef.current) {
+        const idStr = String(alert.deviceId || alert.device_id || "");
+        if (idStr !== systemDeviceIdRef.current) return;
+      }
 
       setSystemAlerts((prev) => {
         if (prev.some((a) => a.id === alert.id)) return prev;
@@ -658,105 +705,33 @@ export default function AiNotifications({ theme, toggleTheme }) {
             }}
           >
             {/* Tab Navigation / Dropdown on Mobile */}
-            {isMobile ? (
-              <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>
-                  Select View Mode
-                </label>
-                <select
-                  value={activeTab}
-                  onChange={(e) => setActiveTab(e.target.value)}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: "8px",
-                    background: "linear-gradient(135deg, #1e293b, #0f172a)",
-                    border: "1.5px solid #3b82f6",
-                    color: "#ffffff",
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    outline: "none",
-                    cursor: "pointer",
-                    width: "100%",
-                    boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
-                  }}
-                >
-                  <option value="ai-events">AI Dashcam Events</option>
-                  <option value="system-alerts">System Alerts Log</option>
-                </select>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
-                <button
-                  onClick={() => setActiveTab("ai-events")}
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: "8px",
-                    background: activeTab === "ai-events" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
-                    color: "#ffffff",
-                    border: activeTab === "ai-events" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
-                    fontWeight: "bold",
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    boxShadow: activeTab === "ai-events" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  AI Dashcam Events
-                </button>
-                <button
-                  onClick={() => setActiveTab("system-alerts")}
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: "8px",
-                    background: activeTab === "system-alerts" ? "linear-gradient(135deg, #3b82f6, #1d4ed8)" : "rgba(30, 41, 59, 0.5)",
-                    color: "#ffffff",
-                    border: activeTab === "system-alerts" ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
-                    fontWeight: "bold",
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    boxShadow: activeTab === "system-alerts" ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  System Alerts Log
-                </button>
-              </div>
-            )}
-
             <div style={{ flex: 1, overflow: "hidden" }}>
-              {activeTab === "ai-events" ? (
-                <NotificationTable
-                  alerts={alerts}
-                  onOpenMedia={setSelectedMedia}
-                  pagination={pagination}
-                  onPageChange={(page) => fetchAlerts(page)}
-                  devices={[...devices.active, ...devices.historical]}
-                  filterDeviceId={filterDeviceId}
-                  onDeviceChange={(id) => {
-                    setFilterDeviceId(id);
-                    fetchAlerts(1, id);
-                  }}
-                  activeCategory={activeCategory}
-                  onCategoryChange={(cat) => {
-                    setActiveCategory(cat);
-                    fetchAlerts(1, filterDeviceId, cat);
-                  }}
-                />
-              ) : (
-                <SystemAlertsTable
-                  alerts={systemAlerts}
-                  pagination={systemPagination}
-                  onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter)}
-                  onMarkAsRead={handleMarkAsRead}
-                  onResolve={handleResolve}
-                  statusFilter={systemStatusFilter}
-                  onStatusFilterChange={(status) => {
-                    setSystemStatusFilter(status);
-                    fetchSystemAlerts(1, status);
-                  }}
-                  loading={systemLoading}
-                />
-              )}
+              <SystemAlertsTable
+                alerts={systemAlerts}
+                pagination={systemPagination}
+                onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter, systemDeviceType, systemDeviceId)}
+                onMarkAsRead={handleMarkAsRead}
+                onResolve={handleResolve}
+                statusFilter={systemStatusFilter}
+                onStatusFilterChange={(status) => {
+                  setSystemStatusFilter(status);
+                  fetchSystemAlerts(1, status, systemDeviceType, systemDeviceId);
+                }}
+                loading={systemLoading}
+                deviceTypeFilter={systemDeviceType}
+                onDeviceTypeFilterChange={(type) => {
+                  setSystemDeviceType(type);
+                  setSystemDeviceId("");
+                  fetchSystemAlerts(1, systemStatusFilter, type, "");
+                }}
+                deviceIdFilter={systemDeviceId}
+                onDeviceIdFilterChange={(id) => {
+                  setSystemDeviceId(id);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, id);
+                }}
+                devicesList={allDevices}
+                onMarkAllAsRead={handleMarkAllAsRead}
+              />
             </div>
           </div>
         </main>

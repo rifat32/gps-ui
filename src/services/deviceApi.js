@@ -602,6 +602,9 @@ const deviceApi = {
     if (params.eventType) {
       input.eventType = params.eventType;
     }
+    if (params.deviceType) {
+      input.deviceType = params.deviceType;
+    }
 
     const data = await fetchGraphql(query, { alertEventQueryInput: input });
     return data.getAllAlertEvents;
@@ -643,6 +646,20 @@ const deviceApi = {
     `;
     const res = await fetchGraphql(mutation, { id });
     return res.markAlertEventAsResolved;
+  },
+
+  markAllAlertEventsAsRead: async () => {
+    const mutation = `
+      mutation MarkAllAlertEventsAsRead {
+        markAllAlertEventsAsRead {
+          statusCode
+          success
+          message
+        }
+      }
+    `;
+    const res = await fetchGraphql(mutation);
+    return res.markAllAlertEventsAsRead;
   },
 
   getLatestAlertsForDevices: async (deviceIds) => {

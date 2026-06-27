@@ -27,7 +27,7 @@ import authApi from "../services/authApi";
 const NAV_ITEMS = [
   { path: "/", icon: MapIcon, label: "Live Tracker" },
   { path: "/dashcam", icon: LayoutDashboard, label: "AI Dashcam" },
-  { path: "/ai-notifications", icon: Bell, label: "AI Notifications" },
+  { path: "/ai-notifications", icon: Bell, label: "System Alerts Log" },
   { path: "/playback", icon: PlayCircle, label: "History Playback" },
   { path: "/obd-playback", icon: History, label: "OBD Playback" },
   { path: "/obd-status", icon: LayoutDashboard, label: "OBD Status" },
