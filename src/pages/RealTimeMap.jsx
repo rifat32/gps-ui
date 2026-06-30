@@ -20,7 +20,7 @@ const defaultCenter = { lat: 51.5074, lng: -0.1278 };
 
 const normalizeId = (value) => String(value || "").replace(/^device[_:-]/i, "");
 
-const getBatteryDisplay = (voltage, deviceType) => {
+const getBatteryDisplay = (voltage, deviceType, rawVoltage = null) => {
   if (voltage === undefined || voltage === null || voltage === "") return "N/A";
   const val = parseFloat(voltage);
   if (isNaN(val) || val <= 0) return "N/A";
@@ -31,14 +31,23 @@ const getBatteryDisplay = (voltage, deviceType) => {
 
   // J42 device uses Li-SOCl2 3.6V nominal dry-cell (official range 2.4V - 3.6V) or rechargeable (range 3.0V - 4.2V)
   let percent = 0;
-  if (val >= 3.65) {
-    percent = Math.round(((val - 3.0) / (4.2 - 3.0)) * 100);
+  let displayVolts = "";
+  if (val > 5.0) {
+    percent = Math.round(val);
+    if (rawVoltage && parseFloat(rawVoltage) > 0) {
+      displayVolts = ` (${parseFloat(rawVoltage).toFixed(3)}V)`;
+    }
   } else {
-    percent = Math.round(((val - 2.4) / (3.6 - 2.4)) * 100);
+    if (val >= 3.65) {
+      percent = Math.round(((val - 3.0) / (4.2 - 3.0)) * 100);
+    } else {
+      percent = Math.round(((val - 2.4) / (3.6 - 2.4)) * 100);
+    }
+    displayVolts = ` (${val.toFixed(3)}V)`;
   }
 
   percent = Math.max(0, Math.min(100, percent));
-  return `${percent}% (${val.toFixed(2)}V)`;
+  return `${percent}%${displayVolts}`;
 };
 
 const getMillis = (value) => {
@@ -77,7 +86,7 @@ const mapApiVehicle = (v) => {
   const lat = Number(v.latitude ?? v.lat ?? 0);
   const lng = Number(v.longitude ?? v.lng ?? v.lon ?? 0);
 
-  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng)) {
     return null;
   }
 
@@ -102,6 +111,7 @@ const mapApiVehicle = (v) => {
     lastUpdatedAt: getMillis(lastSeen) || Date.now(),
     deviceType: devType,
     batteryVoltage: v.battery_voltage ?? v.batteryVoltage ?? v.bettary ?? null,
+    externalVoltage: v.external_voltage ?? v.externalVoltage ?? null,
   };
 };
 
@@ -110,7 +120,7 @@ const mapSocketVehicle = (update) => {
   const lat = Number(update.latitude ?? update.lat ?? 0);
   const lng = Number(update.longitude ?? update.lng ?? update.lon ?? 0);
 
-  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng)) {
     return null;
   }
 
@@ -135,6 +145,7 @@ const mapSocketVehicle = (update) => {
     lastUpdatedAt: Date.now(),
     deviceType: devType,
     batteryVoltage: update.batteryVoltage ?? update.battery_voltage ?? update.bettary ?? null,
+    externalVoltage: update.externalVoltage ?? update.external_voltage ?? null,
   };
 };
 
@@ -501,7 +512,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                     key={v.id}
                     onClick={() => {
                       setSelectedVehicle(v);
-                      if (mapRef.current) {
+                      if (mapRef.current && v.lat !== 0 && v.lng !== 0) {
                         mapRef.current.panTo({ lat: v.lat, lng: v.lng });
                         mapRef.current.setZoom(15);
                       }
@@ -532,7 +543,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                     </div>
                     <div style={{ fontSize: "11px", color: "#64748b", display: "flex", flexDirection: "column", gap: "4px" }}>
                       <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "1px 3px", borderRadius: "4px" }}>{v.id}</code></div>
-                      <div>Battery: <strong style={{ color: "#0f172a" }}>{getBatteryDisplay(v.batteryVoltage, deviceType)}</strong></div>
+                      <div>Battery: <strong style={{ color: "#0f172a" }}>{getBatteryDisplay(v.batteryVoltage, deviceType, v.externalVoltage)}</strong></div>
                       <div>Last Seen: {v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "Never"}</div>
                       {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
                     </div>
@@ -754,7 +765,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                 ],
               }}
             >
-              {visibleVehicles.map((vehicle) => (
+              {visibleVehicles.filter(v => v.lat !== 0 || v.lng !== 0).map((vehicle) => (
                 <Marker
                   key={vehicle.id}
                   position={{ lat: vehicle.lat, lng: vehicle.lng }}
@@ -772,7 +783,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                 />
               ))}
 
-              {selectedVehicle && (
+              {selectedVehicle && selectedVehicle.lat !== 0 && selectedVehicle.lng !== 0 && (
                 <InfoWindow
                   position={{ lat: selectedVehicle.lat, lng: selectedVehicle.lng }}
                   onCloseClick={() => setSelectedVehicle(null)}
@@ -791,7 +802,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                         </span>
                       </p>
                       {selectedVehicle.batteryVoltage !== undefined && selectedVehicle.batteryVoltage !== null && (
-                        <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType)}</p>
+                        <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType, selectedVehicle.externalVoltage)}</p>
                       )}
                       <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
                       {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
