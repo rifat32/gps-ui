@@ -9,6 +9,7 @@ const SavedVideos = lazy(() => import("./pages/SavedVideos"));
 const VideoSettings = lazy(() => import("./pages/VideoSettings"));
 const Layout = lazy(() => import("./components/Layout"));
 const AiNotifications = lazy(() => import("./pages/AiNotifications"));
+const SystemAlertsLog = lazy(() => import("./pages/SystemAlertsLog"));
 const Logs = lazy(() => import("./pages/Logs"));
 const DeviceManagement = lazy(() => import("./pages/DeviceManagement"));
 const ObdPlayback = lazy(() => import("./pages/ObdPlayback"));
@@ -157,6 +158,12 @@ function App() {
               path="/ai-notifications"
               element={
                 <AiNotifications theme={theme} toggleTheme={toggleTheme} />
+              }
+            />
+            <Route
+              path="/system-alerts"
+              element={
+                <SystemAlertsLog theme={theme} toggleTheme={toggleTheme} />
               }
             />
             <Route

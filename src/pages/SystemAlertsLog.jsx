@@ -25,7 +25,7 @@ import NotificationTable from "../components/NotificationTable";
 import SystemAlertsTable from "../components/SystemAlertsTable";
 import deviceApi from "../services/deviceApi";
 
-const WS_URL = import.meta.env.VITE_WS_URL;
+const WS_URL = import.meta.env.VITE_DASHCAM_WS_URL || import.meta.env.VITE_WS_URL;
 
 // Mock Data
 const MOCK_ALERTS = [
@@ -83,7 +83,7 @@ const MOCK_RECORDINGS = [
   },
 ];
 
-export default function AiNotifications({ theme, toggleTheme }) {
+export default function SystemAlertsLog({ theme, toggleTheme }) {
   const [gridSize, setGridSize] = useState(4); // Default 2x2
   const [alerts, setAlerts] = useState([]);
   const [devices, setDevices] = useState({ active: [], historical: [] });
@@ -103,7 +103,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
   });
 
   // Tab state: "ai-events" or "system-alerts"
-  const [activeTab, setActiveTab] = useState("ai-events");
+  const [activeTab, setActiveTab] = useState("system-alerts");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -115,6 +115,9 @@ export default function AiNotifications({ theme, toggleTheme }) {
   // System Alerts state
   const [systemAlerts, setSystemAlerts] = useState([]);
   const [systemStatusFilter, setSystemStatusFilter] = useState("UNREAD");
+  const [systemDeviceType, setSystemDeviceType] = useState("AI_DASHCAM");
+  const [systemDeviceId, setSystemDeviceId] = useState("");
+  const [allDevices, setAllDevices] = useState([]);
   const [systemLoading, setSystemLoading] = useState(false);
   const [systemPagination, setSystemPagination] = useState({
     page: 1,
@@ -134,6 +137,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
   const systemStatusFilterRef = useRef(systemStatusFilter);
   const systemPaginationRef = useRef(systemPagination);
+  const systemDeviceTypeRef = useRef(systemDeviceType);
+  const systemDeviceIdRef = useRef(systemDeviceId);
 
   // Sync refs with state
   useEffect(() => {
@@ -155,6 +160,14 @@ export default function AiNotifications({ theme, toggleTheme }) {
   useEffect(() => {
     systemPaginationRef.current = systemPagination;
   }, [systemPagination]);
+
+  useEffect(() => {
+    systemDeviceTypeRef.current = systemDeviceType;
+  }, [systemDeviceType]);
+
+  useEffect(() => {
+    systemDeviceIdRef.current = systemDeviceId;
+  }, [systemDeviceId]);
 
   // Fetch AI events with pagination and filter
   const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
@@ -194,30 +207,34 @@ export default function AiNotifications({ theme, toggleTheme }) {
   // Fetch devices
   const fetchDevices = async () => {
     try {
-      const data = await deviceApi.getDevicesV2({ device_type: "AI_DASHCAM" });
-      const allDevices = data.data || [];
-      const dashcamDevices = allDevices.filter(d => d.device_type === "AI_DASHCAM");
+      const data = await deviceApi.getDevicesV2({});
+      const allDevs = data.data || [];
+      setAllDevices(allDevs);
       
+      const dashcamDevices = allDevs.filter(d => d.deviceType === "AI_DASHCAM");
       const activeDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "online");
       const historicalDevices = dashcamDevices.filter((d) => d.status?.toLowerCase() === "offline");
       setDevices({ active: activeDevices, historical: historicalDevices });
-      // COMMENTED OUT: Stop "ghost" live stream requests on page load
-      // if (!selectedDevice && activeDevices.length > 0) {
-      //   setSelectedDevice(activeDevices[0]);
-      // }
     } catch (err) {
       console.error("Failed to fetch devices:", err);
     }
   };
 
   // Fetch general system/policy alerts
-  const fetchSystemAlerts = async (page = 1, status = systemStatusFilter) => {
+  const fetchSystemAlerts = async (
+    page = 1,
+    status = systemStatusFilter,
+    deviceType = systemDeviceType,
+    deviceId = systemDeviceId
+  ) => {
     setSystemLoading(true);
     try {
       const res = await deviceApi.getAlertEvents({
         page,
         perPage: 20,
         status,
+        deviceType,
+        deviceId,
       });
       if (res && res.success) {
         setSystemAlerts(res.data || []);
@@ -241,7 +258,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
     try {
       const res = await deviceApi.markAlertEventAsRead(id);
       if (res && res.success) {
-        fetchSystemAlerts(systemPagination.page);
+        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId);
       }
     } catch (err) {
       console.error("Failed to mark alert as read:", err);
@@ -252,17 +269,28 @@ export default function AiNotifications({ theme, toggleTheme }) {
     try {
       const res = await deviceApi.markAlertEventAsResolved(id);
       if (res && res.success) {
-        fetchSystemAlerts(systemPagination.page);
+        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId);
       }
     } catch (err) {
       console.error("Failed to resolve alert:", err);
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      const res = await deviceApi.markAllAlertEventsAsRead();
+      if (res && res.success) {
+        fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId);
+      }
+    } catch (err) {
+      console.error("Failed to mark all alerts as read:", err);
+    }
+  };
+
   // Initialize Sockets and fetch data
   useEffect(() => {
     fetchAlerts(1);
-    fetchSystemAlerts(1);
+    fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId);
     fetchDevices();
 
     // 1. Dashcam Socket
@@ -394,6 +422,25 @@ export default function AiNotifications({ theme, toggleTheme }) {
       console.log("Real-time System Alert page event:", alert);
       if (systemPaginationRef.current.page !== 1) return;
       if (systemStatusFilterRef.current !== "UNREAD") return;
+
+      if (systemDeviceTypeRef.current) {
+        const idStr = String(alert.deviceId || alert.device_id || "");
+        let alertType = "";
+        if (idStr.startsWith("868120") || idStr.startsWith("DASH")) {
+          alertType = "AI_DASHCAM";
+        } else if (idStr.startsWith("200000") || idStr.startsWith("OBD")) {
+          alertType = "OBD";
+        } else if (idStr.startsWith("300000") || idStr.startsWith("TRK") || idStr.startsWith("3000")) {
+          alertType = "J42";
+        }
+
+        if (alertType !== systemDeviceTypeRef.current) return;
+      }
+
+      if (systemDeviceIdRef.current) {
+        const idStr = String(alert.deviceId || alert.device_id || "");
+        if (idStr !== systemDeviceIdRef.current) return;
+      }
 
       setSystemAlerts((prev) => {
         if (prev.some((a) => a.id === alert.id)) return prev;
@@ -646,6 +693,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
             overflow: "hidden",
           }}
         >
+          {/* BOTTOM TABLE PANEL */}
           <div
             style={{
               height: "90vh",
@@ -656,23 +704,33 @@ export default function AiNotifications({ theme, toggleTheme }) {
               flexDirection: "column",
             }}
           >
+            {/* Tab Navigation / Dropdown on Mobile */}
             <div style={{ flex: 1, overflow: "hidden" }}>
-              <NotificationTable
-                alerts={alerts}
-                onOpenMedia={setSelectedMedia}
-                pagination={pagination}
-                onPageChange={(page) => fetchAlerts(page)}
-                devices={[...devices.active, ...devices.historical]}
-                filterDeviceId={filterDeviceId}
-                onDeviceChange={(id) => {
-                  setFilterDeviceId(id);
-                  fetchAlerts(1, id);
+              <SystemAlertsTable
+                alerts={systemAlerts}
+                pagination={systemPagination}
+                onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter, systemDeviceType, systemDeviceId)}
+                onMarkAsRead={handleMarkAsRead}
+                onResolve={handleResolve}
+                statusFilter={systemStatusFilter}
+                onStatusFilterChange={(status) => {
+                  setSystemStatusFilter(status);
+                  fetchSystemAlerts(1, status, systemDeviceType, systemDeviceId);
                 }}
-                activeCategory={activeCategory}
-                onCategoryChange={(cat) => {
-                  setActiveCategory(cat);
-                  fetchAlerts(1, filterDeviceId, cat);
+                loading={systemLoading}
+                deviceTypeFilter={systemDeviceType}
+                onDeviceTypeFilterChange={(type) => {
+                  setSystemDeviceType(type);
+                  setSystemDeviceId("");
+                  fetchSystemAlerts(1, systemStatusFilter, type, "");
                 }}
+                deviceIdFilter={systemDeviceId}
+                onDeviceIdFilterChange={(id) => {
+                  setSystemDeviceId(id);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, id);
+                }}
+                devicesList={allDevices}
+                onMarkAllAsRead={handleMarkAllAsRead}
               />
             </div>
           </div>
