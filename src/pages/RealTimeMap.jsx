@@ -249,7 +249,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       try {
         const devRes = await deviceApi.getDevicesV2({ device_type: deviceType });
         const realIds = new Set(
-          (devRes.data || []).filter(d => d.isRealDevice).map(d => normalizeId(d.id))
+          (devRes.data || []).filter(d => d.isRealDevice).map(d => normalizeId(d.deviceId || d.id))
         );
         realDeviceIdsRef.current = realIds;
       } catch (e) {
