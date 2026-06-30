@@ -5,7 +5,7 @@ import {
   Marker,
   InfoWindow,
 } from "@react-google-maps/api";
-import { Loader2, Bell, ChevronDown, Search, Shield, X } from "lucide-react";
+import { Loader2, Bell, ChevronDown, Search, Shield, X, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 
@@ -817,7 +817,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
           </div>
 
           <Link
-            to="/ai-notifications"
+            to="/system-alerts"
             style={{
               position: "fixed",
               bottom: "24px",
@@ -839,7 +839,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
             onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-              <Bell size={20} />
+              <ShieldAlert size={20} />
               {unreadAlertsCount > 0 && (
                 <span style={{
                   position: "absolute",
@@ -858,7 +858,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                 </span>
               )}
             </div>
-            AI Notifications
+            System Alerts
           </Link>
         </div>
       </div>
