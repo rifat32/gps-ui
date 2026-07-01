@@ -185,32 +185,35 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
   useEffect(() => {
-    if (!selectedVehicle) {
-      setResolvedAddress("");
-      return;
-    }
-    setResolvedAddress("Loading...");
-    const fetchAddress = async () => {
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${selectedVehicle.lat}&lon=${selectedVehicle.lng}&format=jsonv2`,
-          {
-            headers: {
-              "User-Agent": "FleetManagement/1.0"
-            }
-          }
-        );
-        if (!response.ok) throw new Error("Failed to fetch address");
-        const data = await response.json();
-        setResolvedAddress(data.display_name || "Address not available");
-      } catch (e) {
-        console.warn("Geocoding failed:", e);
-        setResolvedAddress("Address not available");
-      }
-    };
-    fetchAddress();
+    setResolvedAddress("");
   }, [selectedVehicle]);
+
+  const handleShowAddress = async () => {
+    if (!selectedVehicle) return;
+    setResolvedAddress("Loading...");
+    setIsGeocoding(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${selectedVehicle.lat}&lon=${selectedVehicle.lng}&format=jsonv2`,
+        {
+          headers: {
+            "User-Agent": "FleetManagement/1.0"
+          }
+        }
+      );
+      if (!response.ok) throw new Error("Failed to fetch address");
+      const data = await response.json();
+      setResolvedAddress(data.display_name || `${parseFloat(selectedVehicle.lat).toFixed(6)}, ${parseFloat(selectedVehicle.lng).toFixed(6)}`);
+    } catch (e) {
+      console.warn("Geocoding failed:", e);
+      setResolvedAddress(`${parseFloat(selectedVehicle.lat).toFixed(6)}, ${parseFloat(selectedVehicle.lng).toFixed(6)}`);
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
 
   const mergeVehicle = (incoming) => {
     if (!incoming) return;
@@ -807,7 +810,28 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                       <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
                       {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
                       <p style={{ marginTop: "6px", borderTop: "1px dashed #e2e8f0", paddingTop: "6px" }}>
-                        <strong>Address:</strong> {resolvedAddress || "Loading..."}
+                        <strong>Address:</strong>{" "}
+                        {resolvedAddress ? (
+                          resolvedAddress
+                        ) : (
+                          <button
+                            onClick={handleShowAddress}
+                            disabled={isGeocoding}
+                            style={{
+                              backgroundColor: "#3b82f6",
+                              color: "white",
+                              border: "none",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              cursor: "pointer",
+                              marginLeft: "6px",
+                              fontWeight: "600",
+                            }}
+                          >
+                            {isGeocoding ? "Loading..." : "Show Address"}
+                          </button>
+                        )}
                       </p>
                     </div>
                   </div>
