@@ -3,7 +3,7 @@ import { FileText, Calendar, HardDrive, RefreshCw, Download, Search } from "luci
 import "./Logs.css";
 
 // Use environment variable for API base URL, fallback to localhost for development
-const API_BASE_URL = import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_LOGS_API_URL || "http://localhost:8000";
 const API_BASE = `${API_BASE_URL}/api`;
 
 const Logs = ({ theme }) => {
