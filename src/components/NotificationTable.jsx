@@ -109,7 +109,8 @@ export default function NotificationTable({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        marginBottom: "100px",
+        minHeight: 0,
+        marginBottom: "0px",
       }}
     >
       <div
@@ -255,7 +256,60 @@ export default function NotificationTable({
           )}
         </div>
 
-        {!isMobile && (
+        {pagination && pagination.totalPages > 1 && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "rgba(15, 23, 42, 0.25)",
+            padding: "4px 10px",
+            borderRadius: "8px",
+            border: "1px solid var(--surface-border)",
+            justifyContent: "space-between",
+            width: isMobile ? "100%" : "auto",
+            marginTop: isMobile ? "4px" : "0px",
+          }}>
+            <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "700" }}>
+              Page {pagination.page}/{pagination.totalPages}
+            </span>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={!pagination.hasPrev}
+                style={{
+                  padding: "3px 8px",
+                  borderRadius: "4px",
+                  background: pagination.hasPrev ? "#3b82f6" : "var(--btn-disabled-bg)",
+                  color: pagination.hasPrev ? "#ffffff" : "var(--text-disabled)",
+                  border: "none",
+                  fontSize: "11px",
+                  fontWeight: "bold",
+                  cursor: pagination.hasPrev ? "pointer" : "not-allowed",
+                }}
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={!pagination.hasNext}
+                style={{
+                  padding: "3px 8px",
+                  borderRadius: "4px",
+                  background: pagination.hasNext ? "#3b82f6" : "var(--btn-disabled-bg)",
+                  color: pagination.hasNext ? "#ffffff" : "var(--text-disabled)",
+                  border: "none",
+                  fontSize: "11px",
+                  fontWeight: "bold",
+                  cursor: pagination.hasNext ? "pointer" : "not-allowed",
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isMobile && !pagination && (
           <span
             style={{
               fontSize: "11px",

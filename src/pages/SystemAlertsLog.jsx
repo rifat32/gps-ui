@@ -696,7 +696,8 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
           {/* BOTTOM TABLE PANEL */}
           <div
             style={{
-              height: "90vh",
+              flex: 1,
+              minHeight: 0,
               background: "#ffffffff",
               borderTop: "1px solid var(--surface-border)",
               padding: "16px",

@@ -70,6 +70,7 @@ export default function SystemAlertsTable({
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        minHeight: 0,
         boxShadow: "0 4px 20px -2px rgba(0,0,0,0.3)",
       }}
     >
@@ -211,7 +212,7 @@ export default function SystemAlertsTable({
           )}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", justifyContent: isMobile ? "space-between" : "flex-end", width: isMobile ? "100%" : "auto" }}>
           {statusFilter === "UNREAD" && (
             <button
               onClick={() => onMarkAllAsRead && onMarkAllAsRead()}
@@ -236,7 +237,60 @@ export default function SystemAlertsTable({
             </button>
           )}
 
-          {!isMobile && (
+          {pagination && pagination.totalPages > 1 && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              background: "rgba(15, 23, 42, 0.25)",
+              padding: "4px 10px",
+              borderRadius: "8px",
+              border: "1px solid var(--surface-border)",
+              justifyContent: "space-between",
+              width: isMobile ? "100%" : "auto",
+              marginTop: isMobile ? "4px" : "0px",
+            }}>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "700" }}>
+                Page {pagination.page}/{pagination.totalPages}
+              </span>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <button
+                  onClick={() => onPageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    background: pagination.page > 1 ? "#3b82f6" : "var(--btn-disabled-bg)",
+                    color: pagination.page > 1 ? "#ffffff" : "var(--text-disabled)",
+                    border: "none",
+                    fontSize: "11px",
+                    fontWeight: "bold",
+                    cursor: pagination.page > 1 ? "pointer" : "not-allowed",
+                  }}
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => onPageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    background: pagination.page < pagination.totalPages ? "#3b82f6" : "var(--btn-disabled-bg)",
+                    color: pagination.page < pagination.totalPages ? "#ffffff" : "var(--text-disabled)",
+                    border: "none",
+                    fontSize: "11px",
+                    fontWeight: "bold",
+                    cursor: pagination.page < pagination.totalPages ? "pointer" : "not-allowed",
+                  }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isMobile && !pagination && (
             <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.8, fontWeight: "600" }}>
               Total Alerts: {pagination?.total || alerts.length}
             </span>
