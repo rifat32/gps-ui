@@ -101,6 +101,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
     hasNext: false,
     hasPrev: false,
   });
+  const [isTableLoading, setIsTableLoading] = useState(false);
 
   // Tab state: "ai-events" or "system-alerts"
   const [activeTab, setActiveTab] = useState("ai-events");
@@ -158,6 +159,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
 
   // Fetch AI events with pagination and filter
   const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
+    setIsTableLoading(true);
     try {
       const params = { page, perPage: 20, device_type: "AI_DASHCAM" };
       if (deviceId) params.deviceId = deviceId;
@@ -188,6 +190,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
       }
     } catch (err) {
       console.error("Failed to fetch AI events:", err);
+    } finally {
+      setIsTableLoading(false);
     }
   };
 
@@ -673,6 +677,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
                   setActiveCategory(cat);
                   fetchAlerts(1, filterDeviceId, cat);
                 }}
+                isLoading={isTableLoading}
               />
             </div>
           </div>

@@ -37,7 +37,8 @@ export default function NotificationTable({
   filterDeviceId = "",
   onDeviceChange,
   activeCategory = "",
-  onCategoryChange
+  onCategoryChange,
+  isLoading = false
 }) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -268,7 +269,21 @@ export default function NotificationTable({
         )}
       </div>
 
-      <div style={{ flex: 1, overflow: "auto" }} className="custom-scrollbar">
+      <div style={{ flex: 1, overflow: "auto", position: "relative" }} className="custom-scrollbar">
+        {isLoading && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            backdropFilter: "blur(2px)",
+          }}>
+            <div className="media-viewer-spinner" style={{ width: "32px", height: "32px" }}></div>
+          </div>
+        )}
         <table
           style={{
             width: "100%",
