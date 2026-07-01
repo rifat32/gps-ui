@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 export default function MediaViewer({ media, onClose }) {
   if (!media) return null;
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+  const baseUrl = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_API_BASE_URL || "";
 
   // 1. Resolve media list
   const mediaList = (() => {

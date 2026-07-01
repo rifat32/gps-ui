@@ -1,7 +1,7 @@
 import { Image, PlaySquare, Copy, Check, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const BASE_URL = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_API_BASE_URL || "";
 
 const ALERT_CATEGORY_TABS = [
   { id: "", label: "All Alerts" },
