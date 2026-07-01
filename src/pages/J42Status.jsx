@@ -97,6 +97,59 @@ const getExternalPowerDetails = (voltage) => {
   };
 };
 
+// Simple global sequential geocode queue to satisfy Nominatim's strict 1 request per second rate limit
+let geocodeQueue = Promise.resolve();
+
+const GeocodedAddress = ({ lat, lng }) => {
+  const [address, setAddress] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchAddress = () => {
+      setLoading(true);
+      // Append the lookup task to the sequential queue
+      geocodeQueue = geocodeQueue
+        .then(() => new Promise((resolve) => setTimeout(resolve, 1050))) // Ensure > 1 second delay between requests
+        .then(async () => {
+          if (!active) return;
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2`,
+              { headers: { "User-Agent": "FleetManagement/1.0" } }
+            );
+            if (res.ok) {
+              const data = await res.json();
+              if (active) {
+                setAddress(data.display_name || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`);
+              }
+            } else {
+              throw new Error();
+            }
+          } catch (err) {
+            if (active) {
+              setAddress(`${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`);
+            }
+          } finally {
+            if (active) setLoading(false);
+          }
+        });
+    };
+
+    fetchAddress();
+
+    return () => {
+      active = false;
+    };
+  }, [lat, lng]);
+
+  if (loading && !address) {
+    return <span style={{ color: "#94a3b8", fontSize: "11px" }}>Locating address...</span>;
+  }
+
+  return <span>{address || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`}</span>;
+};
+
 export default function J42Status({ theme }) {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -569,7 +622,7 @@ export default function J42Status({ theme }) {
                             {new Date(pt.timestamp || pt.gps_time || pt.time).toLocaleString()}
                           </td>
                           <td style={{ padding: "10px" }}>
-                            {pt.address || `${parseFloat(pt.lat).toFixed(6)}, ${parseFloat(pt.lng || pt.lon).toFixed(6)}`}
+                            <GeocodedAddress lat={pt.lat} lng={pt.lng || pt.lon} />
                           </td>
                           <td style={{ padding: "10px", textAlign: "right" }}>
                             {Math.round((pt.speed || 0) * 0.621371)} mph
