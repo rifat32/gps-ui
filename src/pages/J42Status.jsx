@@ -105,6 +105,44 @@ export default function J42Status({ theme }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deviceAlerts, setDeviceAlerts] = useState({});
   const [lastGlobalAlert, setLastGlobalAlert] = useState(null);
+  const [selectedDeviceTrajectory, setSelectedDeviceTrajectory] = useState(null); // { device, points: [], loading: false, error: null }
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [realDeviceFilter, setRealDeviceFilter] = useState("all"); // "all" | "real" | "virtual"
+
+  const fetchTrajectory = async (device) => {
+    setSelectedDeviceTrajectory({ device, points: [], loading: true, error: null });
+    setIsModalOpen(true);
+    try {
+      const end = new Date().toISOString();
+      const start = new Date(Date.now() - 24 * 60 * 60 * 1000 * 30).toISOString(); // 30 days ago trajectory
+      const OBD_API_URL = import.meta.env.VITE_OBD_API_URL || "";
+      const url = `${OBD_API_URL}/api/logs/v1.0/${device.id}/playback/duration?start=${start}&end=${end}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load trajectory points");
+      const data = await res.json();
+      
+      const rawPoints = data.points || [];
+      const validPoints = rawPoints.filter(p => {
+        const lat = parseFloat(p.lat);
+        const lng = parseFloat(p.lng || p.lon);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+      });
+
+      setSelectedDeviceTrajectory({
+        device,
+        points: validPoints,
+        loading: false,
+        error: validPoints.length === 0 ? "No active trajectory location records found in the last 30 days." : null
+      });
+    } catch (err) {
+      setSelectedDeviceTrajectory({
+        device,
+        points: [],
+        loading: false,
+        error: err.message || "Failed to load trajectory address points."
+      });
+    }
+  };
 
   const fetchDevices = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -166,12 +204,23 @@ export default function J42Status({ theme }) {
   };
 
 
-  const filteredDevices = devices.filter(
-    (device) =>
+  const filteredDevices = devices.filter((device) => {
+    // 1. Text filter
+    const matchesText = 
       device.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       device.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      device.imei?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      device.imei?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+    // 2. Real vs Virtual device filter
+    let matchesRealType = true;
+    if (realDeviceFilter === "real") {
+      matchesRealType = device.isRealDevice === true;
+    } else if (realDeviceFilter === "virtual") {
+      matchesRealType = device.isRealDevice !== true;
+    }
+
+    return matchesText && matchesRealType;
+  });
 
   return (
     <div className={`device-mgmt-container ${theme === "dark" ? "dark-theme" : ""}`}>
@@ -258,10 +307,32 @@ export default function J42Status({ theme }) {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <select
+            value={realDeviceFilter}
+            onChange={(e) => setRealDeviceFilter(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: "8px",
+              background: theme === "dark" ? "#1e293b" : "#f1f5f9",
+              border: `1px solid ${theme === "dark" ? "#334155" : "#cbd5e1"}`,
+              color: theme === "dark" ? "#f8fafc" : "#0f172a",
+              fontSize: "13px",
+              fontWeight: "600",
+              outline: "none",
+              cursor: "pointer",
+              minWidth: "150px"
+            }}
+          >
+            <option value="all">All Devices</option>
+            <option value="real">Real Devices Only</option>
+            <option value="virtual">Virtual Devices Only</option>
+          </select>
+        </div>
         <div className="stats-indicator">
-          <span>Total: <strong>{devices.length}</strong></span>
+          <span>Total: <strong>{filteredDevices.length}</strong></span>
           <span className="online-count">Online: <strong>{
-            devices.filter(d => d.status?.toLowerCase() === "online").length
+            filteredDevices.filter(d => d.status?.toLowerCase() === "online").length
           }</strong></span>
         </div>
       </div>
@@ -291,13 +362,31 @@ export default function J42Status({ theme }) {
             const extPower = getExternalPowerDetails(device.externalVoltage);
             const ExtPowerIcon = extPower.icon;
             const isOnline = device.status?.toLowerCase() === "online";
-            
-            return (
-              <div key={device.id} className="device-card glass-panel hover-lift">
+                    return (
+              <div 
+                key={device.id} 
+                className="device-card glass-panel hover-lift"
+                onClick={() => fetchTrajectory(device)}
+                style={{ cursor: "pointer" }}
+              >
                 <div className="device-card-header">
-                  <div className={`status-badge ${isOnline ? "online" : "offline"}`}>
-                    {isOnline ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                    <span>{isOnline ? "Online" : "Offline"}</span>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <div className={`status-badge ${isOnline ? "online" : "offline"}`}>
+                      {isOnline ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                      <span>{isOnline ? "Online" : "Offline"}</span>
+                    </div>
+                    <span style={{
+                      fontSize: "9px",
+                      fontWeight: "800",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                      textTransform: "uppercase",
+                      backgroundColor: device.isRealDevice ? "rgba(34, 197, 94, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                      color: device.isRealDevice ? "#22c55e" : "#94a3b8",
+                      border: `1px solid ${device.isRealDevice ? "rgba(34, 197, 94, 0.2)" : "rgba(148, 163, 184, 0.2)"}`
+                    }}>
+                      {device.isRealDevice ? "Real" : "Virtual"}
+                    </span>
                   </div>
                   <div className="device-type-tag">J42 Tracker</div>
                 </div>
@@ -346,25 +435,6 @@ export default function J42Status({ theme }) {
                         </div>
                       </div>
                     </div>
-
-                    {/* External Vehicle Power (Commented Out)
-                    <div className="j42-battery-section" style={{ margin: 0, padding: "0.75rem 1rem" }}>
-                      <div className="battery-header" style={{ marginBottom: "0.5rem" }}>
-                        <span className="label" style={{ fontSize: "0.6875rem" }}>External Power</span>
-                        <span className="battery-value" style={{ color: extPower.color, fontSize: "0.8125rem" }}>
-                          {extPower.isConnected && device.externalVoltage ? `${device.externalVoltage.toFixed(2)}V` : extPower.text}
-                        </span>
-                      </div>
-                      <div className="battery-level-container" style={{ gap: "0.5rem" }}>
-                        <div className="battery-icon-wrapper" style={{ padding: 0 }}>
-                          <ExtPowerIcon size={18} style={{ color: extPower.color }} />
-                        </div>
-                        <span style={{ fontSize: "0.75rem", color: extPower.isConnected ? extPower.color : "#94a3b8", fontWeight: 600 }}>
-                          {extPower.isConnected ? extPower.text : "Backup Power Only"}
-                        </span>
-                      </div>
-                    </div>
-                    */}
                   </div>
 
                   {/* Device Last Alert */}
@@ -405,6 +475,115 @@ export default function J42Status({ theme }) {
           })
         )}
       </div>
+
+      {/* Trajectory Modal Overlay */}
+      {isModalOpen && selectedDeviceTrajectory && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "rgba(15, 23, 42, 0.8)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
+          backdropFilter: "blur(4px)",
+        }} onClick={() => setIsModalOpen(false)}>
+          <div style={{
+            background: theme === "dark" ? "#1e293b" : "#ffffff",
+            borderRadius: "16px",
+            width: "100%",
+            maxWidth: "750px",
+            maxHeight: "80vh",
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+            overflow: "hidden",
+            color: theme === "dark" ? "#f8fafc" : "#0f172a"
+          }} onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div style={{
+              padding: "20px",
+              borderBottom: `1px solid ${theme === "dark" ? "#334155" : "#e2e8f0"}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700" }}>
+                  Location History Log: {selectedDeviceTrajectory.device?.name || selectedDeviceTrajectory.device?.id}
+                </h3>
+                <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#64748b" }}>
+                  Displaying last 3 days of recorded location trajectory updates
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                  color: theme === "dark" ? "#94a3b8" : "#64748b",
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "20px" }} className="custom-scrollbar">
+              {selectedDeviceTrajectory.loading ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 0" }}>
+                  <div className="spin-animation" style={{
+                    width: "32px",
+                    height: "32px",
+                    border: "3px solid #3b82f6",
+                    borderTopColor: "transparent",
+                    borderRadius: "50%",
+                    marginBottom: "12px"
+                  }} />
+                  <p style={{ margin: 0, fontSize: "14px", color: "#64748b" }}>Fetching trajectory records...</p>
+                </div>
+              ) : selectedDeviceTrajectory.error ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#ef4444" }}>
+                  <p style={{ margin: 0, fontSize: "14px" }}>{selectedDeviceTrajectory.error}</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                    <thead>
+                      <tr style={{ borderBottom: `2px solid ${theme === "dark" ? "#334155" : "#e2e8f0"}` }}>
+                        <th style={{ padding: "10px", textAlign: "left", color: "#64748b", fontWeight: "600" }}>Time</th>
+                        <th style={{ padding: "10px", textAlign: "left", color: "#64748b", fontWeight: "600" }}>Address / Coordinates</th>
+                        <th style={{ padding: "10px", textAlign: "right", color: "#64748b", fontWeight: "600" }}>Speed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedDeviceTrajectory.points.map((pt, idx) => (
+                        <tr key={idx} style={{ 
+                          borderBottom: `1px solid ${theme === "dark" ? "#334155" : "#e2e8f0"}`,
+                          background: idx % 2 === 0 ? (theme === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)") : "transparent"
+                        }}>
+                          <td style={{ padding: "10px", whiteSpace: "nowrap" }}>
+                            {new Date(pt.timestamp || pt.gps_time || pt.time).toLocaleString()}
+                          </td>
+                          <td style={{ padding: "10px" }}>
+                            {pt.address || `${parseFloat(pt.lat).toFixed(6)}, ${parseFloat(pt.lng || pt.lon).toFixed(6)}`}
+                          </td>
+                          <td style={{ padding: "10px", textAlign: "right" }}>
+                            {Math.round((pt.speed || 0) * 0.621371)} mph
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
