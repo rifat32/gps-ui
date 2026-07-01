@@ -97,57 +97,61 @@ const getExternalPowerDetails = (voltage) => {
   };
 };
 
-// Simple global sequential geocode queue to satisfy Nominatim's strict 1 request per second rate limit
-let geocodeQueue = Promise.resolve();
-
 const GeocodedAddress = ({ lat, lng }) => {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    const fetchAddress = () => {
-      setLoading(true);
-      // Append the lookup task to the sequential queue
-      geocodeQueue = geocodeQueue
-        .then(() => new Promise((resolve) => setTimeout(resolve, 1050))) // Ensure > 1 second delay between requests
-        .then(async () => {
-          if (!active) return;
-          try {
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2`,
-              { headers: { "User-Agent": "FleetManagement/1.0" } }
-            );
-            if (res.ok) {
-              const data = await res.json();
-              if (active) {
-                setAddress(data.display_name || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`);
-              }
-            } else {
-              throw new Error();
-            }
-          } catch (err) {
-            if (active) {
-              setAddress(`${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`);
-            }
-          } finally {
-            if (active) setLoading(false);
-          }
-        });
-    };
+  const handleResolveAddress = async (e) => {
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2`,
+        { headers: { "User-Agent": "FleetManagement/1.0" } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setAddress(data.display_name || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`);
+      } else {
+        throw new Error();
+      }
+    } catch (err) {
+      setAddress(`${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchAddress();
+  if (address) {
+    return <span>{address}</span>;
+  }
 
-    return () => {
-      active = false;
-    };
-  }, [lat, lng]);
-
-  if (loading && !address) {
+  if (loading) {
     return <span style={{ color: "#94a3b8", fontSize: "11px" }}>Locating address...</span>;
   }
 
-  return <span>{address || `${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}`}</span>;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <span style={{ fontSize: "12px", color: "#64748b" }}>
+        {parseFloat(lat).toFixed(6)}, {parseFloat(lng).toFixed(6)}
+      </span>
+      <button
+        onClick={handleResolveAddress}
+        style={{
+          padding: "3px 8px",
+          fontSize: "10px",
+          fontWeight: "600",
+          backgroundColor: "#3b82f6",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer"
+        }}
+      >
+        Show Address
+      </button>
+    </div>
+  );
 };
 
 export default function J42Status({ theme }) {
@@ -181,11 +185,17 @@ export default function J42Status({ theme }) {
         return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
       });
 
+      const sortedPoints = [...validPoints].sort((a, b) => {
+        const timeA = new Date(a.timestamp || a.gps_time || a.time);
+        const timeB = new Date(b.timestamp || b.gps_time || b.time);
+        return timeB - timeA; // Latest date and time first
+      });
+
       setSelectedDeviceTrajectory({
         device,
-        points: validPoints,
+        points: sortedPoints,
         loading: false,
-        error: validPoints.length === 0 ? "No active trajectory location records found in the last 30 days." : null
+        error: sortedPoints.length === 0 ? "No active trajectory location records found in the last 30 days." : null
       });
     } catch (err) {
       setSelectedDeviceTrajectory({
