@@ -18,6 +18,18 @@ import deviceApi from "../services/deviceApi";
 import "./DeviceManagement.css";
 import "./J42Status.css";
 
+const formatTimeUTC = (timeString) => {
+  if (!timeString) return "N/A";
+  const d = new Date(timeString);
+  return isNaN(d) ? "Invalid Date" : d.toISOString().replace('T', ' ').substring(0, 19) + " UTC";
+};
+
+const formatDateUTC = (timeString) => {
+  if (!timeString) return "N/A";
+  const d = new Date(timeString);
+  return isNaN(d) ? "Invalid Date" : d.toISOString().substring(0, 10) + " UTC";
+};
+
 const getBatteryDetails = (voltage, rawVoltage = null) => {
   if (voltage === undefined || voltage === null || voltage === "") {
     return { percent: null, text: "N/A", color: "#64748b", icon: Battery };
@@ -342,7 +354,7 @@ export default function J42Status({ theme }) {
                 </>
               )}
               <span style={{ margin: "0 0.5rem", color: "#64748b" }}>•</span>
-              <span style={{ color: "#64748b" }}>{new Date(lastGlobalAlert.eventTime).toLocaleString()}</span>
+              <span style={{ color: "#64748b" }}>{formatTimeUTC(lastGlobalAlert.eventTime)}</span>
             </div>
             <div className="status-badge" style={{ 
               background: lastGlobalAlert.status === "UNREAD" ? "rgba(59, 130, 246, 0.15)" : "rgba(148, 163, 184, 0.15)",
@@ -516,7 +528,7 @@ export default function J42Status({ theme }) {
                         }}>
                           <span>{deviceAlert.eventType?.replace(/_/g, ' ')}</span>
                           <span style={{ fontSize: "0.6875rem", color: "#64748b", fontWeight: 400 }}>
-                            {new Date(deviceAlert.eventTime).toLocaleDateString()}
+                            {formatDateUTC(deviceAlert.eventTime)}
                           </span>
                         </span>
                       </div>
@@ -629,7 +641,7 @@ export default function J42Status({ theme }) {
                           background: idx % 2 === 0 ? (theme === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)") : "transparent"
                         }}>
                           <td style={{ padding: "10px", whiteSpace: "nowrap" }}>
-                            {new Date(pt.timestamp || pt.gps_time || pt.time).toLocaleString()}
+                            {formatTimeUTC(pt.timestamp || pt.gps_time || pt.time)}
                           </td>
                           <td style={{ padding: "10px" }}>
                             <GeocodedAddress lat={pt.lat} lng={pt.lng || pt.lon} />

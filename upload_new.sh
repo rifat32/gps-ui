@@ -4,41 +4,28 @@
 set -e
 
 # Configuration
-REMOTE_USER="rifat"
-REMOTE_HOST="77.68.52.203"
+REMOTE_SERVER="vps2"
 LOCAL_DIR="."
-
-# Load .env file (for SERVER_PASSWORD, PORT, SERVICE_NAME)
-if [ -f ../final-dashcam/.env ]; then
-    export $(grep -v '^#' ../final-dashcam/.env | xargs)
-elif [ -f .env ]; then
-    # Note: gps-ui/.env might not have SERVER_PASSWORD, so we check final-dashcam first
-    export $(grep -v '^#' .env | xargs)
-fi
-
-# Set SSHPASS for sshpass tool
-export SSHPASS=$SERVER_PASSWORD
-
-# Set default PM2_PORT, SERVICE_NAME, and REMOTE_DIR if not defined
-PM2_PORT=${PM2_PORT:-4173}
-SERVICE_NAME=${SERVICE_NAME:-gps-ui}
-# Hardcode REMOTE_DIR for the old server to avoid conflicts with .env
-REMOTE_DIR="/home/rifat/gps-ui"
+REMOTE_DIR="/home/deploy/gps-test-app"
+PM2_PORT=4173
+SERVICE_NAME=gps-test-app
 
 # --- Connectivity Check ---
-SSH_PORT=22
-echo "🔍 Testing connection to ${REMOTE_HOST} on port ${SSH_PORT}..."
-if ! nc -z -w5 ${REMOTE_HOST} ${SSH_PORT}; then
-    echo "❌ Error: Cannot reach ${REMOTE_HOST} on port ${SSH_PORT}."
-    echo "   Your IP might be blocked or the port is incorrect."
+echo "🔍 Testing SSH connection to ${REMOTE_SERVER}..."
+
+if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 ${REMOTE_SERVER} exit; then
+    echo "❌ Error: Cannot connect to ${REMOTE_SERVER}."
+    echo "   Ensure your ~/.ssh/config is set up correctly and the server is reachable."
     exit 1
 fi
-echo "✅ Connection reached!"
+echo "✅ Connection successful!"
 
-echo "🔄 Syncing files to ${REMOTE_HOST}..."
+echo "🔄 Syncing full project to ${REMOTE_SERVER}..."
 
-# Sync files only, using sshpass for authentication
-sshpass -e rsync -av --delete \
+# Step 2: Sync files
+# Using -rlv instead of -a to avoid permission/time setting issues if the user is different from directory owner
+echo "📁 Syncing all files..."
+rsync -rlv --delete \
     --exclude='node_modules' \
     --exclude='dist' \
     --exclude='.git' \
@@ -46,19 +33,17 @@ sshpass -e rsync -av --delete \
     --exclude='*.tmp' \
     --exclude='*.log' \
     -e ssh \
-    ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
+    ${LOCAL_DIR}/ ${REMOTE_SERVER}:${REMOTE_DIR}/
 
 echo "✅ Files synced successfully!"
 
-echo "🔑 Uploading server environment (.env.new)..."
-sshpass -e scp .env.new ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env
 
 echo "📦 Installing dependencies and building on remote..."
-sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && npm install && npm run build"
+ssh ${REMOTE_SERVER} "cd ${REMOTE_DIR} && npm install && npm run build"
 
 echo "🔄 Starting UI service with PM2..."
 # Using 'vite preview' to serve the build on configured port
-sshpass -e ssh ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run serve -- -l ${PM2_PORT}' --name ${SERVICE_NAME}"
+ssh ${REMOTE_SERVER} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run serve -- -l ${PM2_PORT}' --name ${SERVICE_NAME}"
 
 echo "🚀 Deployment successful!"
-echo "🔗 UI should be accessible at: http://${REMOTE_HOST}:${PM2_PORT}"
+echo "🔗 UI should be accessible on the server's IP at port ${PM2_PORT}"
