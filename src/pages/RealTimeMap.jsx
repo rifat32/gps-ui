@@ -112,6 +112,7 @@ const mapApiVehicle = (v) => {
     deviceType: devType,
     batteryVoltage: v.battery_voltage ?? v.batteryVoltage ?? v.bettary ?? null,
     externalVoltage: v.external_voltage ?? v.externalVoltage ?? null,
+    isRealDevice: !!(v.isRealDevice ?? v.is_real_device),
   };
 };
 
@@ -401,7 +402,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
 
   // Derive the list of vehicles to render, filtered when showRealOnly is active
   const visibleVehicles = showRealOnly
-    ? vehicles.filter(v => realDeviceIdsRef.current.has(normalizeId(v.id)))
+    ? vehicles.filter(v => v.isRealDevice || realDeviceIdsRef.current.has(normalizeId(v.id)))
     : vehicles;
 
   const filteredVehiclesForDropdown = visibleVehicles.filter(v =>
