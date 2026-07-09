@@ -22,6 +22,7 @@ const DeviceManagement = ({ theme }) => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("ALL");
+  const [filterReal, setFilterReal] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState(null);
   const [togglingDevices, setTogglingDevices] = useState(new Set());
@@ -140,7 +141,12 @@ const DeviceManagement = ({ theme }) => {
     
     const matchesType = filterType === "ALL" || device.device_type === filterType;
     
-    return matchesSearch && matchesType;
+    const matchesReal = 
+      filterReal === "ALL" || 
+      (filterReal === "REAL" && device.isRealDevice) || 
+      (filterReal === "SIMULATOR" && !device.isRealDevice);
+    
+    return matchesSearch && matchesType && matchesReal;
   });
 
   return (
@@ -173,6 +179,14 @@ const DeviceManagement = ({ theme }) => {
             <option value="AI_DASHCAM">AI Dashcam</option>
             <option value="OBD">OBD Tracker</option>
             <option value="J42">J42 Device</option>
+          </select>
+        </div>
+        <div className="filter-wrapper">
+          <Filter size={18} className="filter-icon" />
+          <select value={filterReal} onChange={(e) => setFilterReal(e.target.value)}>
+            <option value="ALL">All Devices</option>
+            <option value="REAL">Real Devices Only</option>
+            <option value="SIMULATOR">Simulator Only</option>
           </select>
         </div>
       </div>
