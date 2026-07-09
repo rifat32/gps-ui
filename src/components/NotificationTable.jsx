@@ -1,7 +1,10 @@
 import { Image, PlaySquare, Copy, Check, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 
-const BASE_URL = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_API_BASE_URL || "";
+const BASE_URL =
+  import.meta.env.VITE_DASHCAM_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "";
 
 const ALERT_CATEGORY_TABS = [
   { id: "", label: "All Alerts" },
@@ -26,19 +29,20 @@ const CATEGORY_STYLES = {
   VIDEO: { bg: "#6366f115", color: "#6366f1", border: "#6366f133" },
 };
 
-const getCategoryStyle = (type) => CATEGORY_STYLES[type] || CATEGORY_STYLES.ADAS;
+const getCategoryStyle = (type) =>
+  CATEGORY_STYLES[type] || CATEGORY_STYLES.ADAS;
 
-export default function NotificationTable({ 
-  alerts, 
-  onOpenMedia, 
-  pagination, 
+export default function NotificationTable({
+  alerts,
+  onOpenMedia,
+  pagination,
   onPageChange,
   devices = [],
   filterDeviceId = "",
   onDeviceChange,
   activeCategory = "",
   onCategoryChange,
-  isLoading = false
+  isLoading = false,
 }) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -64,11 +68,13 @@ export default function NotificationTable({
   };
 
   const handleCopy = (path, id, type) => {
-    const fullPath = getProperUrl(path);
+    // const fullPath = getProperUrl(path);
+    const fullPath = path;
     if (!fullPath) return;
 
     if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(fullPath)
+      navigator.clipboard
+        .writeText(fullPath)
         .then(() => {
           setCopiedType({ id, type });
           setTimeout(() => setCopiedType(null), 2000);
@@ -122,18 +128,32 @@ export default function NotificationTable({
           flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
           alignItems: isMobile ? "stretch" : "center",
-          gap: isMobile ? "12px" : "20px"
+          gap: isMobile ? "12px" : "20px",
         }}
       >
-        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? "12px" : "20px", flex: 1 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
+            gap: isMobile ? "12px" : "20px",
+            flex: 1,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <h3
               style={{
                 margin: 0,
                 fontSize: "14px",
                 fontWeight: "700",
                 color: "var(--header-text)",
-                whiteSpace: "nowrap"
+                whiteSpace: "nowrap",
               }}
             >
               AI Notifications
@@ -167,15 +187,21 @@ export default function NotificationTable({
               cursor: "pointer",
               width: isMobile ? "100%" : "auto",
               minWidth: isMobile ? "none" : "180px",
-              maxWidth: isMobile ? "none" : "250px"
+              maxWidth: isMobile ? "none" : "250px",
             }}
           >
             <option value="">-- All AI Dashcams --</option>
-            {devices.map(dev => {
-              const isOnline = String(dev.status).toUpperCase() === 'ONLINE' || String(dev.liveStatus).toUpperCase() === 'ONLINE';
+            {devices.map((dev) => {
+              const isOnline =
+                String(dev.status).toUpperCase() === "ONLINE" ||
+                String(dev.liveStatus).toUpperCase() === "ONLINE";
               return (
-                <option key={dev.device_id || dev.id} value={dev.device_id || dev.id}>
-                  {dev.device_id || dev.id} {isOnline ? '(Online)' : '(Offline)'}
+                <option
+                  key={dev.device_id || dev.id}
+                  value={dev.device_id || dev.id}
+                >
+                  {dev.device_id || dev.id}{" "}
+                  {isOnline ? "(Online)" : "(Offline)"}
                 </option>
               );
             })}
@@ -185,7 +211,9 @@ export default function NotificationTable({
           {isMobile ? (
             <select
               value={activeCategory}
-              onChange={(e) => onCategoryChange && onCategoryChange(e.target.value)}
+              onChange={(e) =>
+                onCategoryChange && onCategoryChange(e.target.value)
+              }
               style={{
                 padding: "8px 12px",
                 borderRadius: "8px",
@@ -196,28 +224,32 @@ export default function NotificationTable({
                 fontWeight: "600",
                 outline: "none",
                 cursor: "pointer",
-                width: "100%"
+                width: "100%",
               }}
             >
-              {ALERT_CATEGORY_TABS.map(tab => (
+              {ALERT_CATEGORY_TABS.map((tab) => (
                 <option key={tab.id} value={tab.id}>
-                  {tab.label === "All Alerts" ? "All Alert Categories" : tab.label}
+                  {tab.label === "All Alerts"
+                    ? "All Alert Categories"
+                    : tab.label}
                 </option>
               ))}
             </select>
           ) : (
-            <div style={{ 
-              display: "flex", 
-              gap: "2px", 
-              marginLeft: "24px",
-              background: "rgba(15, 23, 42, 0.45)", // Semi-transparent dark slate
-              padding: "3px",
-              borderRadius: "10px",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
-              flexWrap: "wrap",
-              maxWidth: "720px",
-            }}>
-              {ALERT_CATEGORY_TABS.map(tab => {
+            <div
+              style={{
+                display: "flex",
+                gap: "2px",
+                marginLeft: "24px",
+                background: "rgba(15, 23, 42, 0.45)", // Semi-transparent dark slate
+                padding: "3px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                flexWrap: "wrap",
+                maxWidth: "720px",
+              }}
+            >
+              {ALERT_CATEGORY_TABS.map((tab) => {
                 const active = activeCategory === tab.id;
                 return (
                   <button
@@ -233,17 +265,21 @@ export default function NotificationTable({
                       fontWeight: active ? "800" : "600",
                       cursor: "pointer",
                       transition: "all 0.15s ease",
-                      boxShadow: active ? "0 4px 12px rgba(0, 0, 0, 0.2)" : "none",
+                      boxShadow: active
+                        ? "0 4px 12px rgba(0, 0, 0, 0.2)"
+                        : "none",
                     }}
                     onMouseOver={(e) => {
                       if (!active) {
                         e.currentTarget.style.color = "#ffffff";
-                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                        e.currentTarget.style.background =
+                          "rgba(255, 255, 255, 0.08)";
                       }
                     }}
                     onMouseOut={(e) => {
                       if (!active) {
-                        e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
+                        e.currentTarget.style.color =
+                          "rgba(255, 255, 255, 0.8)";
                         e.currentTarget.style.background = "transparent";
                       }
                     }}
@@ -257,19 +293,27 @@ export default function NotificationTable({
         </div>
 
         {pagination && pagination.totalPages > 1 && (
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            background: "rgba(15, 23, 42, 0.25)",
-            padding: "4px 10px",
-            borderRadius: "8px",
-            border: "1px solid var(--surface-border)",
-            justifyContent: "space-between",
-            width: isMobile ? "100%" : "auto",
-            marginTop: isMobile ? "4px" : "0px",
-          }}>
-            <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "700" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              background: "rgba(15, 23, 42, 0.25)",
+              padding: "4px 10px",
+              borderRadius: "8px",
+              border: "1px solid var(--surface-border)",
+              justifyContent: "space-between",
+              width: isMobile ? "100%" : "auto",
+              marginTop: isMobile ? "4px" : "0px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "11px",
+                color: "var(--text-secondary)",
+                fontWeight: "700",
+              }}
+            >
               Page {pagination.page}/{pagination.totalPages}
             </span>
             <div style={{ display: "flex", gap: "6px" }}>
@@ -279,8 +323,12 @@ export default function NotificationTable({
                 style={{
                   padding: "3px 8px",
                   borderRadius: "4px",
-                  background: pagination.hasPrev ? "#3b82f6" : "var(--btn-disabled-bg)",
-                  color: pagination.hasPrev ? "#ffffff" : "var(--text-disabled)",
+                  background: pagination.hasPrev
+                    ? "#3b82f6"
+                    : "var(--btn-disabled-bg)",
+                  color: pagination.hasPrev
+                    ? "#ffffff"
+                    : "var(--text-disabled)",
                   border: "none",
                   fontSize: "11px",
                   fontWeight: "bold",
@@ -295,8 +343,12 @@ export default function NotificationTable({
                 style={{
                   padding: "3px 8px",
                   borderRadius: "4px",
-                  background: pagination.hasNext ? "#3b82f6" : "var(--btn-disabled-bg)",
-                  color: pagination.hasNext ? "#ffffff" : "var(--text-disabled)",
+                  background: pagination.hasNext
+                    ? "#3b82f6"
+                    : "var(--btn-disabled-bg)",
+                  color: pagination.hasNext
+                    ? "#ffffff"
+                    : "var(--text-disabled)",
                   border: "none",
                   fontSize: "11px",
                   fontWeight: "bold",
@@ -323,19 +375,27 @@ export default function NotificationTable({
         )}
       </div>
 
-      <div style={{ flex: 1, overflow: "auto", position: "relative" }} className="custom-scrollbar">
+      <div
+        style={{ flex: 1, overflow: "auto", position: "relative" }}
+        className="custom-scrollbar"
+      >
         {isLoading && (
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            background: "rgba(15, 23, 42, 0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            backdropFilter: "blur(2px)",
-          }}>
-            <div className="media-viewer-spinner" style={{ width: "32px", height: "32px" }}></div>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 100,
+              backdropFilter: "blur(2px)",
+            }}
+          >
+            <div
+              className="media-viewer-spinner"
+              style={{ width: "32px", height: "32px" }}
+            ></div>
           </div>
         )}
         <table
@@ -366,355 +426,424 @@ export default function NotificationTable({
           </thead>
           <tbody>
             {alerts.length > 0 ? (
-            alerts.map((alert) => {
-              const mediaList = (() => {
-                if (!alert.media_files) return [];
-                let parsed = alert.media_files;
-                if (typeof parsed === 'string') {
-                  try {
-                    parsed = JSON.parse(parsed);
-                  } catch (e) {
-                    return [];
+              alerts.map((alert) => {
+                const mediaList = (() => {
+                  if (!alert.media_files) return [];
+                  let parsed = alert.media_files;
+                  if (typeof parsed === "string") {
+                    try {
+                      parsed = JSON.parse(parsed);
+                    } catch (e) {
+                      return [];
+                    }
                   }
-                }
-                return Array.isArray(parsed) ? parsed : [];
-              })();
+                  return Array.isArray(parsed) ? parsed : [];
+                })();
 
-              const normalizedMediaList = [...mediaList];
-              const addIfMissing = (path, col, channel, type) => {
-                if (path && !normalizedMediaList.some(m => m.path === path)) {
-                  normalizedMediaList.push({
-                    path,
-                    column: col,
-                    channel,
-                    media_type: type,
-                    file_name: path.split('/').pop()
-                  });
-                }
-              };
-              addIfMissing(alert.file_path, 'file_path', 1, 'image');
-              addIfMissing(alert.video_path, 'video_path', 1, 'video');
-              addIfMissing(alert.file_path_back, 'file_path_back', 2, 'image');
-              addIfMissing(alert.video_path_back, 'video_path_back', 2, 'video');
+                const normalizedMediaList = [...mediaList];
+                const addIfMissing = (path, col, channel, type) => {
+                  if (
+                    path &&
+                    !normalizedMediaList.some((m) => m.path === path)
+                  ) {
+                    normalizedMediaList.push({
+                      path,
+                      column: col,
+                      channel,
+                      media_type: type,
+                      file_name: path.split("/").pop(),
+                    });
+                  }
+                };
+                addIfMissing(alert.file_path, "file_path", 1, "image");
+                addIfMissing(alert.video_path, "video_path", 1, "video");
+                addIfMissing(
+                  alert.file_path_back,
+                  "file_path_back",
+                  2,
+                  "image",
+                );
+                addIfMissing(
+                  alert.video_path_back,
+                  "video_path_back",
+                  2,
+                  "video",
+                );
 
-              const frontImages = normalizedMediaList.filter(m => m.channel === 1 && m.media_type === 'image');
-              const frontVideos = normalizedMediaList.filter(m => m.channel === 1 && m.media_type === 'video');
-              const cabinImages = normalizedMediaList.filter(m => m.channel === 2 && m.media_type === 'image');
-              const cabinVideos = normalizedMediaList.filter(m => m.channel === 2 && m.media_type === 'video');
+                const frontImages = normalizedMediaList.filter(
+                  (m) => m.channel === 1 && m.media_type === "image",
+                );
+                const frontVideos = normalizedMediaList.filter(
+                  (m) => m.channel === 1 && m.media_type === "video",
+                );
+                const cabinImages = normalizedMediaList.filter(
+                  (m) => m.channel === 2 && m.media_type === "image",
+                );
+                const cabinVideos = normalizedMediaList.filter(
+                  (m) => m.channel === 2 && m.media_type === "video",
+                );
 
-              const filePath = frontImages[0]?.path || null;
-              const videoPath = frontVideos[0]?.path || null;
-              const filePathBack = cabinImages[0]?.path || null;
-              const videoPathBack = cabinVideos[0]?.path || null;
+                // const filePath = frontImages[0]?.path || null;
+                // const videoPath = frontVideos[0]?.path || null;
+                // const filePathBack = cabinImages[0]?.path || null;
+                // const videoPathBack = cabinVideos[0]?.path || null;
 
-              return (
-                <tr
-                  key={alert.id}
-                  className="table-row-hover"
-                  style={{ borderBottom: "1px solid #1e293b" }}
-                >
-                  <td style={tdStyle}>
-                    <div
-                      style={{
-                        fontWeight: "700",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {alert.deviceId}
-                    </div>
-                  </td>
-                  <td style={tdStyle}>
-                    <div style={{ color: "var(--text-secondary)" }}>
-                      {alert.time}
-                    </div>
-                  </td>
-                  <td style={tdStyle}>
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        fontWeight: "800",
-                        padding: "3px 8px",
-                        borderRadius: "5px",
-                        background: getCategoryStyle(alert.type).bg,
-                        color: getCategoryStyle(alert.type).color,
-                        border: `1px solid ${getCategoryStyle(alert.type).border}`,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {alert.type || "AI"}
-                    </span>
-                  </td>
+                const filePath = frontImages[0]?.url || null;
+                const videoPath = frontVideos[0]?.url || null;
+                const filePathBack = cabinImages[0]?.url || null;
+                const videoPathBack = cabinVideos[0]?.url || null;
 
-                  <td style={tdStyle}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                return (
+                  <tr
+                    key={alert.id}
+                    className="table-row-hover"
+                    style={{ borderBottom: "1px solid #1e293b" }}
+                  >
+                    <td style={tdStyle}>
                       <div
                         style={{
-                          fontWeight: "800",
+                          fontWeight: "700",
                           color: "var(--text-primary)",
-                          fontSize: "12px",
+                        }}
+                      >
+                        {alert.deviceId}
+                      </div>
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ color: "var(--text-secondary)" }}>
+                        {alert.time}
+                      </div>
+                    </td>
+                    <td style={tdStyle}>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: "800",
+                          padding: "3px 8px",
+                          borderRadius: "5px",
+                          background: getCategoryStyle(alert.type).bg,
+                          color: getCategoryStyle(alert.type).color,
+                          border: `1px solid ${getCategoryStyle(alert.type).border}`,
                           textTransform: "uppercase",
                         }}
                       >
-                        {alert.friendly_name || "Unknown Event"}
-                      </div>
+                        {alert.type || "AI"}
+                      </span>
+                    </td>
+
+                    <td style={tdStyle}>
                       <div
                         style={{
-                          fontSize: "10px",
-                          color: "var(--text-secondary)",
-                          opacity: 0.7,
-                          fontStyle: "italic",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "2px",
                         }}
                       >
-                        {alert.description || "No description available"}
+                        <div
+                          style={{
+                            fontWeight: "800",
+                            color: "var(--text-primary)",
+                            fontSize: "12px",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {alert.friendly_name || "Unknown Event"}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            color: "var(--text-secondary)",
+                            opacity: 0.7,
+                            fontStyle: "italic",
+                          }}
+                        >
+                          {alert.description || "No description available"}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "9px",
+                            color: "#64748b",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          Code: {alert.event_code}
+                        </div>
                       </div>
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ color: "var(--text-secondary)" }}>
+                        {Math.round(alert.speed * 0.621371)} mph
+                      </div>
+                    </td>
+                    <td style={tdStyle}>
                       <div
                         style={{
-                          fontSize: "9px",
-                          color: "#64748b",
-                          fontWeight: "bold",
+                          display: "flex",
+                          gap: "6px",
+                          flexWrap: "wrap",
                         }}
                       >
-                        Code: {alert.event_code}
+                        {frontImages.length > 0 ? (
+                          <button
+                            onClick={() =>
+                              onOpenMedia &&
+                              onOpenMedia({
+                                url: alert?.media_files[0]?.url,
+                                title: `${alert.message || alert.friendly_name} (Front Image)`,
+                                time: alert.time,
+                                deviceId: alert.deviceId,
+                                type: "image",
+                                mediaList: normalizedMediaList,
+                                initialIndex: normalizedMediaList.indexOf(
+                                  frontImages[0],
+                                ),
+                              })
+                            }
+                            className="media-btn image"
+                            title="View Front Image"
+                          >
+                            <Image size={14} />
+                          </button>
+                        ) : (
+                          <div
+                            className="media-btn disabled"
+                            title="No Front Image"
+                          >
+                            <Image size={14} />
+                          </div>
+                        )}
+                        {frontVideos.length > 0 ? (
+                          <button
+                            onClick={() =>
+                              onOpenMedia &&
+                              onOpenMedia({
+                                url: alert?.media_files[0]?.url,
+                                title: `${alert.message || alert.friendly_name} (Front Video)`,
+                                time: alert.time,
+                                deviceId: alert.deviceId,
+                                type: "video",
+                                mediaList: normalizedMediaList,
+                                initialIndex: normalizedMediaList.indexOf(
+                                  frontVideos[0],
+                                ),
+                              })
+                            }
+                            className="media-btn video"
+                            title="Play Front Video"
+                          >
+                            <PlaySquare size={14} />
+                          </button>
+                        ) : (
+                          <div
+                            className="media-btn disabled"
+                            title="No Front Video"
+                          >
+                            <PlaySquare size={14} />
+                          </div>
+                        )}
+
+                        {cabinImages.length > 0 ? (
+                          <button
+                            onClick={() =>
+                              onOpenMedia &&
+                              onOpenMedia({
+                                url: alert?.media_files[0]?.url,
+                                title: `${alert.message || alert.friendly_name} (Cabin/Back Image)`,
+                                time: alert.time,
+                                deviceId: alert.deviceId,
+                                type: "image",
+                                mediaList: normalizedMediaList,
+                                initialIndex: normalizedMediaList.indexOf(
+                                  cabinImages[0],
+                                ),
+                              })
+                            }
+                            className="media-btn cabin-image"
+                            title="View Cabin Image"
+                          >
+                            <Image size={14} />
+                          </button>
+                        ) : (
+                          <div
+                            className="media-btn disabled"
+                            title="No Cabin Image"
+                          >
+                            <Image size={14} />
+                          </div>
+                        )}
+
+                        {cabinVideos.length > 0 ? (
+                          <button
+                            onClick={() =>
+                              onOpenMedia &&
+                              onOpenMedia({
+                                url: alert?.media_files[0]?.url,
+                                title: `${alert.message || alert.friendly_name} (Cabin/Back Video)`,
+                                time: alert.time,
+                                deviceId: alert.deviceId,
+                                type: "video",
+                                mediaList: normalizedMediaList,
+                                initialIndex: normalizedMediaList.indexOf(
+                                  cabinVideos[0],
+                                ),
+                              })
+                            }
+                            className="media-btn cabin-video"
+                            title="Play Cabin Video"
+                          >
+                            <PlaySquare size={14} />
+                          </button>
+                        ) : (
+                          <div
+                            className="media-btn disabled"
+                            title="No Cabin Video"
+                          >
+                            <PlaySquare size={14} />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </td>
-                  <td style={tdStyle}>
-                    <div style={{ color: "var(--text-secondary)" }}>
-                      {Math.round(alert.speed * 0.621371)}  mph
-                    </div>
-                  </td>
-                  <td style={tdStyle}>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                      {frontImages.length > 0 ? (
-                        <button
-                          onClick={() =>
-                            onOpenMedia &&
-                            onOpenMedia({
-                              url: getProperUrl(frontImages[0].path),
-                              title: `${alert.message || alert.friendly_name} (Front Image)`,
-                              time: alert.time,
-                              deviceId: alert.deviceId,
-                              type: "image",
-                              mediaList: normalizedMediaList,
-                              initialIndex: normalizedMediaList.indexOf(frontImages[0])
-                            })
-                          }
-                          className="media-btn image"
-                          title="View Front Image"
-                        >
-                          <Image size={14} />
-                        </button>
-                      ) : (
-                        <div className="media-btn disabled" title="No Front Image">
-                          <Image size={14} />
-                        </div>
-                      )}
-                      {frontVideos.length > 0 ? (
-                        <button
-                          onClick={() =>
-                            onOpenMedia &&
-                            onOpenMedia({
-                              url: getProperUrl(frontVideos[0].path),
-                              title: `${alert.message || alert.friendly_name} (Front Video)`,
-                              time: alert.time,
-                              deviceId: alert.deviceId,
-                              type: "video",
-                              mediaList: normalizedMediaList,
-                              initialIndex: normalizedMediaList.indexOf(frontVideos[0])
-                            })
-                          }
-                          className="media-btn video"
-                          title="Play Front Video"
-                        >
-                          <PlaySquare size={14} />
-                        </button>
-                      ) : (
-                        <div className="media-btn disabled" title="No Front Video">
-                          <PlaySquare size={14} />
-                        </div>
-                      )}
+                    </td>
+                    <td style={tdStyle}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "12px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {filePath && (
+                          <button
+                            onClick={() =>
+                              handleCopy(filePath, alert.id, "image")
+                            }
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: isCopied(alert.id, "image")
+                                ? "#22c55e"
+                                : "#3b82f6",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              padding: "4px",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            {isCopied(alert.id, "image") ? (
+                              <Check size={14} />
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                            Front Image
+                          </button>
+                        )}
+                        {videoPath && (
+                          <button
+                            onClick={() =>
+                              handleCopy(videoPath, alert.id, "video")
+                            }
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: isCopied(alert.id, "video")
+                                ? "#22c55e"
+                                : "#22c55e",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              padding: "4px",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            {isCopied(alert.id, "video") ? (
+                              <Check size={14} />
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                            Front Video
+                          </button>
+                        )}
 
-                      {cabinImages.length > 0 ? (
-                        <button
-                          onClick={() =>
-                            onOpenMedia &&
-                            onOpenMedia({
-                              url: getProperUrl(cabinImages[0].path),
-                              title: `${alert.message || alert.friendly_name} (Cabin/Back Image)`,
-                              time: alert.time,
-                              deviceId: alert.deviceId,
-                              type: "image",
-                              mediaList: normalizedMediaList,
-                              initialIndex: normalizedMediaList.indexOf(cabinImages[0])
-                            })
-                          }
-                          className="media-btn cabin-image"
-                          title="View Cabin Image"
-                        >
-                          <Image size={14} />
-                        </button>
-                      ) : (
-                        <div className="media-btn disabled" title="No Cabin Image">
-                          <Image size={14} />
-                        </div>
-                      )}
+                        {filePathBack && (
+                          <button
+                            onClick={() =>
+                              handleCopy(filePathBack, alert.id, "image_back")
+                            }
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: isCopied(alert.id, "image_back")
+                                ? "#22c55e"
+                                : "#a855f7",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              padding: "4px",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            {isCopied(alert.id, "image_back") ? (
+                              <Check size={14} />
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                            Cabin Image
+                          </button>
+                        )}
+                        {videoPathBack && (
+                          <button
+                            onClick={() =>
+                              handleCopy(videoPathBack, alert.id, "video_back")
+                            }
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: isCopied(alert.id, "video_back")
+                                ? "#22c55e"
+                                : "#eab308",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              padding: "4px",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            {isCopied(alert.id, "video_back") ? (
+                              <Check size={14} />
+                            ) : (
+                              <Copy size={14} />
+                            )}
+                            Cabin Video
+                          </button>
+                        )}
 
-                      {cabinVideos.length > 0 ? (
-                        <button
-                          onClick={() =>
-                            onOpenMedia &&
-                            onOpenMedia({
-                              url: getProperUrl(cabinVideos[0].path),
-                              title: `${alert.message || alert.friendly_name} (Cabin/Back Video)`,
-                              time: alert.time,
-                              deviceId: alert.deviceId,
-                              type: "video",
-                              mediaList: normalizedMediaList,
-                              initialIndex: normalizedMediaList.indexOf(cabinVideos[0])
-                            })
-                          }
-                          className="media-btn cabin-video"
-                          title="Play Cabin Video"
-                        >
-                          <PlaySquare size={14} />
-                        </button>
-                      ) : (
-                        <div className="media-btn disabled" title="No Cabin Video">
-                          <PlaySquare size={14} />
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td style={tdStyle}>
-                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                      {filePath && (
-                        <button
-                          onClick={() =>
-                            handleCopy(filePath, alert.id, "image")
-                          }
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: isCopied(alert.id, "image")
-                              ? "#22c55e"
-                              : "#3b82f6",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "11px",
-                            fontWeight: "600",
-                            padding: "4px",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {isCopied(alert.id, "image") ? (
-                            <Check size={14} />
-                          ) : (
-                            <Copy size={14} />
+                        {!filePath &&
+                          !videoPath &&
+                          !filePathBack &&
+                          !videoPathBack && (
+                            <span
+                              style={{ color: "#475569", fontSize: "11px" }}
+                            >
+                              No Links
+                            </span>
                           )}
-                          Front Image
-                        </button>
-                      )}
-                      {videoPath && (
-                        <button
-                          onClick={() =>
-                            handleCopy(videoPath, alert.id, "video")
-                          }
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: isCopied(alert.id, "video")
-                              ? "#22c55e"
-                              : "#22c55e",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "11px",
-                            fontWeight: "600",
-                            padding: "4px",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {isCopied(alert.id, "video") ? (
-                            <Check size={14} />
-                          ) : (
-                            <Copy size={14} />
-                          )}
-                          Front Video
-                        </button>
-                      )}
-
-                      {filePathBack && (
-                        <button
-                          onClick={() =>
-                            handleCopy(filePathBack, alert.id, "image_back")
-                          }
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: isCopied(alert.id, "image_back")
-                              ? "#22c55e"
-                              : "#a855f7",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "11px",
-                            fontWeight: "600",
-                            padding: "4px",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {isCopied(alert.id, "image_back") ? (
-                            <Check size={14} />
-                          ) : (
-                            <Copy size={14} />
-                          )}
-                          Cabin Image
-                        </button>
-                      )}
-                      {videoPathBack && (
-                        <button
-                          onClick={() =>
-                            handleCopy(videoPathBack, alert.id, "video_back")
-                          }
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: isCopied(alert.id, "video_back")
-                              ? "#22c55e"
-                              : "#eab308",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "11px",
-                            fontWeight: "600",
-                            padding: "4px",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {isCopied(alert.id, "video_back") ? (
-                            <Check size={14} />
-                          ) : (
-                            <Copy size={14} />
-                          )}
-                          Cabin Video
-                        </button>
-                      )}
-
-                      {!filePath && !videoPath && !filePathBack && !videoPathBack && (
-                        <span style={{ color: "#475569", fontSize: "11px" }}>
-                          No Links
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td
@@ -727,12 +856,12 @@ export default function NotificationTable({
                 >
                   No notifications found
                 </td>
-               </tr>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
-      
+
       {/* Pagination Footer */}
       {pagination && pagination.totalPages > 1 && (
         <div
@@ -746,7 +875,8 @@ export default function NotificationTable({
           }}
         >
           <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-            Page <strong>{pagination.page}</strong> of <strong>{pagination.totalPages}</strong>
+            Page <strong>{pagination.page}</strong> of{" "}
+            <strong>{pagination.totalPages}</strong>
           </div>
           <div style={{ display: "flex", gap: "8px" }}>
             <button
@@ -755,9 +885,13 @@ export default function NotificationTable({
               style={{
                 padding: "6px 12px",
                 borderRadius: "6px",
-                background: pagination.hasPrev ? "var(--btn-primary-bg)" : "var(--btn-disabled-bg)",
+                background: pagination.hasPrev
+                  ? "var(--btn-primary-bg)"
+                  : "var(--btn-disabled-bg)",
                 border: "1px solid var(--surface-border)",
-                color: pagination.hasPrev ? "var(--text-primary)" : "var(--text-disabled)",
+                color: pagination.hasPrev
+                  ? "var(--text-primary)"
+                  : "var(--text-disabled)",
                 cursor: pagination.hasPrev ? "pointer" : "not-allowed",
                 fontSize: "12px",
                 fontWeight: "600",
@@ -772,9 +906,13 @@ export default function NotificationTable({
               style={{
                 padding: "6px 12px",
                 borderRadius: "6px",
-                background: pagination.hasNext ? "var(--btn-primary-bg)" : "var(--btn-disabled-bg)",
+                background: pagination.hasNext
+                  ? "var(--btn-primary-bg)"
+                  : "var(--btn-disabled-bg)",
                 border: "1px solid var(--surface-border)",
-                color: pagination.hasNext ? "var(--text-primary)" : "var(--text-disabled)",
+                color: pagination.hasNext
+                  ? "var(--text-primary)"
+                  : "var(--text-disabled)",
                 cursor: pagination.hasNext ? "pointer" : "not-allowed",
                 fontSize: "12px",
                 fontWeight: "600",

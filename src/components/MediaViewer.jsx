@@ -1,25 +1,51 @@
-import { X, ExternalLink, Download, ChevronLeft, ChevronRight, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
+import {
+  X,
+  ExternalLink,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon,
+  Video as VideoIcon,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function MediaViewer({ media, onClose }) {
   if (!media) return null;
 
-  const baseUrl = import.meta.env.VITE_DASHCAM_API_URL || import.meta.env.VITE_API_BASE_URL || "";
+  const baseUrl =
+    import.meta.env.VITE_DASHCAM_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    "";
 
   // 1. Resolve media list
   const mediaList = (() => {
-    if (media.mediaList && Array.isArray(media.mediaList) && media.mediaList.length > 0) {
+    if (
+      media.mediaList &&
+      Array.isArray(media.mediaList) &&
+      media.mediaList.length > 0
+    ) {
       return media.mediaList;
     }
     // Fallback if single media passed without list
     const cleanUrl = media.url.split("?")[0];
-    const isVid = cleanUrl.toLowerCase().endsWith(".mp4") || cleanUrl.toLowerCase().endsWith(".avi") || media.type === "video";
-    return [{
-      path: media.url,
-      media_type: isVid ? "video" : "image",
-      channel: media.title.includes("Cabin") ? 2 : 1,
-      column: isVid ? (media.title.includes("Cabin") ? "video_path_back" : "video_path") : (media.title.includes("Cabin") ? "file_path_back" : "file_path")
-    }];
+    const isVid =
+      cleanUrl.toLowerCase().endsWith(".mp4") ||
+      cleanUrl.toLowerCase().endsWith(".avi") ||
+      media.type === "video";
+    return [
+      {
+        path: media.url,
+        media_type: isVid ? "video" : "image",
+        channel: media.title.includes("Cabin") ? 2 : 1,
+        column: isVid
+          ? media.title.includes("Cabin")
+            ? "video_path_back"
+            : "video_path"
+          : media.title.includes("Cabin")
+            ? "file_path_back"
+            : "file_path",
+      },
+    ];
   })();
 
   // 2. Initialize active index
@@ -78,18 +104,24 @@ export default function MediaViewer({ media, onClose }) {
     return url;
   };
 
-  const activeUrl = getFullUrl(activeItem?.path);
-  const isVideo = activeItem?.media_type === "video" || activeItem?.path?.toLowerCase().endsWith(".mp4") || activeItem?.path?.toLowerCase().endsWith(".avi");
+  const activeUrl = activeItem?.url;
+  // const activeUrl = getFullUrl(activeItem?.path);
+  const isVideo =
+    activeItem?.media_type === "video" ||
+    activeItem?.path?.toLowerCase().endsWith(".mp4") ||
+    activeItem?.path?.toLowerCase().endsWith(".avi");
 
   const getFriendlyName = (item, idx) => {
-    const isImage = item.media_type === 'image';
-    const chName = item.channel === 2 ? 'Cabin/Back' : 'Front';
-    const sameType = mediaList.filter(m => m.channel === item.channel && m.media_type === item.media_type);
+    const isImage = item.media_type === "image";
+    const chName = item.channel === 2 ? "Cabin/Back" : "Front";
+    const sameType = mediaList.filter(
+      (m) => m.channel === item.channel && m.media_type === item.media_type,
+    );
     if (sameType.length > 1) {
       const typeIndex = sameType.indexOf(item) + 1;
-      return `${chName} ${isImage ? 'Image' : 'Video'} ${typeIndex}`;
+      return `${chName} ${isImage ? "Image" : "Video"} ${typeIndex}`;
     }
-    return `${chName} ${isImage ? 'Image' : 'Video'}`;
+    return `${chName} ${isImage ? "Image" : "Video"}`;
   };
 
   return (
@@ -122,11 +154,19 @@ export default function MediaViewer({ media, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div>
-          <h3 style={{ margin: "0 0 4px 0", fontSize: "20px", fontWeight: "800", color: "#f8fafc" }}>
+          <h3
+            style={{
+              margin: "0 0 4px 0",
+              fontSize: "20px",
+              fontWeight: "800",
+              color: "#f8fafc",
+            }}
+          >
             {media.title || "AI Alert Evidence"}
           </h3>
           <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-            {media.time} • Device: {media.deviceId} • Asset {activeIndex + 1} of {mediaList.length}
+            {media.time} • Device: {media.deviceId} • Asset {activeIndex + 1} of{" "}
+            {mediaList.length}
           </p>
         </div>
 
@@ -148,7 +188,7 @@ export default function MediaViewer({ media, onClose }) {
               fontSize: "13px",
               fontWeight: "600",
               textDecoration: "none",
-              transition: "all 0.2s"
+              transition: "all 0.2s",
             }}
           >
             <ExternalLink size={16} /> Open Origin
@@ -167,10 +207,12 @@ export default function MediaViewer({ media, onClose }) {
               justifyContent: "center",
               cursor: "pointer",
               boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)",
-              transition: "transform 0.2s"
+              transition: "transform 0.2s",
             }}
-            onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-            onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+            onMouseOver={(e) =>
+              (e.currentTarget.style.transform = "scale(1.05)")
+            }
+            onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
             <X size={20} />
           </button>
@@ -187,7 +229,7 @@ export default function MediaViewer({ media, onClose }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          margin: "20px 0"
+          margin: "20px 0",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -210,7 +252,7 @@ export default function MediaViewer({ media, onClose }) {
               cursor: "pointer",
               zIndex: 1020,
               backdropFilter: "blur(4px)",
-              transition: "all 0.2s"
+              transition: "all 0.2s",
             }}
             className="carousel-nav-btn"
           >
@@ -232,7 +274,7 @@ export default function MediaViewer({ media, onClose }) {
             overflow: "hidden",
             boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6)",
             background: "#000000",
-            position: "relative"
+            position: "relative",
           }}
         >
           {loading && (
@@ -244,7 +286,7 @@ export default function MediaViewer({ media, onClose }) {
                 alignItems: "center",
                 justifyContent: "center",
                 background: "rgba(0,0,0,0.5)",
-                zIndex: 10
+                zIndex: 10,
               }}
             >
               <div className="media-viewer-spinner"></div>
@@ -262,7 +304,7 @@ export default function MediaViewer({ media, onClose }) {
                 maxWidth: "100%",
                 maxHeight: "100%",
                 objectFit: "contain",
-                display: "block"
+                display: "block",
               }}
             />
           ) : (
@@ -275,7 +317,7 @@ export default function MediaViewer({ media, onClose }) {
                 maxWidth: "100%",
                 maxHeight: "100%",
                 objectFit: "contain",
-                display: "block"
+                display: "block",
               }}
             />
           )}
@@ -300,7 +342,7 @@ export default function MediaViewer({ media, onClose }) {
               cursor: "pointer",
               zIndex: 1020,
               backdropFilter: "blur(4px)",
-              transition: "all 0.2s"
+              transition: "all 0.2s",
             }}
             className="carousel-nav-btn"
           >
@@ -340,9 +382,11 @@ export default function MediaViewer({ media, onClose }) {
                 style={{
                   flex: "0 0 160px",
                   height: "72px",
-                  background: isActive ? "rgba(59, 130, 246, 0.15)" : "rgba(30, 41, 59, 0.5)",
+                  background: isActive
+                    ? "rgba(59, 130, 246, 0.15)"
+                    : "rgba(30, 41, 59, 0.5)",
                   border: isActive
-                    ? `2.5px solid ${isCabin ? '#a855f7' : '#3b82f6'}`
+                    ? `2.5px solid ${isCabin ? "#a855f7" : "#3b82f6"}`
                     : "1px solid rgba(255,255,255,0.08)",
                   borderRadius: "10px",
                   display: "flex",
@@ -353,22 +397,35 @@ export default function MediaViewer({ media, onClose }) {
                   transition: "all 0.2s",
                   padding: "8px",
                   boxSizing: "border-box",
-                  boxShadow: isActive ? "0 4px 14px rgba(59, 130, 246, 0.2)" : "none"
+                  boxShadow: isActive
+                    ? "0 4px 14px rgba(59, 130, 246, 0.2)"
+                    : "none",
                 }}
-                className={`playlist-item ${isActive ? 'active' : ''}`}
+                className={`playlist-item ${isActive ? "active" : ""}`}
               >
                 <div
                   style={{
-                    color: isActive ? (isCabin ? '#c084fc' : '#60a5fa') : "#94a3b8",
+                    color: isActive
+                      ? isCabin
+                        ? "#c084fc"
+                        : "#60a5fa"
+                      : "#94a3b8",
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
-                    marginBottom: "4px"
+                    marginBottom: "4px",
                   }}
                 >
                   {isImage ? <ImageIcon size={16} /> : <VideoIcon size={16} />}
-                  <span style={{ fontSize: "10px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {isImage ? 'Image' : 'Video'}
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    {isImage ? "Image" : "Video"}
                   </span>
                 </div>
                 <div
@@ -380,7 +437,7 @@ export default function MediaViewer({ media, onClose }) {
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    width: "100%"
+                    width: "100%",
                   }}
                 >
                   {getFriendlyName(item, idx)}
