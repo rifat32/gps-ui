@@ -117,6 +117,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
   const [systemStatusFilter, setSystemStatusFilter] = useState("UNREAD");
   const [systemDeviceType, setSystemDeviceType] = useState("AI_DASHCAM");
   const [systemDeviceId, setSystemDeviceId] = useState("");
+  const [systemEventType, setSystemEventType] = useState("");
   const [allDevices, setAllDevices] = useState([]);
   const [systemLoading, setSystemLoading] = useState(false);
   const [systemPagination, setSystemPagination] = useState({
@@ -139,6 +140,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
   const systemPaginationRef = useRef(systemPagination);
   const systemDeviceTypeRef = useRef(systemDeviceType);
   const systemDeviceIdRef = useRef(systemDeviceId);
+  const systemEventTypeRef = useRef(systemEventType);
 
   // Sync refs with state
   useEffect(() => {
@@ -168,6 +170,10 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
   useEffect(() => {
     systemDeviceIdRef.current = systemDeviceId;
   }, [systemDeviceId]);
+
+  useEffect(() => {
+    systemEventTypeRef.current = systemEventType;
+  }, [systemEventType]);
 
   // Fetch AI events with pagination and filter
   const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
@@ -225,7 +231,8 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
     page = 1,
     status = systemStatusFilter,
     deviceType = systemDeviceType,
-    deviceId = systemDeviceId
+    deviceId = systemDeviceId,
+    eventType = systemEventType
   ) => {
     setSystemLoading(true);
     try {
@@ -235,6 +242,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
         status,
         deviceType,
         deviceId,
+        eventType,
       });
       if (res && res.success) {
         setSystemAlerts(res.data || []);
@@ -258,7 +266,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
     try {
       const res = await deviceApi.markAlertEventAsRead(id);
       if (res && res.success) {
-        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId);
+        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType);
       }
     } catch (err) {
       console.error("Failed to mark alert as read:", err);
@@ -269,7 +277,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
     try {
       const res = await deviceApi.markAlertEventAsResolved(id);
       if (res && res.success) {
-        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId);
+        fetchSystemAlerts(systemPagination.page, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType);
       }
     } catch (err) {
       console.error("Failed to resolve alert:", err);
@@ -280,7 +288,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
     try {
       const res = await deviceApi.markAllAlertEventsAsRead();
       if (res && res.success) {
-        fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId);
+        fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType);
       }
     } catch (err) {
       console.error("Failed to mark all alerts as read:", err);
@@ -710,25 +718,30 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
               <SystemAlertsTable
                 alerts={systemAlerts}
                 pagination={systemPagination}
-                onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter, systemDeviceType, systemDeviceId)}
+                onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType)}
                 onMarkAsRead={handleMarkAsRead}
                 onResolve={handleResolve}
                 statusFilter={systemStatusFilter}
                 onStatusFilterChange={(status) => {
                   setSystemStatusFilter(status);
-                  fetchSystemAlerts(1, status, systemDeviceType, systemDeviceId);
+                  fetchSystemAlerts(1, status, systemDeviceType, systemDeviceId, systemEventType);
                 }}
                 loading={systemLoading}
                 deviceTypeFilter={systemDeviceType}
                 onDeviceTypeFilterChange={(type) => {
                   setSystemDeviceType(type);
                   setSystemDeviceId("");
-                  fetchSystemAlerts(1, systemStatusFilter, type, "");
+                  fetchSystemAlerts(1, systemStatusFilter, type, "", systemEventType);
                 }}
                 deviceIdFilter={systemDeviceId}
                 onDeviceIdFilterChange={(id) => {
                   setSystemDeviceId(id);
-                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, id);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, id, systemEventType);
+                }}
+                eventTypeFilter={systemEventType}
+                onEventTypeFilterChange={(type) => {
+                  setSystemEventType(type);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, type);
                 }}
                 devicesList={allDevices}
                 onMarkAllAsRead={handleMarkAllAsRead}

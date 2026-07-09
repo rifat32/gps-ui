@@ -50,6 +50,8 @@ export default function SystemAlertsTable({
   onDeviceTypeFilterChange,
   deviceIdFilter,
   onDeviceIdFilterChange,
+  eventTypeFilter,
+  onEventTypeFilterChange,
   devicesList,
   onMarkAllAsRead,
 }) {
@@ -159,6 +161,40 @@ export default function SystemAlertsTable({
                     </option>
                   ));
               })()}
+            </select>
+          </div>
+
+          {/* Alert Type Filter */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>Alarm:</span>
+            <select
+              value={eventTypeFilter}
+              onChange={(e) => onEventTypeFilterChange && onEventTypeFilterChange(e.target.value)}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "6px",
+                background: "rgba(15, 23, 42, 0.45)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: "600",
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="">All Alarms</option>
+              <option value="INACTIVITY">Inactivity</option>
+              <option value="LATE_START">Late Start</option>
+              <option value="LONG_STOP">Long Stop</option>
+              <option value="GEOFENCE">Geofence</option>
+              <option value="SPEEDING">Speeding</option>
+              <option value="HARSH_DRIVING">Harsh Driving</option>
+              <option value="IDLING">Idling</option>
+              <option value="TOWING">Towing</option>
+              <option value="UNASSIGNED_VEHICLE">Unassigned Vehicle</option>
+              <option value="POWER_DISRUPTION">Power Disruption</option>
+              <option value="POWER_RESTORED">Power Restore</option>
+              <option value="DTC">Diagnostic Trouble Code</option>
             </select>
           </div>
 
