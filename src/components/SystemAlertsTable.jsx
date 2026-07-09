@@ -346,7 +346,7 @@ export default function SystemAlertsTable({
             <thead style={{ position: "sticky", top: 0, background: "#0f172a", zIndex: 10 }}>
               <tr>
                 <th style={thStyle}>Vehicle / Device</th>
-                <th style={thStyle}>Time Triggered</th>
+                <th style={thStyle}>Detected / Event Time</th>
                 <th style={thStyle}>Policy / Name</th>
                 <th style={thStyle}>Alarm Type</th>
                 <th style={thStyle}>Severity</th>
@@ -360,26 +360,32 @@ export default function SystemAlertsTable({
                   const style = getSeverityStyle(alert.severity);
                   return (
                     <tr
-                      key={alert.id}
-                      style={{ borderBottom: "1px solid #1e293b", transition: "background 0.2s" }}
-                      className="table-row-hover"
-                    >
-                      {/* Vehicle / Device */}
-                      <td style={tdStyle}>
-                        <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>
-                          {alert.licensePlate || "N/A"}
-                        </div>
-                        <div style={{ fontSize: "10px", color: "var(--text-secondary)", opacity: 0.7 }}>
-                          IMEI / ID: {alert.deviceId}
-                        </div>
-                      </td>
-
-                      {/* Time Triggered */}
-                      <td style={tdStyle}>
-                        <div style={{ color: "var(--text-secondary)" }}>
-                          {alert.eventTime ? formatDeviceDateTime(alert.eventTime) : "N/A"}
-                        </div>
-                      </td>
+                       key={alert.id}
+                       style={{ borderBottom: "1px solid #1e293b", transition: "background 0.2s" }}
+                       className="table-row-hover"
+                     >
+                       {/* Vehicle / Device */}
+                       <td style={tdStyle}>
+                         <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>
+                           {alert.licensePlate || "N/A"}
+                         </div>
+                         <div style={{ fontSize: "10px", color: "var(--text-secondary)", opacity: 0.7 }}>
+                           IMEI / ID: {alert.deviceId}
+                         </div>
+                       </td>
+ 
+                       {/* Time Triggered */}
+                       <td style={tdStyle}>
+                         <div style={{ fontWeight: "700", color: "var(--text-primary)" }}>
+                           {alert.createdAt ? formatDeviceDateTime(alert.createdAt) : "N/A"}
+                         </div>
+                         {alert.eventTime && Math.abs(new Date(alert.eventTime).getTime() - new Date(alert.createdAt).getTime()) > 5000 && (
+                           <div style={{ fontSize: "10px", color: "#38bdf8", fontWeight: "600", marginTop: "3px" }}>
+                             {alert.eventType === "INACTIVITY" ? "Offline Since: " : "Event Time: "}
+                             {formatDeviceDateTime(alert.eventTime)}
+                           </div>
+                         )}
+                       </td>
 
                       {/* Policy / Name */}
                       <td style={tdStyle}>
