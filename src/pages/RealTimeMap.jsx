@@ -383,7 +383,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       let hasValidCoords = false;
 
       vehicles.forEach((v) => {
-        if (Number.isFinite(v.lat) && Number.isFinite(v.lng)) {
+        if (Number.isFinite(v.lat) && Number.isFinite(v.lng) && v.lat !== 0 && v.lng !== 0) {
           bounds.extend({ lat: v.lat, lng: v.lng });
           hasValidCoords = true;
         }
@@ -655,7 +655,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                               setSelectedVehicle(v); 
                               setIsDeviceDropdownOpen(false); 
                               setSearchTerm(""); 
-                              if (mapRef.current) {
+                              if (mapRef.current && v.lat !== 0 && v.lng !== 0) {
                                 mapRef.current.panTo({ lat: v.lat, lng: v.lng });
                                 mapRef.current.setZoom(15);
                               }
