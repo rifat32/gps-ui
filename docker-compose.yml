@@ -1,0 +1,24 @@
+name: gps-test-app
+
+services:
+  gps-ui:
+    container_name: gps-test-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_MAP_API: ${VITE_GOOGLE_MAP_API}
+        VITE_SERVER_TYPE: ${VITE_SERVER_TYPE}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_DASHCAM_API_URL: ${VITE_DASHCAM_API_URL}
+        VITE_DASHCAM_WS_URL: ${VITE_DASHCAM_WS_URL}
+        VITE_WS_URL: ${VITE_WS_URL}
+        VITE_OBD_API_URL: ${VITE_OBD_API_URL}
+        VITE_LOGS_API_URL: ${VITE_LOGS_API_URL}
+        VITE_GRAPHQL_URL: ${VITE_GRAPHQL_URL}
+    image: gps-test-app:latest
+    ports:
+      - "${PM2_PORT:-4173}:4173"
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
