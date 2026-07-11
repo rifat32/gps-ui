@@ -1,49 +1,68 @@
 #!/bin/bash
 
-# Project Upload Script for GPS UI (React/Vite)
+# Deployment Script for GPS UI (NEW Server)
+# Target: 77.68.52.203
 set -e
 
 # Configuration
-REMOTE_SERVER="vps2"
-LOCAL_DIR="."
+REMOTE_USER="rifat"
+REMOTE_HOST="77.68.52.203"
 REMOTE_DIR="/home/deploy/gps-test-app"
-PM2_PORT=4173
-SERVICE_NAME=gps-test-app
+LOCAL_DIR="."
 
-# --- Connectivity Check ---
-echo "🔍 Testing SSH connection to ${REMOTE_SERVER}..."
-
-if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 ${REMOTE_SERVER} exit; then
-    echo "❌ Error: Cannot connect to ${REMOTE_SERVER}."
-    echo "   Ensure your ~/.ssh/config is set up correctly and the server is reachable."
-    exit 1
+# Parse custom username if provided
+if [ ! -z "$1" ]; then
+    REMOTE_USER="$1"
 fi
-echo "✅ Connection successful!"
 
-echo "🔄 Syncing full project to ${REMOTE_SERVER}..."
+# 1. Build the application locally
+echo "🏗️ Building the application locally..."
+yarn build
 
-# Step 2: Sync files
-# Using -rlv instead of -a to avoid permission/time setting issues if the user is different from directory owner
-echo "📁 Syncing all files..."
-rsync -rlv --delete \
+# 2. Sync files to remote (including dist)
+echo "🔄 Syncing files to remote..."
+rsync -av --delete \
     --exclude='node_modules' \
-    --exclude='dist' \
     --exclude='.git' \
     --exclude='*.DS_Store' \
     --exclude='*.tmp' \
     --exclude='*.log' \
-    -e ssh \
-    ${LOCAL_DIR}/ ${REMOTE_SERVER}:${REMOTE_DIR}/
+    --exclude='.env' \
+    --exclude='.env.local' \
+    ${LOCAL_DIR}/ ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
 
-echo "✅ Files synced successfully!"
+# 3. Upload the server environment file
+echo "🔑 Uploading server environment (.env.new)..."
+scp .env.new ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.env.new
 
+# 4. Remote Execution: Restart with PM2
+echo "🔧 Executing remote restart..."
+ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << EOF
+    set -e
+    cd ${REMOTE_DIR}
+    
+    # Update .env
+    cp .env.new .env
+    
+    # Load variables for PM2
+    export \$(grep -v '^#' .env | xargs)
+    PM2_PORT=\${PM2_PORT:-4173}
+    SERVICE_NAME=\${SERVICE_NAME:-gps-test-app}
 
-echo "📦 Installing dependencies and building on remote..."
-ssh ${REMOTE_SERVER} "cd ${REMOTE_DIR} && npm install && npm run build"
+    # Ensure a local static server is installed if node_modules is missing
+    if [ ! -d "node_modules" ]; then
+        echo "📦 Installing static file server..."
+        npm install serve
+    fi
 
-echo "🔄 Starting UI service with PM2..."
-# Using 'vite preview' to serve the build on configured port
-ssh ${REMOTE_SERVER} "cd ${REMOTE_DIR} && pm2 delete ${SERVICE_NAME} || true && pm2 start 'npm run serve -- -l ${PM2_PORT}' --name ${SERVICE_NAME}"
+    echo "🔄 Restarting service with PM2..."
+    pm2 delete \${SERVICE_NAME} || true
+    pm2 start "node_modules/.bin/serve -s dist -l \${PM2_PORT}" --name \${SERVICE_NAME}
+    
+    # Save PM2 state
+    pm2 save
+EOF
 
-echo "🚀 Deployment successful!"
-echo "🔗 UI should be accessible on the server's IP at port ${PM2_PORT}"
+echo ""
+echo "✅ GPS UI native deployment to NEW server completed successfully!"
+echo "🔗 Frontend should be accessible at: http://${REMOTE_HOST}:4173"

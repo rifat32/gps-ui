@@ -286,7 +286,7 @@ export default function SystemAlertsTable({
               width: isMobile ? "100%" : "auto",
               marginTop: isMobile ? "4px" : "0px",
             }}>
-              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: "700" }}>
+              <span style={{ fontSize: "11px", color: "var(--header-text)", opacity: 0.9, fontWeight: "700" }}>
                 Page {pagination.page}/{pagination.totalPages}
               </span>
               <div style={{ display: "flex", gap: "6px" }}>
@@ -513,7 +513,7 @@ export default function SystemAlertsTable({
           >
             Previous
           </button>
-          <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600" }}>
+          <span style={{ fontSize: "12px", color: "var(--header-text)", opacity: 0.9, fontWeight: "600" }}>
             Page {pagination.page} of {pagination.totalPages}
           </span>
           <button
