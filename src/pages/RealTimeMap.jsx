@@ -241,6 +241,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
 
     setSelectedVehicle((current) => {
       if (!current || normalizeId(current.id) !== incoming.id) return current;
+      
+      const existingTime = current.lastUpdatedAt || getMillis(current.lastSeen) || getMillis(current.gpsTime);
+      const incomingTime = incoming.lastUpdatedAt || getMillis(incoming.lastSeen) || getMillis(incoming.gpsTime);
+      if (existingTime && incomingTime && incomingTime < existingTime) return current;
+
       return { ...current, ...incoming, name: incoming.name || current.name };
     });
   };
