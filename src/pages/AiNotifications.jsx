@@ -181,6 +181,10 @@ export default function AiNotifications({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          image_url: event.image_url,
+          video_url: event.video_url,
+          image_url_back: event.image_url_back,
+          video_url_back: event.video_url_back,
           media_files: event.media_files,
         };
       });
@@ -302,6 +306,10 @@ export default function AiNotifications({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          image_url: event.image_url,
+          video_url: event.video_url,
+          image_url_back: event.image_url_back,
+          video_url_back: event.video_url_back,
           media_files: event.media_files,
         };
         return [newAlert, ...prev].slice(0, paginationRef.current.perPage);

@@ -119,6 +119,11 @@ export default function Dashcam({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          image_url: event.image_url,
+          video_url: event.video_url,
+          image_url_back: event.image_url_back,
+          video_url_back: event.video_url_back,
+          media_files: event.media_files,
         };
       });
       setAlerts(formatted);
@@ -174,6 +179,11 @@ export default function Dashcam({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          image_url: event.image_url,
+          video_url: event.video_url,
+          image_url_back: event.image_url_back,
+          video_url_back: event.video_url_back,
+          media_files: event.media_files,
         };
         // Avoid adding if same alert arrived via polling/refresh?
         // For simplicity, just unshift
@@ -198,10 +208,12 @@ export default function Dashcam({ theme, toggleTheme }) {
               video_path: data.video_path || alert.video_path,
               file_path_back: data.file_path_back || alert.file_path_back,
               video_path_back: data.video_path_back || alert.video_path_back,
+              image_url: data.image_url || alert.image_url,
+              video_url: data.video_url || alert.video_url,
+              image_url_back: data.image_url_back || alert.image_url_back,
+              video_url_back: data.video_url_back || alert.video_url_back,
             };
           }
-          // The 'id' might be Date.now() for new real-time alerts, so also match by serial_no if we stored it
-          // Let's ensure 'serial_no' is stored in the alert object
           if (
             alert.deviceId === data.device_id &&
             alert.serial_no === data.serial_no
@@ -212,6 +224,10 @@ export default function Dashcam({ theme, toggleTheme }) {
               video_path: data.video_path || alert.video_path,
               file_path_back: data.file_path_back || alert.file_path_back,
               video_path_back: data.video_path_back || alert.video_path_back,
+              image_url: data.image_url || alert.image_url,
+              video_url: data.video_url || alert.video_url,
+              image_url_back: data.image_url_back || alert.image_url_back,
+              video_url_back: data.video_url_back || alert.video_url_back,
             };
           }
           return alert;

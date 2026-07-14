@@ -198,6 +198,10 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          image_url: event.image_url,
+          video_url: event.video_url,
+          image_url_back: event.image_url_back,
+          video_url_back: event.video_url_back,
           media_files: event.media_files,
         };
       });
@@ -334,6 +338,10 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
           video_path: event.video_path,
           file_path_back: event.file_path_back,
           video_path_back: event.video_path_back,
+          image_url: event.image_url,
+          video_url: event.video_url,
+          image_url_back: event.image_url_back,
+          video_url_back: event.video_url_back,
           media_files: event.media_files,
         };
         return [newAlert, ...prev].slice(0, paginationRef.current.perPage);
@@ -359,18 +367,28 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
               return Array.isArray(parsed) ? [...parsed] : [];
             })();
 
-            const cols = ['file_path', 'video_path', 'file_path_back', 'video_path_back'];
+            const cols = [
+              "file_path",
+              "video_path",
+              "file_path_back",
+              "video_path_back",
+              "image_url",
+              "video_url",
+              "image_url_back",
+              "video_url_back",
+            ];
             for (const col of cols) {
               if (data[col]) {
                 newFields[col] = data[col];
-                const exists = mediaList.some(m => m.path === data[col]);
+                const exists = mediaList.some((m) => m.path === data[col]);
                 if (!exists) {
                   mediaList.push({
                     path: data[col],
+                    url: col.includes("url") ? data[col] : null,
                     column: col,
-                    channel: col.includes('back') ? 2 : 1,
-                    media_type: col.includes('file') ? 'image' : 'video',
-                    saved_at: new Date().toISOString()
+                    channel: col.includes("back") ? 2 : 1,
+                    media_type: col.includes("file") || col.includes("image") ? "image" : "video",
+                    saved_at: new Date().toISOString(),
                   });
                 }
               }

@@ -104,8 +104,7 @@ export default function MediaViewer({ media, onClose }) {
     return url;
   };
 
-  const activeUrl = activeItem?.url;
-  // const activeUrl = getFullUrl(activeItem?.path);
+  const activeUrl = activeItem?.url || getFullUrl(activeItem?.path);
   const isVideo =
     activeItem?.media_type === "video" ||
     activeItem?.path?.toLowerCase().endsWith(".mp4") ||

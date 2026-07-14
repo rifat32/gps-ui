@@ -427,7 +427,7 @@ export default function NotificationTable({
           <tbody>
             {alerts.length > 0 ? (
               alerts.map((alert) => {
-                const mediaList = (() => {
+                 const mediaList = (() => {
                   if (!alert.media_files) return [];
                   let parsed = alert.media_files;
                   if (typeof parsed === "string") {
@@ -437,7 +437,20 @@ export default function NotificationTable({
                       return [];
                     }
                   }
-                  return Array.isArray(parsed) ? parsed : [];
+                  if (!Array.isArray(parsed)) return [];
+                  return parsed.map((item) => {
+                    let s3Url = item.url;
+                    if (!s3Url) {
+                      if (item.column === "file_path") s3Url = alert.image_url;
+                      else if (item.column === "video_path") s3Url = alert.video_url;
+                      else if (item.column === "file_path_back") s3Url = alert.image_url_back;
+                      else if (item.column === "video_path_back") s3Url = alert.video_url_back;
+                    }
+                    return {
+                      ...item,
+                      url: s3Url,
+                    };
+                  });
                 })();
 
                 const normalizedMediaList = [...mediaList];
@@ -446,8 +459,15 @@ export default function NotificationTable({
                     path &&
                     !normalizedMediaList.some((m) => m.path === path)
                   ) {
+                    let s3Url = null;
+                    if (col === "file_path") s3Url = alert.image_url;
+                    else if (col === "video_path") s3Url = alert.video_url;
+                    else if (col === "file_path_back") s3Url = alert.image_url_back;
+                    else if (col === "video_path_back") s3Url = alert.video_url_back;
+
                     normalizedMediaList.push({
                       path,
+                      url: s3Url,
                       column: col,
                       channel,
                       media_type: type,
