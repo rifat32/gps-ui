@@ -228,8 +228,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       }
 
       const existing = prev[index];
-      const existingTime = existing.lastUpdatedAt || getMillis(existing.lastSeen) || getMillis(existing.gpsTime);
-      const incomingTime = incoming.lastUpdatedAt || getMillis(incoming.lastSeen) || getMillis(incoming.gpsTime);
+      const existingTime = getMillis(existing.gpsTime) || existing.lastUpdatedAt || getMillis(existing.lastSeen);
+      const incomingTime = getMillis(incoming.gpsTime) || incoming.lastUpdatedAt || getMillis(incoming.lastSeen);
 
       // Do not let an older API/socket packet overwrite a newer live packet.
       if (existingTime && incomingTime && incomingTime < existingTime) return prev;
@@ -242,8 +242,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
     setSelectedVehicle((current) => {
       if (!current || normalizeId(current.id) !== incoming.id) return current;
       
-      const existingTime = current.lastUpdatedAt || getMillis(current.lastSeen) || getMillis(current.gpsTime);
-      const incomingTime = incoming.lastUpdatedAt || getMillis(incoming.lastSeen) || getMillis(incoming.gpsTime);
+      const existingTime = getMillis(current.gpsTime) || current.lastUpdatedAt || getMillis(current.lastSeen);
+      const incomingTime = getMillis(incoming.gpsTime) || incoming.lastUpdatedAt || getMillis(incoming.lastSeen);
       if (existingTime && incomingTime && incomingTime < existingTime) return current;
 
       return { ...current, ...incoming, name: incoming.name || current.name };
@@ -293,7 +293,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       : io(currentWsUrl);
 
     socketRef.current.on("connect", () => {
-      console.log("Connected to Socket.io server");
+      console.log("Connected to Socket.io server. Syncing latest positions...");
+      fetchInitialPositions();
     });
 
     socketRef.current.on("gps_update", (update) => {
@@ -310,6 +311,14 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
 
       mergeVehicle(vehicle);
     });
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("Tab focused. Syncing latest positions...");
+        fetchInitialPositions();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const stalenessInterval = setInterval(() => {
       const TEN_MINUTES = 10 * 60 * 1000;
@@ -379,6 +388,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       if (socketRef.current) socketRef.current.disconnect();
       if (alertsSocketRef.current) alertsSocketRef.current.disconnect();
       clearInterval(stalenessInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [deviceType, currentWsUrl]);
 
