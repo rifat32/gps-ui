@@ -143,7 +143,7 @@ const mapSocketVehicle = (update) => {
     timestamp: gpsTime,
     gpsTime,
     lastSeen,
-    lastUpdatedAt: Date.now(),
+    lastUpdatedAt: getMillis(gpsTime) || getMillis(lastSeen) || Date.now(),
     deviceType: devType,
     batteryVoltage: update.batteryVoltage ?? update.battery_voltage ?? update.bettary ?? null,
     externalVoltage: update.externalVoltage ?? update.external_voltage ?? null,

@@ -166,6 +166,12 @@ export default function ObdLive({ theme }) {
       setIsOnline(false);
     });
 
+    const getMillis = (value) => {
+      if (!value) return 0;
+      const parsed = new Date(value).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     // Listen to universal gps_update (global) and specific telemetry events
     const handleUpdate = (data) => {
       const devId = data.deviceId || data.device_id;
@@ -193,11 +199,20 @@ export default function ObdLive({ theme }) {
 
       console.log(`📍 Received update for ${devId}:`, { lat, lng, speed: data.speed });
 
-      setDeviceData({
-        ...data,
-        lat,
-        lng,
-        vehicleCondition: data.vehicleCondition || data.obd || {}
+      const incomingTime = getMillis(data.gpsTime || data.gps_time || data.time);
+      setDeviceData((prev) => {
+        if (prev) {
+          const existingTime = getMillis(prev.gpsTime || prev.gps_time || prev.time);
+          if (incomingTime && existingTime && incomingTime < existingTime) {
+            return prev;
+          }
+        }
+        return {
+          ...data,
+          lat,
+          lng,
+          vehicleCondition: data.vehicleCondition || data.obd || {}
+        };
       });
       setLastUpdateTime(Date.now());
       setIsOnline(true);
