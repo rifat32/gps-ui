@@ -608,7 +608,7 @@ export default function NotificationTable({
                             onClick={() =>
                               onOpenMedia &&
                               onOpenMedia({
-                                url: alert?.media_files[0]?.url,
+                                url: frontImages[0]?.url,
                                 title: `${alert.message || alert.friendly_name} (Front Image)`,
                                 time: alert.time,
                                 deviceId: alert.deviceId,
@@ -637,7 +637,7 @@ export default function NotificationTable({
                             onClick={() =>
                               onOpenMedia &&
                               onOpenMedia({
-                                url: alert?.media_files[0]?.url,
+                                url: frontVideos[0]?.url,
                                 title: `${alert.message || alert.friendly_name} (Front Video)`,
                                 time: alert.time,
                                 deviceId: alert.deviceId,
@@ -667,7 +667,7 @@ export default function NotificationTable({
                             onClick={() =>
                               onOpenMedia &&
                               onOpenMedia({
-                                url: alert?.media_files[0]?.url,
+                                url: cabinImages[0]?.url,
                                 title: `${alert.message || alert.friendly_name} (Cabin/Back Image)`,
                                 time: alert.time,
                                 deviceId: alert.deviceId,
@@ -697,7 +697,7 @@ export default function NotificationTable({
                             onClick={() =>
                               onOpenMedia &&
                               onOpenMedia({
-                                url: alert?.media_files[0]?.url,
+                                url: cabinVideos[0]?.url,
                                 title: `${alert.message || alert.friendly_name} (Cabin/Back Video)`,
                                 time: alert.time,
                                 deviceId: alert.deviceId,
