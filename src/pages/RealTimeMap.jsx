@@ -52,30 +52,83 @@ const getBatteryDisplay = (voltage, deviceType, rawVoltage = null) => {
 
 const getMillis = (value) => {
   if (!value) return 0;
-  const parsed = new Date(value).getTime();
+  let str = String(value).trim();
+  if (/^\d+$/.test(str)) return Number(str);
+  // Replace space with T for cross-browser compatibility
+  if (str.includes(' ') && !str.includes('T')) {
+    str = str.replace(' ', 'T');
+  }
+  // Append Z if there is no timezone info (assume UTC)
+  if (!str.includes('Z') && !str.includes('+') && !/-\d{2}:\d{2}$/.test(str)) {
+    str = str + 'Z';
+  }
+  const parsed = new Date(str).getTime();
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+
+const formatToLocalTime = (value) => {
+  if (!value) return "N/A";
+  let str = String(value).trim();
+  if (str.includes(' ') && !str.includes('T')) {
+    str = str.replace(' ', 'T');
+  }
+  if (!str.includes('Z') && !str.includes('+') && !/-\d{2}:\d{2}$/.test(str)) {
+    str = str + 'Z';
+  }
+  const date = new Date(str);
+  if (!Number.isFinite(date.getTime())) return value;
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/London',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const day = parts.find(p => p.type === 'day').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const year = parts.find(p => p.type === 'year').value;
+    const hour = parts.find(p => p.type === 'hour').value;
+    const minute = parts.find(p => p.type === 'minute').value;
+    const second = parts.find(p => p.type === 'second').value;
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+  } catch (e) {
+    return date.toLocaleString('en-GB', { timeZone: 'Europe/London' });
+  }
+};
+
+
 const MOVING_SPEED_THRESHOLD = Number(import.meta.env.VITE_LIVE_DEVICE_MOVING_SPEED_THRESHOLD || 1);
 
-const formatStatus = (status, speed) => {
+const formatStatus = (status, speed, isDashcam = false) => {
   const normalized = String(status || "").toUpperCase();
   const hasSpeed = speed !== undefined && speed !== null && speed !== "";
   const numericSpeed = Number(speed);
 
   if (normalized === "OFFLINE") return "Offline";
   if (normalized === "MOVING") return "Moving";
-  if (normalized === "STOPPED") return "Stopped";
+  if (normalized === "STOPPED") {
+    return isDashcam ? "Idle" : "Stopped";
+  }
+  if (normalized === "IDLE") return "Idle";
 
   if (normalized === "ONLINE") {
     if (hasSpeed && Number.isFinite(numericSpeed)) {
-      return numericSpeed > MOVING_SPEED_THRESHOLD ? "Moving" : "Stopped";
+      if (numericSpeed > MOVING_SPEED_THRESHOLD) return "Moving";
+      return isDashcam ? "Idle" : "Stopped";
     }
     return "Online";
   }
 
   if (hasSpeed && Number.isFinite(numericSpeed)) {
-    return numericSpeed > MOVING_SPEED_THRESHOLD ? "Moving" : "Stopped";
+    if (numericSpeed > MOVING_SPEED_THRESHOLD) return "Moving";
+    return isDashcam ? "Idle" : "Stopped";
   }
 
   return "Online";
@@ -95,7 +148,8 @@ const mapApiVehicle = (v) => {
   const gpsTime = v.gps_time || v.gpsTime || v.time || v.timestamp || null;
   const devType = v.device_type || v.type || "";
 
-  let resolvedStatus = formatStatus(v.liveStatus || v.status, speed);
+  const isDash = String(devType).toUpperCase().includes("DASHCAM");
+  let resolvedStatus = formatStatus(v.liveStatus || v.status, speed, isDash);
 
   return {
     id,
@@ -130,7 +184,8 @@ const mapSocketVehicle = (update) => {
   const gpsTime = update.gpsTime || update.gps_time || update.time || null;
   const devType = update.deviceType || update.device_type || "OBD";
 
-  let resolvedStatus = formatStatus(update.liveStatus || update.status, speed);
+  const isDash = String(devType).toUpperCase().includes("DASHCAM");
+  let resolvedStatus = formatStatus(update.liveStatus || update.status, speed, isDash);
 
   return {
     id,
@@ -228,11 +283,15 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       }
 
       const existing = prev[index];
-      const existingTime = getMillis(existing.gpsTime) || existing.lastUpdatedAt || getMillis(existing.lastSeen);
-      const incomingTime = getMillis(incoming.gpsTime) || incoming.lastUpdatedAt || getMillis(incoming.lastSeen);
-
-      // Do not let an older API/socket packet overwrite a newer live packet.
-      if (existingTime && incomingTime && incomingTime < existingTime) return prev;
+      const existingGps = getMillis(existing.gpsTime);
+      const incomingGps = getMillis(incoming.gpsTime);
+      if (existingGps && incomingGps) {
+        if (incomingGps < existingGps) return prev;
+      } else {
+        const existingTime = existingGps || existing.lastUpdatedAt || getMillis(existing.lastSeen);
+        const incomingTime = incomingGps || incoming.lastUpdatedAt || getMillis(incoming.lastSeen);
+        if (existingTime && incomingTime && incomingTime < existingTime) return prev;
+      }
 
       const next = [...prev];
       next[index] = { ...existing, ...incoming, name: incoming.name || existing.name };
@@ -241,10 +300,16 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
 
     setSelectedVehicle((current) => {
       if (!current || normalizeId(current.id) !== incoming.id) return current;
-      
-      const existingTime = getMillis(current.gpsTime) || current.lastUpdatedAt || getMillis(current.lastSeen);
-      const incomingTime = getMillis(incoming.gpsTime) || incoming.lastUpdatedAt || getMillis(incoming.lastSeen);
-      if (existingTime && incomingTime && incomingTime < existingTime) return current;
+
+      const existingGps = getMillis(current.gpsTime);
+      const incomingGps = getMillis(incoming.gpsTime);
+      if (existingGps && incomingGps) {
+        if (incomingGps < existingGps) return current;
+      } else {
+        const existingTime = existingGps || current.lastUpdatedAt || getMillis(current.lastSeen);
+        const incomingTime = incomingGps || incoming.lastUpdatedAt || getMillis(incoming.lastSeen);
+        if (existingTime && incomingTime && incomingTime < existingTime) return current;
+      }
 
       return { ...current, ...incoming, name: incoming.name || current.name };
     });
@@ -284,12 +349,12 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
 
     socketRef.current = import.meta.env.VITE_SERVER_TYPE === "new"
       ? io("http://77.68.52.203", {
-          path:
-            deviceType === "OBD"
-              ? "/obd-http/socket.io"
-              : "/dashcam-http/socket.io",
-          transports: ["websocket", "polling"],
-        })
+        path:
+          deviceType === "OBD"
+            ? "/obd-http/socket.io"
+            : "/dashcam-http/socket.io",
+        transports: ["websocket", "polling"],
+      })
       : io(currentWsUrl);
 
     socketRef.current.on("connect", () => {
@@ -563,7 +628,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                     <div style={{ fontSize: "11px", color: "#64748b", display: "flex", flexDirection: "column", gap: "4px" }}>
                       <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "1px 3px", borderRadius: "4px" }}>{v.id}</code></div>
                       <div>Battery: <strong style={{ color: "#0f172a" }}>{getBatteryDisplay(v.batteryVoltage, deviceType, v.externalVoltage)}</strong></div>
-                      <div>Last Seen: {v.lastSeen ? new Date(v.lastSeen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "Never"}</div>
+                      <div>Last Seen: {formatToLocalTime(v.lastSeen)}</div>
                       {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
                     </div>
                   </div>
@@ -591,7 +656,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
             }}>
               {/* Device Search Dropdown */}
               <div ref={dropdownRef} style={{ pointerEvents: "auto", position: "relative", width: isMobile ? "100%" : "260px" }}>
-                <div 
+                <div
                   onClick={() => setIsDeviceDropdownOpen(!isDeviceDropdownOpen)}
                   style={{
                     padding: "8px 14px",
@@ -607,7 +672,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                     minHeight: "38px"
                   }}
                 >
-                  <span style={{ 
+                  <span style={{
                     color: selectedVehicle ? "#1e293b" : "#94a3b8",
                     fontSize: "13px",
                     fontWeight: "600",
@@ -640,8 +705,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                     <div style={{ padding: "8px", borderBottom: "1px solid #e2e8f0" }}>
                       <div style={{ position: "relative" }}>
                         <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder={`Search ${deviceType === "AI_DASHCAM" ? "Dashcam" : deviceType === "OBD" ? "OBD" : "Tracker"}...`}
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
@@ -664,12 +729,12 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                     <div style={{ overflowY: "auto", flex: 1 }}>
                       {filteredVehiclesForDropdown.length > 0 ? (
                         filteredVehiclesForDropdown.map(v => (
-                          <div 
-                            key={v.id} 
-                            onClick={() => { 
-                              setSelectedVehicle(v); 
-                              setIsDeviceDropdownOpen(false); 
-                              setSearchTerm(""); 
+                          <div
+                            key={v.id}
+                            onClick={() => {
+                              setSelectedVehicle(v);
+                              setIsDeviceDropdownOpen(false);
+                              setSearchTerm("");
                               if (mapRef.current && v.lat !== 0 && v.lng !== 0) {
                                 mapRef.current.panTo({ lat: v.lat, lng: v.lng });
                                 mapRef.current.setZoom(15);
@@ -694,11 +759,11 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                               <span style={{ fontSize: "11px", color: "#64748b" }}>ID: {v.id}</span>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              <span style={{ 
-                                width: "8px", 
-                                height: "8px", 
-                                borderRadius: "50%", 
-                                backgroundColor: markerColor(v.status) 
+                              <span style={{
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "50%",
+                                backgroundColor: markerColor(v.status)
                               }} />
                               <span style={{ fontSize: "11px", fontWeight: "500", color: "#64748b" }}>{v.status}</span>
                             </div>
@@ -823,8 +888,8 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                       {selectedVehicle.batteryVoltage !== undefined && selectedVehicle.batteryVoltage !== null && (
                         <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType, selectedVehicle.externalVoltage)}</p>
                       )}
-                      <p>Last Seen: {selectedVehicle.lastSeen || "N/A"}</p>
-                      {selectedVehicle.gpsTime && <p>GPS Time: {selectedVehicle.gpsTime}</p>}
+                      <p>Last Seen: {formatToLocalTime(selectedVehicle.lastSeen)}</p>
+                      {selectedVehicle.gpsTime && <p>GPS Time: {formatToLocalTime(selectedVehicle.gpsTime)}</p>}
                       <p style={{ marginTop: "6px", borderTop: "1px dashed #e2e8f0", paddingTop: "6px" }}>
                         <strong>Address:</strong>{" "}
                         {resolvedAddress ? (
