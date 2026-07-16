@@ -860,7 +860,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                     fillOpacity: 1,
                     strokeColor: "white",
                     strokeWeight: 2,
-                    scale: 1,
+                    scale: 0.5,
                     rotation: vehicle.heading || 0,
                     anchor: new window.google.maps.Point(50, 25),
                   } : null}
