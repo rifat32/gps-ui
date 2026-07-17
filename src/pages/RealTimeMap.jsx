@@ -81,7 +81,6 @@ const formatToLocalTime = (value) => {
 
   try {
     const formatter = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/London',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -99,7 +98,7 @@ const formatToLocalTime = (value) => {
     const second = parts.find(p => p.type === 'second').value;
     return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
   } catch (e) {
-    return date.toLocaleString('en-GB', { timeZone: 'Europe/London' });
+    return date.toLocaleString('en-GB');
   }
 };
 
@@ -629,6 +628,9 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                       <div>ID: <code style={{ backgroundColor: "#f1f5f9", padding: "1px 3px", borderRadius: "4px" }}>{v.id}</code></div>
                       <div>Battery: <strong style={{ color: "#0f172a" }}>{getBatteryDisplay(v.batteryVoltage, deviceType, v.externalVoltage)}</strong></div>
                       <div>Last Seen: {formatToLocalTime(v.lastSeen)}</div>
+                      {deviceType === "J42" && v.gpsTime && formatToLocalTime(v.lastSeen) !== formatToLocalTime(v.gpsTime) && (
+                        <div>GPS Time: {formatToLocalTime(v.gpsTime)}</div>
+                      )}
                       {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
                     </div>
                   </div>
@@ -889,7 +891,9 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                         <p>Battery: {getBatteryDisplay(selectedVehicle.batteryVoltage, deviceType, selectedVehicle.externalVoltage)}</p>
                       )}
                       <p>Last Seen: {formatToLocalTime(selectedVehicle.lastSeen)}</p>
-                      {selectedVehicle.gpsTime && <p>GPS Time: {formatToLocalTime(selectedVehicle.gpsTime)}</p>}
+                      {selectedVehicle.gpsTime && (deviceType !== "J42" || formatToLocalTime(selectedVehicle.lastSeen) !== formatToLocalTime(selectedVehicle.gpsTime)) && (
+                        <p>GPS Time: {formatToLocalTime(selectedVehicle.gpsTime)}</p>
+                      )}
                       <p style={{ marginTop: "6px", borderTop: "1px dashed #e2e8f0", paddingTop: "6px" }}>
                         <strong>Address:</strong>{" "}
                         {resolvedAddress ? (
