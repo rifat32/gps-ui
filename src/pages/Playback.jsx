@@ -441,12 +441,12 @@ export default function Playback({ theme }) {
                                     >
                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                                             <span style={{ fontWeight: "700", fontSize: "0.875rem", color: theme === "dark" ? "white" : "#1e293b" }}>Trip #{idx + 1}</span>
-                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{trip.distance_km} km</span>
+                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{Number(trip.distance_km ?? 0).toFixed(2)} mi</span>
                                         </div>
                                         <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
                                             {formatTime(trip.start_time).slice(0, 5)} - {formatTime(trip.end_time).slice(0, 5)} ({Math.floor(trip.duration_sec / 60)} min)
                                         </div>
-                                    </div>
+                                        </div>
                                 ))}
                             </div>
                         </div>
@@ -467,7 +467,7 @@ export default function Playback({ theme }) {
                             <StatCard 
                                 icon={<Activity size={18} color="#22c55e" />} 
                                 label="Speed" 
-                                value={`${currentPoint.speed || "0"} km/h`} 
+                                value={`${Math.round((currentPoint.speed || 0) * 0.621371)} mph`} 
                                 theme={theme} 
                             />
                             <StatCard 

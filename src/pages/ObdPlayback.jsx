@@ -439,7 +439,7 @@ export default function ObdPlayback({ theme }) {
                                     >
                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                                             <span style={{ fontWeight: "700", fontSize: "0.875rem", color: theme === "dark" ? "white" : "#1e293b" }}>Trip #{idx + 1}</span>
-                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{parseFloat(trip.distance_km).toFixed(1)} km</span>
+                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{parseFloat(trip.distance_km).toFixed(1)} mi</span>
                                         </div>
                                         <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
                                             {formatDeviceTime(trip.start_time)} - {formatDeviceTime(trip.end_time)}
