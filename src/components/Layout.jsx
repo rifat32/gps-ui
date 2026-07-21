@@ -4,6 +4,7 @@ import { LogOut, X, AlertTriangle, Bell } from "lucide-react";
 import { io } from "socket.io-client";
 import NavigationSidebar from "./NavigationSidebar";
 import authApi from "../services/authApi";
+import { formatDeviceTime } from "../utils/deviceTime";
 
 // Double-chime chime using Web Audio API
 const playNotificationSound = () => {
@@ -184,7 +185,7 @@ export default function Layout({ theme, toggleTheme }) {
         title: alert.alertPolicyName || formatEventType(alert.eventType),
         message: `Device ${alert.deviceId || "unknown"} triggered ${formatEventType(alert.eventType)} (Vehicle: ${alert.licensePlate || "N/A"})`,
         severity: alert.severity || "NORMAL",
-        time: new Date(alert.eventTime || Date.now()).toLocaleTimeString(),
+        time: formatDeviceTime(alert.eventTime || Date.now()),
       };
 
       setToasts(prev => [newToast, ...prev].slice(0, 5)); // Keep last 5 toasts

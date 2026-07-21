@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { formatDeviceTime } from '../utils/deviceTime';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -303,7 +304,7 @@ export default function VideoSettings({ theme }) {
                 });
 
                 setForm(newForm);
-                setLastSynced(new Date().toLocaleTimeString());
+                setLastSynced(formatDeviceTime(new Date()));
                 showNotification(`Configuration synchronized for terminal ${deviceId}`);
             } else if (!res.success && res.error === 'Cache empty') {
                 showNotification(res.message, 'info');

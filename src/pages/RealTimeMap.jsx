@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { io } from "socket.io-client";
 
 import deviceApi from "../services/deviceApi";
+import { formatToLocalTime, parseToEpochMs as getMillis } from "../utils/deviceTime";
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAP_API;
 const WS_URL_DASHCAM = import.meta.env.VITE_DASHCAM_WS_URL || import.meta.env.VITE_WS_URL;
@@ -50,57 +51,7 @@ const getBatteryDisplay = (voltage, deviceType, rawVoltage = null) => {
   return `${percent}%${displayVolts}`;
 };
 
-const getMillis = (value) => {
-  if (!value) return 0;
-  let str = String(value).trim();
-  if (/^\d+$/.test(str)) return Number(str);
-  // Replace space with T for cross-browser compatibility
-  if (str.includes(' ') && !str.includes('T')) {
-    str = str.replace(' ', 'T');
-  }
-  // Append Z if there is no timezone info (assume UTC)
-  if (!str.includes('Z') && !str.includes('+') && !/-\d{2}:\d{2}$/.test(str)) {
-    str = str + 'Z';
-  }
-  const parsed = new Date(str).getTime();
-  return Number.isFinite(parsed) ? parsed : 0;
-};
 
-
-const formatToLocalTime = (value) => {
-  if (!value) return "N/A";
-  let str = String(value).trim();
-  if (str.includes(' ') && !str.includes('T')) {
-    str = str.replace(' ', 'T');
-  }
-  if (!str.includes('Z') && !str.includes('+') && !/-\d{2}:\d{2}$/.test(str)) {
-    str = str + 'Z';
-  }
-  const date = new Date(str);
-  if (!Number.isFinite(date.getTime())) return value;
-
-  try {
-    const formatter = new Intl.DateTimeFormat('en-GB', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-    const parts = formatter.formatToParts(date);
-    const day = parts.find(p => p.type === 'day').value;
-    const month = parts.find(p => p.type === 'month').value;
-    const year = parts.find(p => p.type === 'year').value;
-    const hour = parts.find(p => p.type === 'hour').value;
-    const minute = parts.find(p => p.type === 'minute').value;
-    const second = parts.find(p => p.type === 'second').value;
-    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-  } catch (e) {
-    return date.toLocaleString('en-GB');
-  }
-};
 
 
 const MOVING_SPEED_THRESHOLD = Number(import.meta.env.VITE_LIVE_DEVICE_MOVING_SPEED_THRESHOLD || 1);

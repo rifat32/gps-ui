@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
+import { formatDeviceTime } from "../utils/deviceTime";
 
 export default function VideoPlayer({ i, device, streamState, onRetry }) {
   const [kbps] = useState(() => 2500 + Math.floor(Math.random() * 1000));
@@ -38,7 +39,7 @@ export default function VideoPlayer({ i, device, streamState, onRetry }) {
         streamState,
         kbps,
         latency,
-        timestamp: new Date().toLocaleTimeString()
+        timestamp: formatDeviceTime(new Date())
       });
     }
   }, [device, streamState, kbps, latency]);

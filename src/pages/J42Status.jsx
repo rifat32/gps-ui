@@ -15,20 +15,9 @@ import {
   Info
 } from "lucide-react";
 import deviceApi from "../services/deviceApi";
+import { formatTimeUTC, formatDateUTC } from "../utils/deviceTime";
 import "./DeviceManagement.css";
 import "./J42Status.css";
-
-const formatTimeUTC = (timeString) => {
-  if (!timeString) return "N/A";
-  const d = new Date(timeString);
-  return isNaN(d) ? "Invalid Date" : d.toISOString().replace('T', ' ').substring(0, 19) + " UTC";
-};
-
-const formatDateUTC = (timeString) => {
-  if (!timeString) return "N/A";
-  const d = new Date(timeString);
-  return isNaN(d) ? "Invalid Date" : d.toISOString().substring(0, 10) + " UTC";
-};
 
 const getBatteryDetails = (voltage, rawVoltage = null) => {
   if (voltage === undefined || voltage === null || voltage === "") {

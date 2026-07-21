@@ -1,4 +1,4 @@
-import { formatDeviceTime } from "../utils/deviceTime";
+import { formatDeviceTime, formatForDateTimeInput } from "../utils/deviceTime";
 import {
   GoogleMap,
   LoadScript,
@@ -68,15 +68,12 @@ export default function Playback({ theme }) {
   const [startDateTime, setStartDateTime] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
-    // Local time string for datetime-local input
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+    return formatForDateTimeInput(d);
   });
   const [endDateTime, setEndDateTime] = useState(() => {
     const d = new Date();
     d.setHours(23, 59, 59, 999);
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+    return formatForDateTimeInput(d);
   });
 
   const mapRef = useRef(null);
@@ -204,15 +201,8 @@ export default function Playback({ theme }) {
 
   const handleTripSelect = (trip, idx) => {
     setSelectedTripId(idx);
-    
-    const formatForInput = (isoStr) => {
-        const date = new Date(isoStr);
-        const tzOffset = date.getTimezoneOffset() * 60000;
-        return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
-    };
-    
-    setStartDateTime(formatForInput(trip.start_time));
-    setEndDateTime(formatForInput(trip.end_time));
+    setStartDateTime(formatForDateTimeInput(trip.start_time));
+    setEndDateTime(formatForDateTimeInput(trip.end_time));
     handleFetchData(trip.start_time, trip.end_time);
   };
 
