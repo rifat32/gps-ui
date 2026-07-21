@@ -11,6 +11,9 @@ const UK_TIMEZONE = 'Europe/London';
  */
 function parseRawDate(value) {
   if (value === null || value === undefined || value === '') return null;
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
   let str = String(value).trim();
   if (!str) return null;
 
