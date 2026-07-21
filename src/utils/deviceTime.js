@@ -1,22 +1,22 @@
 /**
- * Unified Date & Time Utility for GPS UI (modeled after ai-telematics-system-front-end)
- * All dates and times across the app are strictly converted & formatted in UTC+1 (+01:00).
+ * Unified Date & Time Utility for GPS UI
+ * All dates and times across the app are dynamically converted & formatted in UK Time (Europe/London),
+ * automatically switching between GMT (UTC+0) in Winter and BST (UTC+1) in Summer.
  */
 
-const UTC1_OFFSET_MS = 1 * 60 * 60 * 1000; // +01:00 offset (1 hour in ms)
+const UK_TIMEZONE = 'Europe/London';
 
 /**
- * Core UTC+1 Date Parser/Converter.
- * Safely converts any ISO string, Date object, or timestamp to a Date shifted to UTC+1.
+ * Parses any raw date value into a valid Date object.
  */
-export function toUTC1Date(value) {
+function parseRawDate(value) {
   if (value === null || value === undefined || value === '') return null;
   let str = String(value).trim();
   if (!str) return null;
 
   if (/^\d+$/.test(str)) {
     const d = new Date(Number(str));
-    return isNaN(d.getTime()) ? null : new Date(d.getTime() + d.getTimezoneOffset() * 60000 + UTC1_OFFSET_MS);
+    return isNaN(d.getTime()) ? null : d;
   }
 
   if (str.includes(' ') && !str.includes('T')) {
@@ -27,35 +27,54 @@ export function toUTC1Date(value) {
   }
 
   const d = new Date(str);
-  if (isNaN(d.getTime())) return null;
-
-  // Shift UTC to UTC+1
-  return new Date(d.getTime() + UTC1_OFFSET_MS);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 /**
- * Primary Date-Time Formatter: formats any timestamp to `YYYY-MM-DD HH:mm:ss` in UTC+1.
+ * Formats a Date object into UK local time parts (YYYY, MM, DD, HH, mm, ss).
+ */
+function getUKParts(date) {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: UK_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const map = {};
+  for (const p of parts) map[p.type] = p.value;
+  return map;
+}
+
+/**
+ * Primary Date-Time Formatter: formats any timestamp to `YYYY-MM-DD HH:mm:ss` in UK Time (Europe/London).
  */
 export function formatDateTime(value) {
-  const d = toUTC1Date(value);
+  const d = parseRawDate(value);
   if (!d) return '--';
-  return d.toISOString().replace('T', ' ').substring(0, 19);
+  const p = getUKParts(d);
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
 }
 
 /**
- * Formats for HTML `<input type="datetime-local">` in UTC+1 (`YYYY-MM-DDTHH:mm`).
+ * Formats for HTML `<input type="datetime-local">` in UK Time (`YYYY-MM-DDTHH:mm`).
  */
 export function formatForInput(value) {
-  const d = toUTC1Date(value);
+  const d = parseRawDate(value);
   if (!d) return String(value || '').slice(0, 16);
-  return d.toISOString().slice(0, 16);
+  const p = getUKParts(d);
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 
 /**
- * Parses any date value into UTC+1 epoch milliseconds.
+ * Parses any date value into epoch milliseconds.
  */
 export function parseToEpochMs(value) {
-  const d = toUTC1Date(value);
+  const d = parseRawDate(value);
   return d ? d.getTime() : 0;
 }
 
@@ -77,12 +96,12 @@ export function formatDeviceTime(value) {
 
 export function formatTimeUTC(value) {
   const full = formatDateTime(value);
-  return full === '--' ? 'N/A' : `${full} (UTC+1)`;
+  return full === '--' ? 'N/A' : `${full} (UK Time)`;
 }
 
 export function formatDateUTC(value) {
   const fullDate = formatDeviceDate(value);
-  return fullDate === '--' ? 'N/A' : `${fullDate} (UTC+1)`;
+  return fullDate === '--' ? 'N/A' : `${fullDate} (UK Time)`;
 }
 
 export const formatToLocalTime = formatDateTime;
