@@ -117,8 +117,10 @@ const mapApiVehicle = (v) => {
     batteryVoltage: v.battery_voltage ?? v.batteryVoltage ?? v.bettary ?? null,
     externalVoltage: v.external_voltage ?? v.externalVoltage ?? null,
     isRealDevice: !!(v.isRealDevice ?? v.is_real_device),
+    lastEngineOn: v.lastEngineOn || null,
   };
 };
+
 
 const mapSocketVehicle = (update) => {
   const id = normalizeId(update.deviceId || update.device_id || update.id);
@@ -152,6 +154,7 @@ const mapSocketVehicle = (update) => {
     deviceType: devType,
     batteryVoltage: update.batteryVoltage ?? update.battery_voltage ?? update.bettary ?? null,
     externalVoltage: update.externalVoltage ?? update.external_voltage ?? null,
+    lastEngineOn: update.lastEngineOn || null,
   };
 };
 
@@ -244,7 +247,15 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       }
 
       const next = [...prev];
-      next[index] = { ...existing, ...incoming, name: incoming.name || existing.name };
+      const updatedLastEngineOn = (incoming.status === "Moving" || incoming.status === "Idle")
+        ? (incoming.gpsTime || incoming.lastSeen || existing.lastEngineOn)
+        : (incoming.lastEngineOn || existing.lastEngineOn);
+      next[index] = { 
+        ...existing, 
+        ...incoming, 
+        name: incoming.name || existing.name,
+        lastEngineOn: updatedLastEngineOn 
+      };
       return next;
     });
 
@@ -261,7 +272,16 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
         if (existingTime && incomingTime && incomingTime < existingTime) return current;
       }
 
-      return { ...current, ...incoming, name: incoming.name || current.name };
+      const updatedLastEngineOn = (incoming.status === "Moving" || incoming.status === "Idle")
+        ? (incoming.gpsTime || incoming.lastSeen || current.lastEngineOn)
+        : (incoming.lastEngineOn || current.lastEngineOn);
+
+      return { 
+        ...current, 
+        ...incoming, 
+        name: incoming.name || current.name,
+        lastEngineOn: updatedLastEngineOn 
+      };
     });
   };
 
@@ -582,6 +602,9 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                       {deviceType === "J42" && v.gpsTime && formatToLocalTime(v.lastSeen) !== formatToLocalTime(v.gpsTime) && (
                         <div>GPS Time: {formatToLocalTime(v.gpsTime)}</div>
                       )}
+                      {deviceType === "OBD" && v.lastEngineOn && (
+                        <div>Last Engine On: {formatToLocalTime(v.lastEngineOn)}</div>
+                      )}
                       {v.speed > 0 && <div>Speed: {Math.round(v.speed * 0.621371)} mph</div>}
                     </div>
                   </div>
@@ -844,6 +867,9 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
                       <p>Last Seen: {formatToLocalTime(selectedVehicle.lastSeen)}</p>
                       {selectedVehicle.gpsTime && (deviceType !== "J42" || formatToLocalTime(selectedVehicle.lastSeen) !== formatToLocalTime(selectedVehicle.gpsTime)) && (
                         <p>GPS Time: {formatToLocalTime(selectedVehicle.gpsTime)}</p>
+                      )}
+                      {deviceType === "OBD" && selectedVehicle.lastEngineOn && (
+                        <p>Last Engine On: {formatToLocalTime(selectedVehicle.lastEngineOn)}</p>
                       )}
                       <p style={{ marginTop: "6px", borderTop: "1px dashed #e2e8f0", paddingTop: "6px" }}>
                         <strong>Address:</strong>{" "}
