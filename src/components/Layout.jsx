@@ -39,8 +39,44 @@ const playNotificationSound = () => {
   }
 };
 
+const EVENT_MAPPINGS = {
+  OBD_HARD_ACCELERATION: "Harsh Acceleration",
+  HARD_ACCELERATION: "Harsh Acceleration",
+  OBD_HARD_DECELERATION: "Harsh Braking",
+  HARD_DECELERATION: "Harsh Braking",
+  HARD_BRAKING: "Harsh Braking",
+  OBD_SHARP_TURN: "Harsh Cornering",
+  SHARP_TURN: "Harsh Cornering",
+  SHARP_CORNERING: "Harsh Cornering",
+  OBD_CRASH: "Collision / Crash Detected",
+  CRASH: "Collision / Crash Detected",
+  OBD_LOW_VOLTAGE: "Low Battery Voltage",
+  LOW_VOLTAGE: "Low Battery Voltage",
+  OBD_ENGINE_TEMP: "High Engine Temperature",
+  SPEEDING: "Speeding Violation",
+  OVER_SPEED: "Speeding Violation",
+  OBD_MIL: "Engine Diagnostics (MIL Warning)",
+  MIL_ON: "Engine Diagnostics (MIL Warning)",
+  POWER_OFF: "Device Disconnected (Power Loss)",
+  OBD_POWER_OFF: "Device Disconnected (Power Loss)",
+  PULL_OUT: "Device Tampered / Pulled Out",
+  OBD_PULL_OUT: "Device Tampered / Pulled Out",
+  GEOFENCE_ENTER: "Geofence Entry",
+  GEOFENCE_EXIT: "Geofence Exit",
+  IGNITION_ON: "Ignition Turned On",
+  IGNITION_OFF: "Ignition Turned Off",
+  TOWING: "Towing / Unauthorized Movement",
+  TOW: "Towing / Unauthorized Movement",
+  VIBRATION: "Vibration Alert (Unusual Activity)",
+  SHAKE: "Vibration Alert (Unusual Activity)",
+};
+
 const formatEventType = (type) => {
   if (!type) return "Unknown Alert";
+  const upper = type.toUpperCase().trim();
+  if (EVENT_MAPPINGS[upper]) {
+    return EVENT_MAPPINGS[upper];
+  }
   return type
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
