@@ -18,6 +18,7 @@ import {
   Terminal,
   MonitorSmartphone,
   Command,
+  CloudUpload,
 } from "lucide-react";
 
 import { Link, useLocation } from "react-router-dom";
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
   { path: "/remote-access", icon: MonitorSmartphone, label: "Remote Access" },
   { path: "/remote-access-v2", icon: MonitorSmartphone, label: "Remote Access V2" },
   { path: "/device-commands", icon: Command, label: "Device Commands" },
+  { path: "/deployment-info", icon: CloudUpload, label: "Deployment Info" },
 ];
 
 export default function NavigationSidebar() {

@@ -22,6 +22,7 @@ const ContainerLogs = lazy(() => import("./pages/ContainerLogs"));
 const RemoteAccess = lazy(() => import("./pages/RemoteAccess"));
 const RemoteAccessV2 = lazy(() => import("./pages/RemoteAccessV2"));
 const DeviceCommands = lazy(() => import("./pages/DeviceCommands"));
+const DeploymentInfo = lazy(() => import("./pages/DeploymentInfo"));
 
 
 import LoginPage from "./pages/Auth/LoginPage";
@@ -150,6 +151,10 @@ function App() {
             <Route
               path="/device-commands"
               element={<DeviceCommands theme={theme} />}
+            />
+            <Route
+              path="/deployment-info"
+              element={<DeploymentInfo theme={theme} toggleTheme={toggleTheme} />}
             />
 
 
