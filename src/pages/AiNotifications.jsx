@@ -277,7 +277,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
     const socket = import.meta.env.VITE_SERVER_TYPE === "new"
       ? io("http://77.68.52.203", {
           path: "/dashcam-http/socket.io",
-          transports: ["websocket"],
+          transports: ["polling"],
         })
       : io(WS_URL);
     socketRef.current = socket;
@@ -397,7 +397,7 @@ export default function AiNotifications({ theme, toggleTheme }) {
       path: apiSocketPath,
       reconnectionAttempts: 10,
       auth: token ? { token } : undefined,
-      transports: ["websocket", "polling"],
+      transports: ["polling"],
     });
 
     apiSocketRef.current = apiSocket;

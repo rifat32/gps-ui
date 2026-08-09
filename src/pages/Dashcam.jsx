@@ -158,7 +158,7 @@ export default function Dashcam({ theme, toggleTheme }) {
     const socket = import.meta.env.VITE_SERVER_TYPE === "new"
       ? io("http://77.68.52.203", {
           path: "/dashcam-http/socket.io",
-          transports: ["websocket"],
+          transports: ["polling"],
         })
       : io(WS_URL);
     socketRef.current = socket;

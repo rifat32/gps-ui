@@ -323,7 +323,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
           deviceType === "OBD"
             ? "/obd-http/socket.io"
             : "/dashcam-http/socket.io",
-        transports: ["websocket", "polling"],
+        transports: ["polling"],
       })
       : io(currentWsUrl);
 
@@ -402,7 +402,7 @@ export default function RealTimeMap({ deviceType = "AI_DASHCAM", showRealOnly: i
       path: alertsSocketPath,
       reconnectionAttempts: 10,
       auth: token ? { token } : undefined,
-      transports: ["websocket", "polling"],
+      transports: ["polling"],
     });
 
     alertsSocketRef.current = alertsSocket;

@@ -206,7 +206,7 @@ export default function Layout({ theme, toggleTheme }) {
       path: socketPath,
       reconnectionAttempts: 10,
       auth: token ? { token } : undefined,
-      transports: ["websocket", "polling"],
+      transports: ["polling"],
     });
 
     socketRef.current = socket;
