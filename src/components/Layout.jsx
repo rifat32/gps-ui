@@ -83,10 +83,18 @@ const formatEventType = (type) => {
 };
 
 const Toast = ({ toast, onClose }) => {
+  // Use a ref to store the latest onClose callback to prevent timer resets
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    const timer = setTimeout(onClose, 6000);
-    return () => clearTimeout(timer);
+    onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onCloseRef.current();
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const severityColors = {
     CRITICAL: { bg: "#7f1d1d", border: "#ef4444", text: "#fee2e2", accent: "#ef4444" },
@@ -135,6 +143,7 @@ const Toast = ({ toast, onClose }) => {
           padding: "4px",
           borderRadius: "50%",
           transition: "opacity 0.2s",
+          pointerEvents: "auto",
         }}
         onMouseOver={e => e.currentTarget.style.opacity = 1}
         onMouseOut={e => e.currentTarget.style.opacity = 0.6}
@@ -214,17 +223,26 @@ export default function Layout({ theme, toggleTheme }) {
     const handleNewAlert = (alert) => {
       console.log("🔔 Real-time alert received:", alert);
       
-      playNotificationSound();
+      const newToastId = alert.id || Date.now() + Math.random();
+      
+      setToasts(prev => {
+        // Prevent duplicate toasts if id is the same or if an identical message exists recently
+        const isDuplicate = prev.some(t => t.id === alert.id || t.id === newToastId);
+        if (isDuplicate) return prev;
 
-      const newToast = {
-        id: alert.id || Date.now() + Math.random(),
-        title: alert.alertPolicyName || formatEventType(alert.eventType),
-        message: `Device ${alert.deviceId || "unknown"} triggered ${formatEventType(alert.eventType)} (Vehicle: ${alert.licensePlate || "N/A"})`,
-        severity: alert.severity || "NORMAL",
-        time: formatDeviceTime(alert.eventTime || Date.now()),
-      };
+        // If not duplicate, play sound only once
+        playNotificationSound();
 
-      setToasts(prev => [newToast, ...prev].slice(0, 5)); // Keep last 5 toasts
+        const newToast = {
+          id: newToastId,
+          title: alert.alertPolicyName || formatEventType(alert.eventType),
+          message: `Device ${alert.deviceId || "unknown"} triggered ${formatEventType(alert.eventType)} (Vehicle: ${alert.licensePlate || "N/A"})`,
+          severity: alert.severity || "NORMAL",
+          time: formatDeviceTime(alert.eventTime || Date.now()),
+        };
+
+        return [newToast, ...prev].slice(0, 5); // Keep last 5 toasts
+      });
     };
 
     socket.on("connect", () => {
@@ -232,6 +250,7 @@ export default function Layout({ theme, toggleTheme }) {
       socket.emit("alert:subscribe");
     });
 
+    // The backend might emit both events, causing duplicates if not handled.
     socket.on("alert_notification", handleNewAlert);
     socket.on("alert:event", handleNewAlert);
 
