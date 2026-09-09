@@ -90,7 +90,7 @@ export default function NotificationTable({
   };
 
   const handleDeleteVideo = async (alertItem) => {
-    const rowKey = alertItem.id ? String(alertItem.id) : (alertItem.serial_no ? String(alertItem.serial_no) : String(alertItem.time || Date.now()));
+    const rowKey = alertItem.id ? String(alertItem.id) : (alertItem.dedupe_key ? String(alertItem.dedupe_key) : (alertItem.serial_no ? String(alertItem.serial_no) : String(alertItem.time || Date.now())));
     const deviceId = alertItem.device_id || alertItem.deviceId;
     const serialNo = alertItem.serial_no || alertItem.serialNo || alertItem.alarm_serial || alertItem.alarmSerial || alertItem.hex_id;
 
@@ -586,13 +586,13 @@ export default function NotificationTable({
                 const filePathBack = cabinImages[0]?.url || null;
                 const videoPathBack = cabinVideos[0]?.url || null;
 
-                const rowKey = alert.id ? String(alert.id) : (alert.serial_no ? String(alert.serial_no) : String(alert.time || ""));
+                const rowKey = alert.id ? String(alert.id) : (alert.dedupe_key ? String(alert.dedupe_key) : (alert.serial_no ? String(alert.serial_no) : String(alert.time || "")));
                 const isVideoDeleted = deleteVideoState[rowKey] === "deleted";
                 const hasVideo = !isVideoDeleted && (frontVideos.length > 0 || cabinVideos.length > 0 || !!alert.video_path || !!alert.video_path_back || !!alert.video_url || !!alert.video_url_back);
 
                 return (
                   <tr
-                    key={alert.id}
+                    key={alert.id || alert.dedupe_key || rowKey}
                     className="table-row-hover"
                     style={{ borderBottom: "1px solid #1e293b" }}
                   >

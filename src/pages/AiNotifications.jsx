@@ -168,13 +168,16 @@ export default function AiNotifications({ theme, toggleTheme }) {
       const formatted = (data.events || []).map((event) => {
         const timeStr = formatDeviceDateTime(event.event_time);
         return {
-          id: event.id,
+          id: event.id || event.dedupe_key,
+          dedupe_key: event.dedupe_key,
           type: event.category,
           message: event.friendly_name || event.event_code,
           friendly_name: event.friendly_name,
           description: event.description,
           time: timeStr,
           deviceId: event.device_id,
+          device_id: event.device_id,
+          serial_no: event.serial_no || event.alarm_serial || event.serialNo,
           event_code: event.event_code,
           speed: event.speed,
           file_path: event.file_path,
