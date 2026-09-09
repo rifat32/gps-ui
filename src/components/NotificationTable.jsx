@@ -664,7 +664,7 @@ export default function NotificationTable({
                           >
                             Video Disabled
                           </span>
-                          {(() => {
+                          {!(frontVideos.length > 0 || cabinVideos.length > 0 || !!alert.video_path || !!alert.video_path_back || !!alert.video_url || !!alert.video_url_back) && (() => {
                             const rowKey = alert.id ? String(alert.id) : (alert.serial_no ? String(alert.serial_no) : String(alert.time || ""));
                             const itemDeviceIdKey = alert.device_id || alert.deviceId;
                             const isReqLoading = requestVideoState[rowKey] === "loading";
