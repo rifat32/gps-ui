@@ -765,6 +765,24 @@ const deviceApi = {
       return { success: false, error: err.message };
     }
   },
+
+  /**
+   * Deletes video records for an AI event in database
+   */
+  deleteAiEventVideo: async (id, deviceId, serialNo) => {
+    try {
+      const res = await fetchWithAuth(`${BASE_URL}/api/ai-events/delete-video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, device_id: deviceId, serial_no: serialNo }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Failed to delete AI event video:", err);
+      return { success: false, error: err.message };
+    }
+  },
 };
 
 export default deviceApi;

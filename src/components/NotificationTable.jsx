@@ -1,4 +1,4 @@
-import { Image, PlaySquare, Copy, Check, ExternalLink, Video, Loader2 } from "lucide-react";
+import { Image, PlaySquare, Copy, Check, ExternalLink, Video, Loader2, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import deviceApi from "../services/deviceApi";
 
@@ -48,6 +48,7 @@ export default function NotificationTable({
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [requestVideoState, setRequestVideoState] = useState({}); // { [serial_no]: 'loading' | 'requested' | 'error' }
+  const [deleteVideoState, setDeleteVideoState] = useState({}); // { [rowKey]: 'deleting' | 'deleted' | 'error' }
 
   const handleManualRequestVideo = async (alertItem) => {
     const deviceId = alertItem.device_id || alertItem.deviceId;
@@ -85,6 +86,35 @@ export default function NotificationTable({
     } catch (err) {
       console.error("Error requesting video clip:", err);
       setRequestVideoState((prev) => ({ ...prev, [rowKey]: "error" }));
+    }
+  };
+
+  const handleDeleteVideo = async (alertItem) => {
+    const rowKey = alertItem.id ? String(alertItem.id) : (alertItem.serial_no ? String(alertItem.serial_no) : String(alertItem.time || Date.now()));
+    const deviceId = alertItem.device_id || alertItem.deviceId;
+    const serialNo = alertItem.serial_no || alertItem.serialNo || alertItem.alarm_serial || alertItem.alarmSerial || alertItem.hex_id;
+
+    setDeleteVideoState((prev) => ({ ...prev, [rowKey]: "deleting" }));
+    try {
+      const res = await deviceApi.deleteAiEventVideo(alertItem.id || alertItem.dedupe_key, deviceId, serialNo);
+      if (res && res.success) {
+        setDeleteVideoState((prev) => ({ ...prev, [rowKey]: "deleted" }));
+        alertItem.video_path = null;
+        alertItem.video_path_back = null;
+        alertItem.video_url = null;
+        alertItem.video_url_back = null;
+        if (Array.isArray(alertItem.media_files)) {
+          alertItem.media_files = alertItem.media_files.filter(
+            (m) => m.media_type !== "video" && !["video_path", "video_path_back"].includes(m.column)
+          );
+        }
+      } else {
+        console.error("Failed to delete video:", res?.error);
+        setDeleteVideoState((prev) => ({ ...prev, [rowKey]: "error" }));
+      }
+    } catch (err) {
+      console.error("Error deleting video:", err);
+      setDeleteVideoState((prev) => ({ ...prev, [rowKey]: "error" }));
     }
   };
 
@@ -464,6 +494,7 @@ export default function NotificationTable({
               <th style={thStyle}>Speed</th>
               <th style={thStyle}>Media View</th>
               <th style={thStyle}>Copy Links</th>
+              <th style={thStyle}>Delete Video</th>
             </tr>
           </thead>
           <tbody>
@@ -554,6 +585,10 @@ export default function NotificationTable({
                 const videoPath = frontVideos[0]?.url || null;
                 const filePathBack = cabinImages[0]?.url || null;
                 const videoPathBack = cabinVideos[0]?.url || null;
+
+                const rowKey = alert.id ? String(alert.id) : (alert.serial_no ? String(alert.serial_no) : String(alert.time || ""));
+                const isVideoDeleted = deleteVideoState[rowKey] === "deleted";
+                const hasVideo = !isVideoDeleted && (frontVideos.length > 0 || cabinVideos.length > 0 || !!alert.video_path || !!alert.video_path_back || !!alert.video_url || !!alert.video_url_back);
 
                 return (
                   <tr
@@ -664,8 +699,7 @@ export default function NotificationTable({
                           >
                             Video Disabled
                           </span>
-                          {!(frontVideos.length > 0 || cabinVideos.length > 0 || !!alert.video_path || !!alert.video_path_back || !!alert.video_url || !!alert.video_url_back) && (() => {
-                            const rowKey = alert.id ? String(alert.id) : (alert.serial_no ? String(alert.serial_no) : String(alert.time || ""));
+                          {!hasVideo && (() => {
                             const itemDeviceIdKey = alert.device_id || alert.deviceId;
                             const isReqLoading = requestVideoState[rowKey] === "loading";
                             const isRequested = requestVideoState[rowKey] === "requested";
@@ -985,13 +1019,50 @@ export default function NotificationTable({
                           )}
                       </div>
                     </td>
+                    <td style={tdStyle}>
+                      {hasVideo ? (
+                        <button
+                          onClick={() => handleDeleteVideo(alert)}
+                          disabled={deleteVideoState[rowKey] === "deleting"}
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: "700",
+                            padding: "4px 8px",
+                            borderRadius: "5px",
+                            background: "rgba(239, 68, 68, 0.15)",
+                            color: "#ef4444",
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                            cursor: deleteVideoState[rowKey] === "deleting" ? "not-allowed" : "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            whiteSpace: "nowrap",
+                          }}
+                          title="Delete video record from database so it can be re-requested"
+                        >
+                          {deleteVideoState[rowKey] === "deleting" ? (
+                            <>
+                              <Loader2 size={10} className="animate-spin" />
+                              <span>Deleting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 size={10} />
+                              <span>Delete Video</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: "11px", color: "#475569" }}>—</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
                 <td
-                  colSpan="5"
+                  colSpan="9"
                   style={{
                     padding: "40px",
                     textAlign: "center",
