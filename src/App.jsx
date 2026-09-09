@@ -120,6 +120,7 @@ function App() {
               path="/logs"
               element={<Logs theme={theme} toggleTheme={toggleTheme} />}
             />
+
             <Route
               path="/devices"
               element={<DeviceManagement theme={theme} toggleTheme={toggleTheme} />}

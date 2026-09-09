@@ -419,6 +419,7 @@ export default function NotificationTable({
               <th style={thStyle}>Time</th>
               <th style={thStyle}>Alert Type</th>
               <th style={thStyle}>Intelligence Event</th>
+              <th style={thStyle}>Setting Video</th>
               <th style={thStyle}>Speed</th>
               <th style={thStyle}>Media View</th>
               <th style={thStyle}>Copy Links</th>
@@ -589,6 +590,39 @@ export default function NotificationTable({
                           Code: {alert.event_code}
                         </div>
                       </div>
+                    </td>
+                    <td style={tdStyle}>
+                      {(alert.request_video ?? alert.video_enabled ?? true) ? (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: "700",
+                            padding: "3px 8px",
+                            borderRadius: "5px",
+                            background: "rgba(34, 197, 94, 0.15)",
+                            color: "#22c55e",
+                            border: "1px solid rgba(34, 197, 94, 0.3)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Video Enabled
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: "700",
+                            padding: "3px 8px",
+                            borderRadius: "5px",
+                            background: "rgba(148, 163, 184, 0.15)",
+                            color: "#94a3b8",
+                            border: "1px solid rgba(148, 163, 184, 0.3)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Video Disabled
+                        </span>
+                      )}
                     </td>
                     <td style={tdStyle}>
                       <div style={{ color: "var(--text-secondary)" }}>

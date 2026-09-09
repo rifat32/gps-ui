@@ -19,6 +19,7 @@ import {
   MonitorSmartphone,
   Command,
   CloudUpload,
+  Zap,
 } from "lucide-react";
 
 import { Link, useLocation } from "react-router-dom";

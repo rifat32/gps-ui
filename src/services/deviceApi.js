@@ -715,6 +715,39 @@ const deviceApi = {
       return { success: false, error: err.message };
     }
   },
+
+  /**
+   * Fetches full AI Event configuration list (including request_video status)
+   */
+  getAiEventConfigs: async () => {
+    try {
+      const res = await fetchWithAuth(`${BASE_URL}/api/ai-event-config`);
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Failed to get AI event config:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  /**
+   * Updates AI Event configuration list (request_video toggles)
+   */
+  updateAiEventConfigs: async (events) => {
+    try {
+      const res = await fetchWithAuth(`${BASE_URL}/api/ai-event-config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ events }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Failed to update AI event config:", err);
+      return { success: false, error: err.message };
+    }
+  },
 };
 
 export default deviceApi;
+

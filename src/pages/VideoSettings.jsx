@@ -155,6 +155,54 @@ export default function VideoSettings({ theme }) {
         setTimeout(() => setNotification(null), 5000);
     };
 
+    const [aiEventConfigs, setAiEventConfigs] = useState([]);
+    const [aiConfigLoading, setAiConfigLoading] = useState(false);
+    const [aiConfigSaving, setAiConfigSaving] = useState(false);
+
+    const fetchAiEventConfigs = async () => {
+        setAiConfigLoading(true);
+        try {
+            const res = await deviceApi.getAiEventConfigs();
+            if (res.success && Array.isArray(res.data)) {
+                setAiEventConfigs(res.data);
+            }
+        } catch (e) {
+            console.error("Error fetching AI event configs:", e);
+        } finally {
+            setAiConfigLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAiEventConfigs();
+    }, []);
+
+    const handleToggleVideoRequest = (eventCode) => {
+        setAiEventConfigs(prev =>
+            prev.map(item =>
+                item.event_code === eventCode
+                    ? { ...item, request_video: !item.request_video }
+                    : item
+            )
+        );
+    };
+
+    const handleSaveAiConfig = async () => {
+        setAiConfigSaving(true);
+        try {
+            const res = await deviceApi.updateAiEventConfigs(aiEventConfigs);
+            if (res.success) {
+                showNotification('AI Alert Video Configuration saved successfully!', 'success');
+            } else {
+                showNotification(res.error || 'Failed to save AI configuration', 'error');
+            }
+        } catch (err) {
+            showNotification(err.message, 'error');
+        } finally {
+            setAiConfigSaving(false);
+        }
+    };
+
     const fetchDevices = async () => {
         try {
             const res = await deviceApi.checkStatus();
@@ -461,6 +509,7 @@ export default function VideoSettings({ theme }) {
         { id: 'Recording', icon: Video },
         { id: 'Alarms', icon: Shield },
         { id: 'AI Safety', icon: Cpu },
+        { id: 'AI Alert Video Settings', icon: Video },
         { id: 'System', icon: Settings }
     ];
 
@@ -1072,6 +1121,75 @@ export default function VideoSettings({ theme }) {
                                     </>
                                 )}
                             </div>
+                        ) : activeTab === 'AI Alert Video Settings' ? (
+                            <div className="tab-content-area" style={{ width: '100%' }}>
+                                <GlassCard
+                                    title="AI Alert Video Request Settings"
+                                    icon={Video}
+                                    badge={{ type: 'info', text: 'Global System Config' }}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
+                                        <p style={{ margin: 0, fontSize: '13px', opacity: 0.8, color: 'var(--text-secondary)' }}>
+                                            Configure whether the backend automatically requests video clips for each AI alert type when triggered by hardware terminals.
+                                        </p>
+                                        <button
+                                            onClick={handleSaveAiConfig}
+                                            disabled={aiConfigSaving}
+                                            className="tool-btn"
+                                            style={{
+                                                background: '#22c55e',
+                                                color: '#ffffff',
+                                                padding: '8px 18px',
+                                                borderRadius: '8px',
+                                                fontWeight: '700',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                border: 'none',
+                                                cursor: aiConfigSaving ? 'not-allowed' : 'pointer',
+                                            }}
+                                        >
+                                            <Save size={16} />
+                                            <span>{aiConfigSaving ? 'Saving...' : 'Save Configuration'}</span>
+                                        </button>
+                                    </div>
+
+                                    {aiConfigLoading ? (
+                                        <div style={{ padding: '20px', textAlign: 'center', opacity: 0.7 }}>
+                                            Loading AI event configurations...
+                                        </div>
+                                    ) : (
+                                        ['ADAS', 'DSM', 'BSD', 'BEHAVIOR', 'HARDWARE', 'SPEED_GPS'].map(cat => {
+                                            const groupEvents = aiEventConfigs.filter(item => (item.category || 'OTHER').toUpperCase() === cat);
+                                            if (groupEvents.length === 0) return null;
+                                            return (
+                                                <div key={cat} style={{ marginBottom: '24px' }}>
+                                                    <h4 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#60a5fa', marginBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px' }}>
+                                                        {cat} Events ({groupEvents.length})
+                                                    </h4>
+                                                    {groupEvents.map(evt => (
+                                                        <ControlRow
+                                                            key={evt.event_code}
+                                                            label={`${evt.friendly_name || evt.event_code} (${evt.event_code})`}
+                                                            description={evt.description}
+                                                        >
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                <span style={{ fontSize: '11px', fontWeight: '700', color: evt.request_video ? '#22c55e' : '#94a3b8' }}>
+                                                                    {evt.request_video ? 'Request Video' : 'No Video'}
+                                                                </span>
+                                                                <Toggle
+                                                                    value={evt.request_video !== false}
+                                                                    onChange={() => handleToggleVideoRequest(evt.event_code)}
+                                                                />
+                                                            </div>
+                                                        </ControlRow>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </GlassCard>
+                            </div>
                         ) : (
                             <div className="empty-state">
                                 <div className="empty-icon-wrapper">
@@ -1083,8 +1201,6 @@ export default function VideoSettings({ theme }) {
                         )}
                     </div>
                 </div>
-            </main>
-
             {/* Reconciliation Toolbar */}
             {selectedDevice && currentTab.mode !== 'extract_only' && (
                 <div className="reconcile-toolbar glass-footer animate-slide-up">
