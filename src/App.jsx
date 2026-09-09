@@ -7,6 +7,7 @@ const AiDashcam = lazy(() => import("./pages/Dashcam"));
 const Playback = lazy(() => import("./pages/Playback"));
 const SavedVideos = lazy(() => import("./pages/SavedVideos"));
 const VideoSettings = lazy(() => import("./pages/VideoSettings"));
+const AiVideoSettings = lazy(() => import("./pages/AiVideoSettings"));
 const Layout = lazy(() => import("./components/Layout"));
 const AiNotifications = lazy(() => import("./pages/AiNotifications"));
 const SystemAlertsLog = lazy(() => import("./pages/SystemAlertsLog"));
@@ -115,6 +116,10 @@ function App() {
             <Route
               path="/video-settings"
               element={<VideoSettings theme={theme} toggleTheme={toggleTheme} />}
+            />
+            <Route
+              path="/ai-video-settings"
+              element={<AiVideoSettings theme={theme} toggleTheme={toggleTheme} />}
             />
             <Route
               path="/logs"

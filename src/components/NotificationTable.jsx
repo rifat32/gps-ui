@@ -1,5 +1,6 @@
-import { Image, PlaySquare, Copy, Check, ExternalLink } from "lucide-react";
+import { Image, PlaySquare, Copy, Check, ExternalLink, Video, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import deviceApi from "../services/deviceApi";
 
 const BASE_URL =
   import.meta.env.VITE_DASHCAM_API_URL ||
@@ -46,6 +47,46 @@ export default function NotificationTable({
 }) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [requestVideoState, setRequestVideoState] = useState({}); // { [serial_no]: 'loading' | 'requested' | 'error' }
+
+  const handleManualRequestVideo = async (alertItem) => {
+    const deviceId = alertItem.device_id || alertItem.deviceId;
+    if (!deviceId) {
+      console.warn("Missing deviceId for manual video request:", alertItem);
+      return;
+    }
+
+    const rowKey = alertItem.id ? String(alertItem.id) : (alertItem.serial_no ? String(alertItem.serial_no) : String(alertItem.time || Date.now()));
+    let rawSerial = alertItem.serial_no || alertItem.serialNo || alertItem.alarm_serial || alertItem.alarmSerial || alertItem.hex_id || alertItem.dedupe_key || alertItem.id || Date.now();
+    let serialHex = String(rawSerial).replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+    if (serialHex.length < 32) {
+      serialHex = serialHex.padStart(32, "0");
+    } else if (serialHex.length > 32) {
+      serialHex = serialHex.substring(0, 32);
+    }
+
+    setRequestVideoState((prev) => ({ ...prev, [rowKey]: "loading" }));
+    try {
+      const res = await deviceApi.requestAiEventVideo(deviceId, serialHex);
+      if (res && res.success) {
+        setRequestVideoState((prev) => ({ ...prev, [rowKey]: "requested" }));
+        // Auto reset back to default button after 10 seconds
+        setTimeout(() => {
+          setRequestVideoState((prev) => {
+            const next = { ...prev };
+            delete next[rowKey];
+            return next;
+          });
+        }, 10000);
+      } else {
+        console.error("Failed to request video clip:", res?.error);
+        setRequestVideoState((prev) => ({ ...prev, [rowKey]: "error" }));
+      }
+    } catch (err) {
+      console.error("Error requesting video clip:", err);
+      setRequestVideoState((prev) => ({ ...prev, [rowKey]: "error" }));
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -592,7 +633,7 @@ export default function NotificationTable({
                       </div>
                     </td>
                     <td style={tdStyle}>
-                      {(alert.request_video ?? alert.video_enabled ?? true) ? (
+                      {(alert.request_video === true || alert.video_enabled === true) ? (
                         <span
                           style={{
                             fontSize: "10px",
@@ -608,20 +649,69 @@ export default function NotificationTable({
                           Video Enabled
                         </span>
                       ) : (
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            fontWeight: "700",
-                            padding: "3px 8px",
-                            borderRadius: "5px",
-                            background: "rgba(148, 163, 184, 0.15)",
-                            color: "#94a3b8",
-                            border: "1px solid rgba(148, 163, 184, 0.3)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          Video Disabled
-                        </span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "700",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              background: "rgba(148, 163, 184, 0.15)",
+                              color: "#94a3b8",
+                              border: "1px solid rgba(148, 163, 184, 0.3)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Video Disabled
+                          </span>
+                          {(() => {
+                            const rowKey = alert.id ? String(alert.id) : (alert.serial_no ? String(alert.serial_no) : String(alert.time || ""));
+                            const itemDeviceIdKey = alert.device_id || alert.deviceId;
+                            const isReqLoading = requestVideoState[rowKey] === "loading";
+                            const isRequested = requestVideoState[rowKey] === "requested";
+
+                            if (isRequested) {
+                              return (
+                                <span style={{ fontSize: "10px", color: "#22c55e", fontWeight: "700" }}>
+                                  ✓ Requested
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <button
+                                onClick={() => handleManualRequestVideo(alert)}
+                                disabled={isReqLoading || !itemDeviceIdKey}
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: "700",
+                                  padding: "4px 8px",
+                                  borderRadius: "5px",
+                                  background: "#3b82f6",
+                                  color: "#ffffff",
+                                  border: "none",
+                                  cursor: isReqLoading || !itemDeviceIdKey ? "not-allowed" : "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {isReqLoading ? (
+                                  <>
+                                    <Loader2 size={10} className="animate-spin" />
+                                    <span>Requesting...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Video size={10} />
+                                    <span>Request Video</span>
+                                  </>
+                                )}
+                              </button>
+                            );
+                          })()}
+                        </div>
                       )}
                     </td>
                     <td style={tdStyle}>

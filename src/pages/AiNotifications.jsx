@@ -302,6 +302,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           serial_no: event.hex_id || event.alarm_serial,
           speed: event.speed,
           event_code: event.code || event.event_code,
+          request_video: event.request_video ?? event.video_enabled ?? false,
+          video_enabled: event.request_video ?? event.video_enabled ?? false,
           file_path: event.file_path,
           video_path: event.video_path,
           file_path_back: event.file_path_back,

@@ -20,6 +20,7 @@ import {
   Command,
   CloudUpload,
   Zap,
+  Sliders,
 } from "lucide-react";
 
 import { Link, useLocation } from "react-router-dom";
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { path: "/j42-status", icon: LayoutDashboard, label: "J42 Status" },
   { path: "/saved-videos", icon: History, label: "Media Center" },
   { path: "/video-settings", icon: Settings, label: "Configuration" },
+  { path: "/ai-video-settings", icon: Sliders, label: "AI Video Settings" },
   { path: "/devices", icon: Cpu, label: "Device Management" },
   { path: "/logs", icon: FileText, label: "System Logs" },
   { path: "/media-logs", icon: FileText, label: "Media Logs" },

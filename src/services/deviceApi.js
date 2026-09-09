@@ -747,6 +747,24 @@ const deviceApi = {
       return { success: false, error: err.message };
     }
   },
+
+  /**
+   * Manually requests AI event video clip from device
+   */
+  requestAiEventVideo: async (deviceId, serialNo) => {
+    try {
+      const res = await fetchWithAuth(`${BASE_URL}/api/ai-events/request-video`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: deviceId, serial_no: serialNo }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Failed to request AI event video:", err);
+      return { success: false, error: err.message };
+    }
+  },
 };
 
 export default deviceApi;
