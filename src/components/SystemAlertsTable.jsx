@@ -88,6 +88,10 @@ export default function SystemAlertsTable({
   onDeviceIdFilterChange,
   eventTypeFilter,
   onEventTypeFilterChange,
+  startDateFilter,
+  onStartDateFilterChange,
+  endDateFilter,
+  onEndDateFilterChange,
   devicesList,
   onMarkAllAsRead,
 }) {
@@ -232,6 +236,47 @@ export default function SystemAlertsTable({
               <option value="POWER_RESTORED">Power Restore</option>
               <option value="DTC">Diagnostic Trouble Code</option>
             </select>
+          </div>
+
+          {/* Date Range Inputs */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>From:</span>
+            <input
+              type="date"
+              value={startDateFilter ? startDateFilter.split("T")[0] : ""}
+              onChange={(e) => onStartDateFilterChange && onStartDateFilterChange(e.target.value)}
+              style={{
+                padding: "5px 8px",
+                borderRadius: "6px",
+                background: "rgba(15, 23, 42, 0.45)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: "600",
+                outline: "none",
+                colorScheme: "dark",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>To:</span>
+            <input
+              type="date"
+              value={endDateFilter ? endDateFilter.split("T")[0] : ""}
+              onChange={(e) => onEndDateFilterChange && onEndDateFilterChange(e.target.value)}
+              style={{
+                padding: "5px 8px",
+                borderRadius: "6px",
+                background: "rgba(15, 23, 42, 0.45)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: "600",
+                outline: "none",
+                colorScheme: "dark",
+              }}
+            />
           </div>
 
           {/* Status Filters */}
