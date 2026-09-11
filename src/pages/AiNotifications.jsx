@@ -208,8 +208,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           video_url: event.video_url,
           image_url_back: event.image_url_back,
           video_url_back: event.video_url_back,
-          request_video: event.request_video ?? true,
-          video_enabled: event.video_enabled ?? true,
+          request_video: event.request_video ?? event.video_enabled,
+          video_enabled: event.video_enabled ?? event.request_video,
           media_files: event.media_files,
         };
       });
@@ -327,8 +327,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           serial_no: event.hex_id || event.alarm_serial,
           speed: event.speed,
           event_code: event.code || event.event_code,
-          request_video: event.request_video ?? event.video_enabled ?? true,
-          video_enabled: event.request_video ?? event.video_enabled ?? true,
+          request_video: event.request_video ?? event.video_enabled,
+          video_enabled: event.video_enabled ?? event.request_video,
           file_path: event.file_path,
           video_path: event.video_path,
           file_path_back: event.file_path_back,
