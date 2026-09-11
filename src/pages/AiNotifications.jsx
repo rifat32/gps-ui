@@ -208,6 +208,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
           video_url: event.video_url,
           image_url_back: event.image_url_back,
           video_url_back: event.video_url_back,
+          request_video: event.request_video ?? true,
+          video_enabled: event.video_enabled ?? true,
           media_files: event.media_files,
         };
       });
