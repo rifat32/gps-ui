@@ -24,7 +24,32 @@ export default function MediaViewer({ media, onClose }) {
       Array.isArray(media.mediaList) &&
       media.mediaList.length > 0
     ) {
-      return media.mediaList;
+      return media.mediaList.map((item) => {
+        const colStr = item.column || "";
+        const pathStr = item.path || item.url || "";
+        const fileStr = (item.file_name || pathStr.split("/").pop() || "").toLowerCase();
+        const isBack =
+          colStr.includes("back") ||
+          fileStr.includes("ch2") ||
+          fileStr.includes("cabin") ||
+          fileStr.startsWith("03_") ||
+          fileStr.includes("_04_") ||
+          fileStr.includes("_04.") ||
+          item.channel === 2 ||
+          item.channel === "2";
+        const isVid =
+          colStr.includes("video") ||
+          fileStr.startsWith("02_") ||
+          fileStr.endsWith(".mp4") ||
+          fileStr.endsWith(".avi") ||
+          item.media_type === "video";
+
+        return {
+          ...item,
+          channel: isBack ? 2 : item.channel ? Number(item.channel) : 1,
+          media_type: isVid ? "video" : item.media_type || "image",
+        };
+      });
     }
     // Fallback if single media passed without list
     const cleanUrl = media.url.split("?")[0];

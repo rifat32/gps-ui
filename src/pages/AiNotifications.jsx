@@ -93,6 +93,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const [selectedMedia, setSelectedMedia] = useState(null); // For viewing image/video
   const [filterDeviceId, setFilterDeviceId] = useState(""); // For filtering the table
   const [activeCategory, setActiveCategory] = useState(""); // Category tabs filter
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
     perPage: 20,
@@ -132,6 +134,8 @@ export default function AiNotifications({ theme, toggleTheme }) {
   const paginationRef = useRef(pagination);
   const filterDeviceIdRef = useRef(filterDeviceId);
   const activeCategoryRef = useRef(activeCategory);
+  const startDateRef = useRef(startDate);
+  const endDateRef = useRef(endDate);
 
   const systemStatusFilterRef = useRef(systemStatusFilter);
   const systemPaginationRef = useRef(systemPagination);
@@ -150,6 +154,14 @@ export default function AiNotifications({ theme, toggleTheme }) {
   }, [activeCategory]);
 
   useEffect(() => {
+    startDateRef.current = startDate;
+  }, [startDate]);
+
+  useEffect(() => {
+    endDateRef.current = endDate;
+  }, [endDate]);
+
+  useEffect(() => {
     systemStatusFilterRef.current = systemStatusFilter;
   }, [systemStatusFilter]);
 
@@ -158,12 +170,20 @@ export default function AiNotifications({ theme, toggleTheme }) {
   }, [systemPagination]);
 
   // Fetch AI events with pagination and filter
-  const fetchAlerts = async (page = 1, deviceId = filterDeviceId, category = activeCategory) => {
+  const fetchAlerts = async (
+    page = 1,
+    deviceId = filterDeviceId,
+    category = activeCategory,
+    sDate = startDate,
+    eDate = endDate
+  ) => {
     setIsTableLoading(true);
     try {
       const params = { page, perPage: 20, device_type: "AI_DASHCAM" };
       if (deviceId) params.deviceId = deviceId;
       if (category) params.category = category;
+      if (sDate) params.startTime = sDate;
+      if (eDate) params.endTime = eDate;
       const data = await deviceApi.getAiEvents(params);
       const formatted = (data.events || []).map((event) => {
         const timeStr = formatDeviceDateTime(event.event_time);
@@ -689,7 +709,14 @@ export default function AiNotifications({ theme, toggleTheme }) {
                 activeCategory={activeCategory}
                 onCategoryChange={(cat) => {
                   setActiveCategory(cat);
-                  fetchAlerts(1, filterDeviceId, cat);
+                  fetchAlerts(1, filterDeviceId, cat, startDate, endDate);
+                }}
+                startDate={startDate}
+                endDate={endDate}
+                onDateChange={(sDate, eDate) => {
+                  setStartDate(sDate);
+                  setEndDate(eDate);
+                  fetchAlerts(1, filterDeviceId, activeCategory, sDate, eDate);
                 }}
                 isLoading={isTableLoading}
               />

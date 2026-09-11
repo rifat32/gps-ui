@@ -43,6 +43,9 @@ export default function NotificationTable({
   onDeviceChange,
   activeCategory = "",
   onCategoryChange,
+  startDate = "",
+  endDate = "",
+  onDateChange,
   isLoading = false,
 }) {
   const [copiedType, setCopiedType] = useState(null); // { id: 123, type: 'image' | 'video' }
@@ -277,6 +280,66 @@ export default function NotificationTable({
               );
             })}
           </select>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flexWrap: "wrap",
+            }}
+          >
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => onDateChange && onDateChange(e.target.value, endDate)}
+              style={{
+                padding: "7px 10px",
+                borderRadius: "8px",
+                background: "var(--card-bg)",
+                border: "1px solid var(--surface-border)",
+                color: "var(--text-primary)",
+                fontSize: "12px",
+                fontWeight: "600",
+                outline: "none",
+              }}
+              title="Start Date"
+            />
+            <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "600" }}>to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => onDateChange && onDateChange(startDate, e.target.value)}
+              style={{
+                padding: "7px 10px",
+                borderRadius: "8px",
+                background: "var(--card-bg)",
+                border: "1px solid var(--surface-border)",
+                color: "var(--text-primary)",
+                fontSize: "12px",
+                fontWeight: "600",
+                outline: "none",
+              }}
+              title="End Date"
+            />
+            {(startDate || endDate) && (
+              <button
+                onClick={() => onDateChange && onDateChange("", "")}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: "6px",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  color: "#ef4444",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                }}
+              >
+                Clear Date
+              </button>
+            )}
+          </div>
 
           {/* Category Tabs / Dropdown for Mobile */}
           {isMobile ? (
@@ -519,9 +582,31 @@ export default function NotificationTable({
                       else if (item.column === "file_path_back") s3Url = alert.image_url_back;
                       else if (item.column === "video_path_back") s3Url = alert.video_url_back;
                     }
+
+                    const colStr = item.column || "";
+                    const pathStr = item.path || "";
+                    const fileStr = (item.file_name || pathStr.split("/").pop() || "").toLowerCase();
+                    const isBack =
+                      colStr.includes("back") ||
+                      fileStr.includes("ch2") ||
+                      fileStr.includes("cabin") ||
+                      fileStr.startsWith("03_") ||
+                      fileStr.includes("_04_") ||
+                      fileStr.includes("_04.") ||
+                      item.channel === 2 ||
+                      item.channel === "2";
+                    const isVid =
+                      colStr.includes("video") ||
+                      fileStr.startsWith("02_") ||
+                      fileStr.endsWith(".mp4") ||
+                      fileStr.endsWith(".avi") ||
+                      item.media_type === "video";
+
                     return {
                       ...item,
                       url: s3Url,
+                      channel: isBack ? 2 : (item.channel ? Number(item.channel) : 1),
+                      media_type: isVid ? "video" : (item.media_type || "image"),
                     };
                   });
                 })();
@@ -530,17 +615,19 @@ export default function NotificationTable({
                 const addIfMissing = (path, col, channel, type) => {
                   if (
                     path &&
-                    !normalizedMediaList.some((m) => m.path === path)
+                    !normalizedMediaList.some((m) => m.path === path || m.url === path)
                   ) {
-                    let s3Url = null;
-                    if (col === "file_path") s3Url = alert.image_url;
-                    else if (col === "video_path") s3Url = alert.video_url;
-                    else if (col === "file_path_back") s3Url = alert.image_url_back;
-                    else if (col === "video_path_back") s3Url = alert.video_url_back;
+                    let s3Url = path.startsWith("http") ? path : null;
+                    if (!s3Url) {
+                      if (col === "file_path") s3Url = alert.image_url || alert.file_path;
+                      else if (col === "video_path") s3Url = alert.video_url || alert.video_path;
+                      else if (col === "file_path_back") s3Url = alert.image_url_back || alert.file_path_back;
+                      else if (col === "video_path_back") s3Url = alert.video_url_back || alert.video_path_back;
+                    }
 
                     normalizedMediaList.push({
                       path,
-                      url: s3Url,
+                      url: s3Url || path,
                       column: col,
                       channel,
                       media_type: type,
