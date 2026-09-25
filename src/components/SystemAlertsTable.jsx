@@ -82,6 +82,8 @@ export default function SystemAlertsTable({
   onStatusFilterChange,
   loading,
   
+  sourceFilter,
+  onSourceFilterChange,
   deviceTypeFilter,
   onDeviceTypeFilterChange,
   deviceIdFilter,
@@ -146,6 +148,29 @@ export default function SystemAlertsTable({
                 Total: {pagination?.total || alerts.length}
               </span>
             )}
+          </div>
+
+          {/* Source Filter (Policy Alerts vs Raw Device Alarms) */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase" }}>Source:</span>
+            <select
+              value={sourceFilter || "custom"}
+              onChange={(e) => onSourceFilterChange && onSourceFilterChange(e.target.value)}
+              style={{
+                padding: "6px 10px",
+                borderRadius: "6px",
+                background: "rgba(15, 23, 42, 0.45)",
+                border: "1px solid rgba(59, 130, 246, 0.3)",
+                color: "#38bdf8",
+                fontSize: "12px",
+                fontWeight: "700",
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="custom">Policy Alerts</option>
+              <option value="device">Raw Device Alarms</option>
+            </select>
           </div>
 
           {/* Device Type Filter */}

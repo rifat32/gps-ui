@@ -605,6 +605,9 @@ const deviceApi = {
     if (params.deviceType) {
       input.deviceType = params.deviceType;
     }
+    if (params.source) {
+      input.source = params.source;
+    }
 
     const data = await fetchGraphql(query, { alertEventQueryInput: input });
     return data.getAllAlertEvents;
