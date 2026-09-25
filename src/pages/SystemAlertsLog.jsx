@@ -118,6 +118,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
   const [systemDeviceType, setSystemDeviceType] = useState("AI_DASHCAM");
   const [systemDeviceId, setSystemDeviceId] = useState("");
   const [systemEventType, setSystemEventType] = useState("");
+  const [systemSourceFilter, setSystemSourceFilter] = useState("custom");
   const [systemStartDate, setSystemStartDate] = useState("");
   const [systemEndDate, setSystemEndDate] = useState("");
   const [allDevices, setAllDevices] = useState([]);
@@ -143,6 +144,7 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
   const systemDeviceTypeRef = useRef(systemDeviceType);
   const systemDeviceIdRef = useRef(systemDeviceId);
   const systemEventTypeRef = useRef(systemEventType);
+  const systemSourceFilterRef = useRef(systemSourceFilter);
   const systemStartDateRef = useRef(systemStartDate);
   const systemEndDateRef = useRef(systemEndDate);
 
@@ -744,40 +746,45 @@ export default function SystemAlertsLog({ theme, toggleTheme }) {
               <SystemAlertsTable
                 alerts={systemAlerts}
                 pagination={systemPagination}
-                onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType, systemStartDate, systemEndDate)}
+                onPageChange={(page) => fetchSystemAlerts(page, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType, systemStartDate, systemEndDate, systemSourceFilter)}
                 onMarkAsRead={handleMarkAsRead}
                 onResolve={handleResolve}
                 statusFilter={systemStatusFilter}
                 onStatusFilterChange={(status) => {
                   setSystemStatusFilter(status);
-                  fetchSystemAlerts(1, status, systemDeviceType, systemDeviceId, systemEventType, systemStartDate, systemEndDate);
+                  fetchSystemAlerts(1, status, systemDeviceType, systemDeviceId, systemEventType, systemStartDate, systemEndDate, systemSourceFilter);
                 }}
                 loading={systemLoading}
+                sourceFilter={systemSourceFilter}
+                onSourceFilterChange={(src) => {
+                  setSystemSourceFilter(src);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType, systemStartDate, systemEndDate, src);
+                }}
                 deviceTypeFilter={systemDeviceType}
                 onDeviceTypeFilterChange={(type) => {
                   setSystemDeviceType(type);
                   setSystemDeviceId("");
-                  fetchSystemAlerts(1, systemStatusFilter, type, "", systemEventType, systemStartDate, systemEndDate);
+                  fetchSystemAlerts(1, systemStatusFilter, type, "", systemEventType, systemStartDate, systemEndDate, systemSourceFilter);
                 }}
                 deviceIdFilter={systemDeviceId}
                 onDeviceIdFilterChange={(id) => {
                   setSystemDeviceId(id);
-                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, id, systemEventType, systemStartDate, systemEndDate);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, id, systemEventType, systemStartDate, systemEndDate, systemSourceFilter);
                 }}
                 eventTypeFilter={systemEventType}
                 onEventTypeFilterChange={(type) => {
                   setSystemEventType(type);
-                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, type, systemStartDate, systemEndDate);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, type, systemStartDate, systemEndDate, systemSourceFilter);
                 }}
                 startDateFilter={systemStartDate}
                 onStartDateFilterChange={(start) => {
                   setSystemStartDate(start);
-                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType, start, systemEndDate);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType, start, systemEndDate, systemSourceFilter);
                 }}
                 endDateFilter={systemEndDate}
                 onEndDateFilterChange={(end) => {
                   setSystemEndDate(end);
-                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType, systemStartDate, end);
+                  fetchSystemAlerts(1, systemStatusFilter, systemDeviceType, systemDeviceId, systemEventType, systemStartDate, end, systemSourceFilter);
                 }}
                 devicesList={allDevices}
                 onMarkAllAsRead={handleMarkAllAsRead}
